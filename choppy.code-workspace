@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"terminal.integrated.env.osx": {
+			"PYTHONDONTWRITEBYTECODE": "true"
+		},
+		"files.exclude": {
+			"**/.env": true
+		},
+		"python.pythonPath": ".env/bin/python"
+	}
+}
