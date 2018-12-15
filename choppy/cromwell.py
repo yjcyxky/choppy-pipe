@@ -1,16 +1,17 @@
-__author__ = 'paulcao, amr'
 import logging
 import json
 import requests
 import datetime
 import getpass
-from requests.utils import quote
 import urllib
 import os
 import re
-from single_bucket import print_log_exit
-from ratelimit import rate_limited
+import sys
 import config as c
+
+from requests.utils import quote
+from ratelimit import rate_limited
+
 module_logger = logging.getLogger('choppy.Cromwell')
 ONE_MINUTE = 60
 
@@ -24,30 +25,28 @@ class Cromwell:
         {"VesperWorkflow.project_name":"Vesper_Anid_test"}
     """
 
-    def __init__(self, host='btl-cromwell', port=9000):
+    def __init__(self, host='localhost', port=8000):
         self.host = host
         if self.host == 'localhost':
             self.port = c.local_port
-        elif self.host == c.cloud_server or self.host == c.gscid_cloud_server:
-            self.port = c.cloud_port
         else:
             self.port = port
         self.url = 'http://' + host + ':' + str(self.port) + '/api/workflows/v1'
         self.url2 = 'http://' + host + ':' + str(self.port) + '/api/workflows/v2'
         self.logger = logging.getLogger('choppy.cromwell.Cromwell')
         self.logger.info('URL:{}'.format(self.url))
-        if host in c.bi_hosts:
-            v_url = "http://{}.broadinstitute.org:{}/api/engine/v1/version".format(host, str(self.port))
-        else:
-            v_url = "http://{}:{}/engine/v1/version".format(host, str(self.port))
+
+        v_url = "http://{}:{}/engine/v1/version".format(host, str(self.port))
+
         try:
             self.long_version = json\
                 .loads(requests
                        .get(v_url)
                        .content)['cromwell']
         except requests.ConnectionError as e:
-            msg = "Unable to connect to self.host:\n{}".format(str(e))
+            msg = "Unable to connect to {}:{}:\n{}".format(self.host, self.port, str(e))
             print_log_exit(msg)
+
         self.short_version = int(self.long_version.split('-')[0])
         self.cached_metadata = {}
 
@@ -222,7 +221,7 @@ class Cromwell:
         return json.loads(r.text)
 
     def jstart_workflow(self, wdl_file, json_file, dependencies=None, wdl_string=False, disable_caching=False,
-                        extra_options=None, custom_labels={}, v2=False, bucket=None):
+                        extra_options=None, custom_labels={}, v2=False):
         """
         Start a workflow using json file for argument inputs.
         :param wdl_file: Workflow description file or WDL string (specify wdl_string if so).
@@ -243,31 +242,7 @@ class Cromwell:
         else:
             args = json.loads(json_file)
             #j_args = json_file
-        if c.cloud_server in self.host or c.gscid_cloud_server in self.host:
-            for k, v in args.iteritems():
-                try:
-                    from .single_bucket import make_gs_url
-                    if isinstance(v, list):
-                        new_elements = list()
-                        for element in v:
-                            if c.gspathable(element) and "gs://" not in element and os.path.exists(element):
-                                new_elements.append(make_gs_url(element, bucket))
-                            else:
-                                new_elements.append(element)
-                        args[k] = new_elements
-                    elif isinstance(v, dict):
-                        for potential_file_key, potential_file in v.iteritems():
-                            if os.path.exists(potential_file):
-                                v[potential_file_key] = make_gs_url(potential_file, bucket) if c.gspathable(k) else potential_file
-                    elif os.path.exists(v):
-                        from .single_bucket import make_gs_url
-                        args[k] = make_gs_url(v, bucket) if c.gspathable(k) else v
-                    if 'fofn' in k and 'gs://' not in v:
-                        args[k] = '{}.cloud'.format(args[k])
-                        #pass commenting this out; as fofn doesn't add .cloud in upload;args[k] = '{}.cloud'.format(args[k])
 
-                except TypeError as e:
-                    self.logger.warn('Can\'t evaluate {} as path: {}'.format(v, str(e)))
         #j_args needs to be a string at this point
         j_args = json.dumps(args)
 
@@ -456,3 +431,16 @@ class Cromwell:
 
     def query_backend(self):
         return self.get('backends')
+
+
+def print_log_exit(msg, sys_exit=True, ple_logger=module_logger):
+    """
+    Function for standard print/log/exit routine for fatal errors.
+    :param msg: error message to print/log.
+    :param sys_exit: Cause choppy to exit.
+    :param ple_logger: Logger to use when logging message.
+    :return:
+    """
+    ple_logger.critical(msg)
+    if sys_exit:
+        sys.exit(1)

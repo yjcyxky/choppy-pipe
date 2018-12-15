@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-"""
-Choppy is a tool for submitting workflows via command-line to the cromwell execution engine servers. For more
-info, visit https://github.com/broadinstitute/choppy/blob/master/README.md.
-"""
 import argparse
 import sys
 import os
@@ -17,35 +12,36 @@ import time
 import pytz
 import datetime
 from . import config as c
-from .utils import parse_samples, render_app, write, kv_list_to_dict, submit, install_app
-from .single_bucket import print_log_exit
-from .cromwell import Cromwell
+from .utils import (parse_samples, render_app, write, kv_list_to_dict, submit_workflow, \
+                    install_app, uninstall_app, check_identifier)
+from .cromwell import Cromwell, print_log_exit
 from .monitor import Monitor
 from .validator import Validator
-from .single_bucket import SingleBucket
 
-__author__ = "Amr Abouelleil, Paul Cao"
-__copyright__ = "Copyright 2017, The Broad Institute"
-__credits__ = ["Amr Abouelleil", "Paul Cao", "Jean Chang"]
+__author__ = "Jingcheng Yang"
+__copyright__ = "Copyright 2018, The Genius Medicine Consortium."
+__credits__ = ["Jun Shang", "Yechao Huang"]
 __license__ = "GPL"
-__version__ = "1.7.0"
-__maintainer__ = "Amr Abouelleil, Paul Cao"
-__email__ = "amr@broadinstitute.org"
+__version__ = "0.1.0"
+__maintainer__ = "Jingcheng Yang"
+__email__ = "yjcyxky@163.com"
 __status__ = "Production"
 
 # Logging setup
 logger = logging.getLogger('choppy')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(c.log_level)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 # create file handler which logs even debug messages
 logfile = os.path.join(c.log_dir, '{}.{}.choppy.log'.format(getpass.getuser(), str(time.strftime("%m.%d.%Y"))))
 fh = logging.FileHandler(logfile)
-fh.setLevel(logging.DEBUG)
+fh.setLevel(c.log_level)
+fh.setFormatter(formatter)
+
 # create console handler with a higher log level
 ch = logging.StreamHandler()
 ch.setLevel(logging.ERROR)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
 ch.setFormatter(formatter)
+
 # add the handlers to the logger
 logger.addHandler(fh)
 logger.addHandler(ch)
@@ -85,11 +81,11 @@ def is_valid_zip(path):
         return path
 
 
-def call_run(args):
+def call_submit(args):
     """
     Optionally validates inputs and starts a workflow on the Cromwell execution engine if validation passes. Validator
     returns an empty list if valid, otherwise, a list of errors discovered.
-    :param args: run subparser arguments.
+    :param args: submit subparser arguments.
     :return: JSON response with Cromwell workflow ID.
     """
     if args.validate:
@@ -101,7 +97,7 @@ def call_run(args):
     cromwell = Cromwell(host=args.server)
     result = cromwell.jstart_workflow(wdl_file=args.wdl, json_file=args.json, dependencies=args.dependencies,
                                       disable_caching=args.disable_caching,
-                                      extra_options=kv_list_to_dict(args.extra_options), bucket=args.bucket,
+                                      extra_options=kv_list_to_dict(args.extra_options),
                                       custom_labels=labels_dict)
 
     print("-------------Cromwell Links-------------")
@@ -386,29 +382,6 @@ def call_email(args):
     call_monitor(args)
 
 
-def call_upload(args):
-    """
-    :param args:
-    :return:
-    """
-    created_files = list()
-    if args.dependencies:
-        path = os.path.dirname(args.dependencies)
-        zip_ref = zipfile.ZipFile(args.dependencies, 'r')
-        zip_files = zip_ref.namelist()
-        for fn in zip_files:
-            f = os.path.join(path, fn)
-            if not os.path.exists(f):
-                zip_ref.extract(fn, path)
-                created_files.append(f)
-        zip_ref.close()
-    b = SingleBucket(args.bucket)
-    uploaded_files = b.upload_workflow_input_files(args.wdl, args.json)
-    for f in created_files:
-        os.unlink(f)
-    print('The following files have been uploaded to {}:\n{}'.format(args.bucket, '\n'.join(uploaded_files)))
-
-
 def call_list_apps(args):
     if os.path.isdir(c.app_dir):
         files = os.listdir(c.app_dir)
@@ -417,111 +390,116 @@ def call_list_apps(args):
         raise Exception("choppy.conf.general.app_dir is wrong.")
 
 
-def call_batch(args):
-    project_name = args.project_name
-    app_name = args.app_name
-    samples = args.samples
-    label = args.label
-
+def run_batch(project_name, app_dir, samples, label, server='localhost', 
+              username=None, dry_run=False):
     working_dir = os.getcwd()
     project_path = os.path.join(working_dir, project_name)
     check_dir(project_path)
 
     samples_data = parse_samples(samples)
     successed_samples = []
+    failed_samples = []
 
-    try:
-        for sample in samples_data:
-            if 'sample_id' not in sample.keys():
-                raise Exception("Your samples file must contain sample_id column.")
-            else:
-                # make project_name/sample_id directory
-                sample_path = os.path.join(project_path, sample.get('sample_id'))
-                check_dir(sample_path)
-                app_dir = os.path.join(c.app_dir, app_name)
+    for sample in samples_data:
+        if 'sample_id' not in sample.keys():
+            raise Exception("Your samples file must contain sample_id column.")
+        else:
+            # make project_name/sample_id directory
+            sample_path = os.path.join(project_path, sample.get('sample_id'))
+            check_dir(sample_path)
 
-                sample['project_name'] = project_name
+            sample['project_name'] = project_name
 
-                inputs = render_app(app_dir, 'inputs', sample)
-                write(sample_path, 'inputs', inputs)
+            inputs = render_app(app_dir, 'inputs', sample)
+            write(sample_path, 'inputs', inputs)
 
-                wdl = render_app(app_dir, 'workflow.wdl', sample)
-                write(sample_path, 'workflow.wdl', wdl)
+            wdl = render_app(app_dir, 'workflow.wdl', sample)
+            write(sample_path, 'workflow.wdl', wdl)
 
-                src_dependencies = os.path.join(app_dir, 'tasks.zip')
-                dest_dependencies = os.path.join(sample_path, 'tasks.zip')
-                shutil.copyfile(src_dependencies, dest_dependencies)
+            src_dependencies = os.path.join(app_dir, 'tasks.zip')
+            dest_dependencies = os.path.join(sample_path, 'tasks.zip')
+            shutil.copyfile(src_dependencies, dest_dependencies)
+            
+            if not dry_run:
+                try:
+                    result = submit_workflow(wdl, inputs, dest_dependencies, label, username=username,
+                                                server=server)
 
-                # result = submit(wdl, inputs, dest_dependencies, label, username=args.username,
-                #                 server=args.server)
+                    links = get_cromwell_links(server, result['id'], result.port)
 
-                # links = get_cromwell_links(args.server, result['id'], result.port)
+                    sample['metadata_link'] = links['metadata']
+                    sample['timing_link'] = links['timing']
+                    sample['workflow_id'] = result['id']
+                except Exception:
+                    print("Failed sample: %s" % sample.get('sample_id'))
+                    failed_samples.append(sample)
+                    continue
 
-                # sample['metadata_link'] = links['metadata']
-                # sample['timing_link'] = links['timing']
-                # sample['workflow_id'] = result['id']
-                successed_samples.append(sample)
-    finally:
-        keys = successed_samples[0].keys()
-        with open(os.path.join(project_path, 'submitted.csv'), 'wb') as fsuccess:
-            dict_writer = csv.DictWriter(fsuccess, keys)
-            dict_writer.writeheader()
-            dict_writer.writerows(successed_samples)                
+            successed_samples.append(sample)
 
-
-def call_testapp(args):
-    project_name = args.project_name
-    samples = args.samples
-
-    working_dir = os.getcwd()
-    project_path = os.path.join(working_dir, project_name)
-    check_dir(project_path)
-
-    samples_data = parse_samples(samples)
-    successed_samples = []
-
-    try:
-        for sample in samples_data:
-            if 'sample_id' not in sample.keys():
-                raise Exception("Your samples file must contain sample_id column.")
-            else:
-                # make project_name/sample_id directory
-                sample_path = os.path.join(project_path, sample.get('sample_id'))
-                check_dir(sample_path)
-                app_dir = args.app_dir
-
-                sample['project_name'] = project_name
-
-                inputs = render_app(app_dir, 'inputs', sample)
-                write(sample_path, 'inputs', inputs)
-
-                wdl = render_app(app_dir, 'workflow.wdl', sample)
-                write(sample_path, 'workflow.wdl', wdl)
-
-                src_dependencies = os.path.join(app_dir, 'tasks.zip')
-                dest_dependencies = os.path.join(sample_path, 'tasks.zip')
-                shutil.copyfile(src_dependencies, dest_dependencies)
-
-                # result = submit(wdl, inputs, dest_dependencies, label, username=args.username,
-                #                 server=args.server)
-
-                # links = get_cromwell_links(args.server, result['id'], result.port)
-
-                # sample['metadata_link'] = links['metadata']
-                # sample['timing_link'] = links['timing']
-                # sample['workflow_id'] = result['id']
-                successed_samples.append(sample)
-    finally:
+    if len(successed_samples) > 0:
         keys = successed_samples[0].keys()
         with open(os.path.join(project_path, 'submitted.csv'), 'wb') as fsuccess:
             dict_writer = csv.DictWriter(fsuccess, keys)
             dict_writer.writeheader()
             dict_writer.writerows(successed_samples)
+    
+    if len(failed_samples) > 0:
+        keys = failed_samples[0].keys()
+        with open(os.path.join(project_path, 'failed.csv'), 'wb') as ffail:
+            dict_writer = csv.DictWriter(ffail, keys)
+            dict_writer.writeheader()
+            dict_writer.writerows(failed_samples)
+    
+    if len(successed_samples) > 0:
+        if len(failed_samples) == 0:
+            print("Successed.")
+        else:
+            print("Successed: %s, Failed: %s" % (len(successed_samples, len(failed_samples))))
+    else:
+        print("Failed.")
+
+
+def call_batch(args):
+    app_dir = os.path.join(c.app_dir, args.app_name)
+    project_name = args.project_name
+    if not check_identifier(project_name):
+        raise Exception("Not valid project_name.")
+
+    samples = args.samples
+    label = args.label
+    server = args.server
+    dry_run = args.dry_run
+    username = args.username
+    run_batch(project_name, app_dir, samples, label, server, username, dry_run)
+
+
+def call_testapp(args):
+    # app_dir is not same with call_batch.
+    app_dir = args.app_dir
+    project_name = args.project_name
+    if not check_identifier(project_name):
+        raise Exception("Not valid project_name.")
+
+    samples = args.samples
+    label = args.label
+    server = args.server
+    dry_run = args.dry_run
+    username = args.username
+    run_batch(project_name, app_dir, samples, label, server, username, dry_run)
 
 
 def call_installapp(args):
     app_zip_file = args.zip_file
     install_app(c.app_dir, app_zip_file)
+
+
+def call_uninstallapp(args):
+    app_dir = os.path.join(c.app_dir, args.app_name)
+    if not os.path.isdir(app_dir):
+        raise Exception("The %s doesn't exist" % args.app_name)
+
+    uninstall_app(app_dir)
 
 
 parser = argparse.ArgumentParser(
@@ -535,7 +513,7 @@ restart = sub.add_parser(name='restart',
                          usage='choppy restart <workflow id>',
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 restart.add_argument('workflow_id', action='store', help='workflow id of workflow to restart.')
-restart.add_argument('-S', '--server', action='store', required=True, type=str, choices=c.servers,
+restart.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
                      help='Choose a cromwell server from {}'.format(c.servers))
 restart.add_argument('-M', '--monitor', action='store_true', default=True, help=argparse.SUPPRESS)
 restart.add_argument('-D', '--disable_caching', action='store_true', default=False, help="Don't used cached data.")
@@ -546,7 +524,7 @@ explain = sub.add_parser(name='explain',
                          usage='choppy explain <workflowid>',
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 explain.add_argument('workflow_id', action='store', help='workflow id of workflow to abort.')
-explain.add_argument('-S', '--server', action='store', required=True, type=str, choices=c.servers,
+explain.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
                      help='Choose a cromwell server from {}'.format(c.servers))
 explain.add_argument('-I', '--input', action='store_true', default=False, help=argparse.SUPPRESS)
 explain.add_argument('-M', '--monitor', action='store_false', default=False, help=argparse.SUPPRESS)
@@ -557,7 +535,7 @@ log = sub.add_parser(name='log',
                      usage='choppy log <workflowid>',
                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 log.add_argument('workflow_id', action='store', help='workflow id of workflow to print commands for.')
-log.add_argument('-S', '--server', action='store', required=True, type=str, choices=c.servers,
+log.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
                  help='Choose a cromwell server from {}'.format(c.servers))
 log.add_argument('-M', '--monitor', action='store_false', default=False, help=argparse.SUPPRESS)
 log.set_defaults(func=call_log)
@@ -567,7 +545,7 @@ abort = sub.add_parser(name='abort',
                        usage='choppy abort <workflow id>',
                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 abort.add_argument('workflow_id', action='store', help='workflow id of workflow to abort.')
-abort.add_argument('-S', '--server', action='store', required=True, type=str, choices=c.servers,
+abort.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
                    help='Choose a cromwell server from {}'.format(c.servers))
 abort.add_argument('-M', '--monitor', action='store_false', default=False, help=argparse.SUPPRESS)
 
@@ -588,7 +566,7 @@ monitor.add_argument('-V', '--verbose', action='store_true', default=False,
                      help='When selected, choppy will write the current status to STDOUT until completion.')
 monitor.add_argument('-n', '--no_notify', action='store_true', default=False,
                      help='When selected, disable choppy e-mail notification of workflow completion.')
-monitor.add_argument('-S', '--server', action='store', required=True, type=str, choices=c.servers,
+monitor.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
                      help='Choose a cromwell server from {}'.format(c.servers))
 monitor.add_argument('-M', '--monitor', action='store_true', default=True, help=argparse.SUPPRESS)
 monitor.add_argument('-D', '--daemon', action='store_true', default=False,
@@ -606,7 +584,7 @@ query.add_argument('-l', '--logs', action='store_true', default=False, help='Pri
 query.add_argument('-u', '--username', action='store', default=getpass.getuser(), help='Owner of workflows to query.')
 query.add_argument('-L', '--label', action='append', help='Query status of all workflows with specific label(s).')
 query.add_argument('-d', '--days', action='store', default=7, help='Last n days to query.')
-query.add_argument('-S', '--server', action='store', required=True, type=str, choices=c.servers,
+query.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
                    help='Choose a cromwell server from {}'.format(c.servers))
 query.add_argument('-f', '--filter', action='append', type=str, choices=c.run_states + c.terminal_states,
                    help='Filter by a workflow status from those listed above. May be specified more than once.')
@@ -615,39 +593,37 @@ query.add_argument('-M', '--monitor', action='store_false', default=False, help=
 
 query.set_defaults(func=call_query)
 
-run = sub.add_parser(name='run',
+submit = sub.add_parser(name='submit',
                      description='Submit a WDL & JSON for execution on a Cromwell VM.',
-                     usage='choppy run <wdl file> <json file> [<args>]',
+                     usage='choppy submit <wdl file> <json file> [<args>]',
                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-run.add_argument('wdl', action='store', type=is_valid, help='Path to the WDL to be executed.')
-run.add_argument('json', action='store', type=is_valid, help='Path the json inputs file.')
-run.add_argument('-v', '--validate', action='store_true', default=False,
-                 help='Validate WDL inputs in json file.')
-run.add_argument('-l', '--label', action='append', help='A key:value pair to assign. May be used multiple times.')
-run.add_argument('-m', '--monitor', action='store_true', default=False,
-                 help='Monitor the workflow and receive an e-mail notification when it terminates.')
-run.add_argument('-i', '--interval', action='store', default=30, type=int,
-                 help='If --monitor is selected, the amount of time in seconds to elapse between status checks.')
-run.add_argument('-o', '--extra_options', action='append',
-                 help='Additional workflow options to pass to Cromwell. Specify as k:v pairs. May be specified multiple'
-                      + 'times for multiple options. See https://github.com/broadinstitute/cromwell#workflow-options' +
-                      'for available options.')
-run.add_argument('-V', '--verbose', action='store_true', default=False,
-                 help='If selected, choppy will write the current status to STDOUT until completion while monitoring.')
-run.add_argument('-n', '--no_notify', action='store_true', default=False,
-                 help='When selected, disable choppy e-mail notification of workflow completion.')
-run.add_argument('-d', '--dependencies', action='store', default=None, type=is_valid_zip,
-                 help='A zip file containing one or more WDL files that the main WDL imports.')
-run.add_argument('-b', '--bucket', action='store', default=c.default_bucket,
-                 help='Name of bucket where files were uploaded. Default is {}'.format(c.default_bucket))
-run.add_argument('-D', '--disable_caching', action='store_true', default=False, help="Don't used cached data.")
-run.add_argument('-S', '--server', action='store', required=True, type=str, choices=c.servers,
-                 help='Choose a cromwell server from {}'.format(c.servers))
-run.add_argument('-u', '--username', action='store', default=getpass.getuser(), help=argparse.SUPPRESS)
-run.add_argument('-w', '--workflow_id', help=argparse.SUPPRESS)
-run.add_argument('-x', '--daemon', action='store_true', default=False, help=argparse.SUPPRESS)
-run.set_defaults(func=call_run)
+submit.add_argument('wdl', action='store', type=is_valid, help='Path to the WDL to be executed.')
+submit.add_argument('json', action='store', type=is_valid, help='Path the json inputs file.')
+submit.add_argument('-v', '--validate', action='store_true', default=False,
+                    help='Validate WDL inputs in json file.')
+submit.add_argument('-l', '--label', action='append', help='A key:value pair to assign. May be used multiple times.')
+submit.add_argument('-m', '--monitor', action='store_true', default=False,
+                    help='Monitor the workflow and receive an e-mail notification when it terminates.')
+submit.add_argument('-i', '--interval', action='store', default=30, type=int,
+                    help='If --monitor is selected, the amount of time in seconds to elapse between status checks.')
+submit.add_argument('-o', '--extra_options', action='append',
+                    help='Additional workflow options to pass to Cromwell. Specify as k:v pairs. May be specified multiple'
+                         + 'times for multiple options. See https://github.com/broadinstitute/cromwell#workflow-options' +
+                         'for available options.')
+submit.add_argument('-V', '--verbose', action='store_true', default=False,
+                    help='If selected, choppy will write the current status to STDOUT until completion while monitoring.')
+submit.add_argument('-n', '--no_notify', action='store_true', default=False,
+                    help='When selected, disable choppy e-mail notification of workflow completion.')
+submit.add_argument('-d', '--dependencies', action='store', default=None, type=is_valid_zip,
+                    help='A zip file containing one or more WDL files that the main WDL imports.')
+submit.add_argument('-D', '--disable_caching', action='store_true', default=False, help="Don't used cached data.")
+submit.add_argument('-S', '--server', action='store', type=str, choices=c.servers, default='localhost',
+                    help='Choose a cromwell server from {}'.format(c.servers))
+submit.add_argument('-u', '--username', action='store', default=getpass.getuser(), help=argparse.SUPPRESS)
+submit.add_argument('-w', '--workflow_id', help=argparse.SUPPRESS)
+submit.add_argument('-x', '--daemon', action='store_true', default=False, help=argparse.SUPPRESS)
+submit.set_defaults(func=call_submit)
 
 validate = sub.add_parser(name='validate',
                           description='Validate (but do not run) a json for a specific WDL file.',
@@ -663,7 +639,7 @@ label = sub.add_parser(name='label',
                        usage='choppy label <workflow_id> [<args>]',
                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 label.add_argument('workflow_id', nargs='?', default="None", help='workflow id for workflow to label.')
-label.add_argument('-S', '--server', action='store', required=True, type=str, choices=c.servers,
+label.add_argument('-S', '--server', action='store', type=str, choices=c.servers, default="localhost",
                    help='Choose a cromwell server from {}'.format(c.servers))
 label.add_argument('-l', '--label', action='append', help='A key:value pair to assign. May be used multiple times.')
 label.add_argument('-M', '--monitor', action='store_false', default=False, help=argparse.SUPPRESS)
@@ -674,25 +650,13 @@ email = sub.add_parser(name ='email',
                        usage='choppy label <workflow_id> [<args>]',
                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 email.add_argument('workflow_id', nargs='?', default="None", help='workflow id for workflow to label.')
-email.add_argument('-S', '--server', action='store', required=True, type=str, choices=c.servers,
+email.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
                    help='Choose a cromwell server from {}'.format(c.servers))
 email.add_argument('-u', '--username', action='store', default=getpass.getuser(), help='username of user to e-mail to')
 email.add_argument('-M', '--monitor', action='store_false', default=False, help=argparse.SUPPRESS)
 email.add_argument('-D', '--daemon', action='store_true', default=False,
                    help=argparse.SUPPRESS)
 email.set_defaults(func=call_email)
-
-upload = sub.add_parser(name='upload',
-                        description='Upload files required for workflow execution to Cloud storage.',
-                        usage='choppy upload <wdl> <json>',
-                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-upload.add_argument('wdl', action='store', type=is_valid, help='Path to the WDL associated with the json file.')
-upload.add_argument('json', action='store', type=is_valid, help='Path the json inputs file to validate.')
-upload.add_argument('-b', '--bucket', action='store', default=c.default_bucket,
-                    help='Name of destination bucket for upload. Default is {}'.format(c.default_bucket))
-upload.add_argument('-d', '--dependencies', action='store', default=None, type=is_valid_zip,
-                    help='A zip file containing one or more WDL files that the main WDL imports.')
-upload.set_defaults(func=call_upload)
 
 batch = sub.add_parser(name="batch",
                        description="Submit batch jobs for execution on a Cromwell VM.",
@@ -701,6 +665,7 @@ batch = sub.add_parser(name="batch",
 batch.add_argument('app_name', action='store', help='The app name for your project.')
 batch.add_argument('samples', action='store', type=is_valid, help='Path the samples file to validate.')
 batch.add_argument('--project-name', action='store', required=True, help='Your project name.')
+batch.add_argument('--dry-run', action='store_true', default=False, help='Generate all workflow but skipping running.')
 batch.add_argument('-l', '--label', action='append', help='A key:value pair to assign. May be used multiple times.')
 batch.add_argument('-S', '--server', action='store', default='localhost', type=str, help='Choose a cromwell server.')
 batch.add_argument('-u', '--username', action='store', default=getpass.getuser(), help=argparse.SUPPRESS)
@@ -722,6 +687,13 @@ installapp = sub.add_parser(name="install",
 installapp.add_argument('zip_file', action='store', type=is_valid_zip, help='The app zip file.')
 installapp.set_defaults(func=call_installapp)
 
+uninstallapp = sub.add_parser(name="uninstall",
+                       description="Uninstall an app.",
+                       usage="choppy uninstall app_name",
+                       formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+uninstallapp.add_argument('app_name', action='store', help='App name.')
+uninstallapp.set_defaults(func=call_uninstallapp)
+
 wdllist = sub.add_parser(name="apps",
                          description="List all apps that is supported by choppy.",
                          usage="choppy apps",
@@ -732,13 +704,6 @@ def main():
     args = parser.parse_args()
     # Get user's username so we can tag workflows and logs for them.
     user = getpass.getuser()
-    try:
-        if args.server == "cloud":
-            args.server = c.cloud_server
-        if args.server == "gscid-cloud":
-            args.server = c.gscid_cloud_server
-    except AttributeError:
-        pass
     logger.info("\n-------------New Choppy Execution by {}-------------".format(user))
     logger.info("Parameters chosen: {}".format(vars(args)))
     result = args.func(args)
@@ -751,7 +716,4 @@ def main():
         pass
     logger.info("\n-------------End Choppy Execution by {}-------------".format(user))
 
-
-if __name__ == "__main__":
-    sys.exit(main())
 

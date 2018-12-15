@@ -17,10 +17,6 @@ from models import Workflow,Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from email_notification import EmailNotification
-from system_test_notification import SystemTestNotification
-from download import Download
-from download import GATKDownload
-from system_test_download import SystemTestDownload
 
 import traceback
 import calendar
@@ -69,8 +65,7 @@ class Monitor:
         self.verbose = verbose
         self.workflow_id = workflow_id
         if user == "*":
-            self.event_subscribers = [EmailNotification(self.cromwell),
-                                        SystemTestDownload(), Download(self.cromwell.host), GATKDownload()]
+            self.event_subscribers = [EmailNotification(self.cromwell), ]
 
             engine = create_engine("sqlite:///" + config.workflow_db)
             Base.metadata.bind = engine
@@ -111,9 +106,9 @@ class Monitor:
             try:
                 event_subscriber.on_changed_workflow_status(workflow, metadata, self.host)
             except Exception as e:
-                #logging.error(str(e))
+                logging.error(str(e))
                 traceback.print_exc()
-                #print("Event processing error occurred above.")
+                print("Event processing error occurred above.")
 
     def run(self):
         while True:
@@ -137,33 +132,6 @@ class Monitor:
                 traceback.print_exc()
 
             time.sleep(self.interval)
-
-    def get_user_workflows(self, raw=False, start_time=None, silent=False):
-        """
-        A function for creating a list of workflows owned by a particular user.
-        :return: A list of workflow IDs owned by the user.
-        """
-        if not silent:
-            print('Determining {}\'s workflows...'.format(self.user))
-
-        user_workflows = []
-        results = None
-        if self.user == "*":
-            results = self.cromwell.query_labels({}, start_time=start_time, running_jobs=False)
-        else:
-            results = self.cromwell.query_labels({'username': self.user}, start_time=start_time)
-
-        if raw:
-            return results
-
-        try:
-            for result in results['results']:
-                if result['status'] in c.run_states:
-                    user_workflows.append(result['id'])
-        except Exception as e:
-            logging.error(str(e))
-            print('No user workflows found with username {}.'.format(self.user))
-        return user_workflows
 
     def monitor_user_workflows(self):
         """

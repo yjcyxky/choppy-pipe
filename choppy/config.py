@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 import configparser
 from itertools import chain, imap
 
@@ -34,13 +35,7 @@ if conf_path:
 else:
     raise Exception("Not Found choppy.conf in %s" % CONFIG_FILES)
 
-# Hosts that have a broadinstitute.org domain
-bi_hosts = ['ale', 'ale1', 'btl-cromwell', 'gscid-cromwell']
-# Hosts that don't
-other_hosts = ['cloud', 'localhost', 'gscid-cloud']
-# cloud only hosts
-cloud_hosts = ['cloud', 'gscid-cloud']
-servers = bi_hosts + other_hosts
+servers = ['localhost', ]
 
 resource_dir = os.path.abspath(os.path.dirname(__file__)).replace('choppy', 'resources')
 run_states = ['Running', 'Submitted', 'QueuedInCromwell']
@@ -55,44 +50,26 @@ check_dir(app_dir)
 # localhost port
 local_port = config.get('local', 'local_port')
 
-# cloud servers IP address(es)
-cloud_server = config.get('cloud', 'cloud_server')
-gscid_cloud_server = config.get('cloud', 'gscid_cloud_server')
-cloud_port = config.get('cloud', 'cloud_port')
-
-# bucket names
-gscid_bucket = config.get('cloud', 'gscid_bucket')
-dev_bucket = config.get('cloud', 'dev_bucket')
-default_bucket = gscid_bucket
-inputs_root = config.get('cloud', 'inputs_root')
-
 # directory for generated temporary files (ex: for making fofns)
-
 temp_dir = os.path.abspath(os.path.dirname(__file__)).replace('choppy', 'generated')
-
 
 if sys.platform == 'win32':
     log_dir = os.path.abspath(os.path.dirname(__file__)).replace('choppy', 'logs')
 else:
     log_dir = os.path.expanduser(config.get('general', 'log_dir'))
 
-# Exclude these json keys from being converted to GS URLs.
-exclude_gspath_array = ["onprem_download_path"]
+log_level = config.get('general', 'log_level').upper()
 
+if log_level == 'DEBUG':
+    log_level = logging.DEBUG
+elif log_level == 'INFO':
+    log_level = logging.INFO
+elif log_level == 'WARNING':
+    log_level = logging.WARNING
+elif log_level == 'CRITICAL':
+    log_level == logging.CRITICAL
+elif log_level == 'FATAL':
+    log_level == logging.FATAL
+else:
+    log_level = logging.DEBUG
 
-def gspathable(k):
-    """
-    Evaluate if a key is allowed to be converted to a GS path.
-    :param k: The key to evaluate.
-    :return: True if allowed, false if not.
-    """
-    for field in exclude_gspath_array:
-        if field in k:
-            return False
-
-    return True
-
-def flatmap(f, items):
-    return chain.from_iterable(imap(f, items))
-
-temp_test_dir = "/broad/hptmp"

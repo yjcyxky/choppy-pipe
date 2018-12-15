@@ -11,14 +11,6 @@ import sys
 module_logger = logging.getLogger('choppy.Validator')
 
 
-def _bucket_from_url(gs_url):
-    return gs_url.split('/')[2]
-
-
-def _blob_from_url(gs_url):
-    return "/".join(gs_url.split('/')[3:])
-
-
 class Validator:
     """
     Module to validate JSON inputs.
@@ -63,7 +55,7 @@ class Validator:
                 d = json.loads(run)
                 ds = json.dumps({k: v for k, v in d.iteritems() if "optional" not in v})
                 return json.loads(ds)
-        except json.JSONDecodeError:
+        except ValueError:
             print("Something went wrong with getting args. Note that if using validation, unzipped WDL dependencies "
                   "must be in same directory as main WDL.\n "
                   "Alternatively, turn off validation or use choppy.py validate")
@@ -182,21 +174,7 @@ class Validator:
         :param f:
         :return: Boolean
         """
-        if f[:3] == "gs:":
-            pass
-        else:
-            return os.path.exists(f.rstrip())
-
-    @staticmethod
-    def validate_gs_url(gs_url):
-        import single_bucket
-        bucket_name = _bucket_from_url(gs_url)
-        target_blob = _blob_from_url(gs_url)
-        bucket = single_bucket.SingleBucket(bucket_name)
-        blob_names = []
-        for blob in bucket.list_blobs():
-            blob_names.append(blob.name)
-        return target_blob in blob_names
+        return os.path.exists(f.rstrip())
 
     @staticmethod
     def validate_boolean(i):

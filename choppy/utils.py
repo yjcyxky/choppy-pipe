@@ -1,9 +1,19 @@
 import os
+import re
 import csv
 import getpass
+import shutil
 import zipfile
 from jinja2 import Environment, FileSystemLoader
 from cromwell import Cromwell
+
+
+def check_identifier(identifier):
+    matchObj = re.match(r'^[a-zA-Z][a-zA-Z0-9_]+$', identifier, re.M|re.I)
+    if matchObj:
+        return True
+    else:
+        return False
 
 
 def install_app(app_dir, app_file):
@@ -28,6 +38,19 @@ def install_app(app_dir, app_file):
         raise Exception("Not a valid app.")
 
 
+def uninstall_app(app_dir):
+    answer = ''
+    while answer.upper() not in ("YES", "NO", "Y", "N"):
+        answer = raw_input("Enter Yes/No: ")
+        answer = answer.upper()
+        if answer == "YES" or answer == "Y":
+            shutil.rmtree(app_dir)
+            print("Uninstall %s successfully." % os.path.basename(app_dir))
+        elif answer == "NO" or answer == "N":
+            print("Cancel uninstall %s." % os.path.basename(app_dir))
+        else:
+            print("Please enter Yes/No.")
+
 
 def parse_samples(file):
     reader = csv.DictReader(open(file, 'rb'))
@@ -47,8 +70,8 @@ def write(path, filename, data):
     with open(os.path.join(path, filename), 'w') as f:
         f.write(data)
 
-def submit(wdl, inputs, dependencies, label, username=getpass.getuser(), 
-           server='localhost', extra_options=None, labels_dict=None):
+def submit_workflow(wdl, inputs, dependencies, label, username=getpass.getuser(), 
+                    server='localhost', extra_options=None, labels_dict=None):
     labels_dict = kv_list_to_dict(label) if kv_list_to_dict(label) != None else {}
     labels_dict['username'] = username
     cromwell = Cromwell(host=server)
