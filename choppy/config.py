@@ -1,6 +1,8 @@
 import os
 import sys
+import re
 import logging
+import getpass
 import configparser
 import subprocess
 from itertools import chain, imap
@@ -41,6 +43,7 @@ else:
 servers = ['localhost', 'remote']
 run_states = ['Running', 'Submitted', 'QueuedInCromwell']
 terminal_states = ['Failed', 'Aborted', 'Succeeded']
+status_list = run_states + terminal_states
 resource_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'resources'))
 workflow_db = os.path.expanduser(config.get('general', 'workflow_db'))
 app_dir = os.path.join(os.path.expanduser(config.get('general', 'app_dir')), 'apps')
@@ -103,3 +106,10 @@ elif log_level == 'FATAL':
 else:
     log_level = logging.DEBUG
 
+def getuser():
+    user = getpass.getuser().lower()
+    matchObj = re.match(r'^[a-zA-Z][a-zA-Z0-9_]+$', user, re.M|re.I)
+    if matchObj:
+        return user
+    else:
+        raise Exception("Your account name is not valid. Did not match the regex ([a-z0-9]*[-a-z0-9]*[a-z0-9])?")

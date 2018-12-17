@@ -2,7 +2,6 @@ import logging
 import json
 import requests
 import datetime
-import getpass
 import urllib
 import os
 import re
@@ -205,7 +204,7 @@ class Cromwell:
         json_workflow_args = {}
         for key in workflow_args.keys():
             json_workflow_args[workflow_name + "." + key] = workflow_args[key]
-        json_workflow_args['user'] = getpass.getuser()
+        json_workflow_args['user'] = c.getuser()
         args_string = json.dumps(json_workflow_args)
 
         print("args_string:")
@@ -237,7 +236,7 @@ class Cromwell:
             with open(json_file) as fh:
                 args = json.load(fh)
             fh.close()
-            args['user'] = getpass.getuser()
+            args['user'] = c.getuser()
             #j_args = json.dumps(args)
         else:
             args = json.loads(json_file)
@@ -324,7 +323,7 @@ class Cromwell:
         try:
             del processed_labels['cromwell-workflow-id']
             del processed_labels['username']
-            processed_labels['username'] = getpass.getuser()
+            processed_labels['username'] = c.getuser()
         except KeyError as e:
             logging.debug("{}. No cromwell-workflow-id in old labels.".format(str(e.message)))
 

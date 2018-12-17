@@ -5,7 +5,6 @@ import re
 import csv
 import shutil
 import logging
-import getpass
 import json
 import zipfile
 import uuid
@@ -33,7 +32,7 @@ __status__ = "Production"
 
 logger = logging.getLogger('choppy')
 
-def set_logger(log_name, subdir="project_logs"):
+def set_logger(log_name, ch_log_level=c.log_level,subdir="project_logs"):
     global logger
     # Logging setup
     logger.setLevel(c.log_level)
@@ -51,12 +50,20 @@ def set_logger(log_name, subdir="project_logs"):
 
     # create console handler with a higher log level
     ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
+    ch.setLevel(ch_log_level)
     ch.setFormatter(formatter)
 
     # add the handlers to the logger
     logger.addHandler(fh)
     logger.addHandler(ch)
+
+
+def is_valid_label(label):
+    matchObj = re.match(r'^[a-z][\-a-z0-9]+$', label, re.M|re.I)
+    if matchObj:
+       return label
+    else:
+       raise argparse.ArgumentTypeError("Invalid label: %s did not match the regex ([a-z0-9]*[-a-z0-9]*[a-z0-9])?." % label) 
 
 
 def is_valid_oss_link(path):
@@ -118,7 +125,7 @@ def call_submit(args):
 
     #prep labels and add user
     labels_dict = kv_list_to_dict(args.label) if kv_list_to_dict(args.label) != None else {}
-    labels_dict['username'] = args.username
+    labels_dict['username'] = args.username.lower()
     host, port, auth = c.get_conn_info(args.server)
     cromwell = Cromwell(host, port, auth)
     result = cromwell.jstart_workflow(wdl_file=args.wdl, json_file=args.json, dependencies=args.dependencies,
@@ -231,7 +238,7 @@ def call_monitor(args):
                         interval=args.interval)
             m.run()
         else:
-            m = Monitor(host=args.server, user=args.username, no_notify=args.no_notify, verbose=args.verbose,
+            m = Monitor(host=args.server, user=args.username.lower(), no_notify=args.no_notify, verbose=args.verbose,
                         interval=args.interval)
             if args.workflow_id:
                 m.monitor_workflow(args.workflow_id)
@@ -321,7 +328,7 @@ def call_explain(args):
 
 
 def call_list(args):
-    username = "*" if args.all else args.username
+    username = "*" if args.all else args.username.lower()
     m = Monitor(host=args.server, user=username, no_notify=True, verbose=True,
                 interval=None)
 
@@ -489,6 +496,12 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
             dest_dependencies = os.path.join(sample_path, 'tasks.zip')
             shutil.copyfile(src_dependencies, dest_dependencies)
             
+            if label is None:
+                label = []
+            
+            is_valid_label(sample["sample_id"])
+            label.append("sample-id:%s" % sample["sample_id"].lower())
+
             if not dry_run:
                 try:
                     result = submit_workflow(wdl_path, inputs_path, dest_dependencies, label, 
@@ -543,7 +556,7 @@ def call_batch(args):
     label = args.label
     server = args.server
     dry_run = args.dry_run
-    username = args.username
+    username = args.username.lower()
     run_batch(project_name, app_dir, samples, label, server, username, dry_run)
 
 
@@ -558,7 +571,7 @@ def call_testapp(args):
     label = args.label
     server = args.server
     dry_run = args.dry_run
-    username = args.username
+    username = args.username.lower()
     run_batch(project_name, app_dir, samples, label, server, username, dry_run)
 
 
@@ -635,6 +648,38 @@ def call_cp_remote_files(args):
     run_copy_files(src_oss_link, dest_oss_link, include, exclude)    
 
 
+def call_search(args):
+    status = args.status
+    project_name = args.project_name
+    username = args.username.lower()
+    short_format = args.short_format
+    query_dict = {
+        "label": [
+            "username:%s" % username.lower()
+        ],
+        "name": project_name,
+        "additionalQueryResultFields": ["labels"]
+    }
+
+    if status:
+        query_dict.update({"status": status})
+
+    host, port, auth = c.get_conn_info(args.server)
+    cromwell = Cromwell(host, port, auth)
+    res = cromwell.query(query_dict)
+    
+    if short_format:
+        print("workflow-id\tsample-id")
+        for result in res['results']:
+            sample_id = result.get('labels').get('sample-id')
+            if not sample_id:
+                sample_id = ""
+
+            print("%s\t%s" % (result.get('id'), sample_id.upper()))
+    else:
+        print(json.dumps(res['results'], indent=2, sort_keys=True))
+
+
 parser = argparse.ArgumentParser(
     description='Description: A tool for executing and monitoring WDLs to Cromwell instances.',
     usage='choppy <positional argument> [<args>]',
@@ -692,7 +737,7 @@ monitor = sub.add_parser(name='monitor',
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 monitor.add_argument('workflow_id', action='store', nargs='?',
                      help='workflow id for workflow to monitor. Do not specify if user-level monitoring is desired.')
-monitor.add_argument('-u', '--username', action='store', default=getpass.getuser(),
+monitor.add_argument('-u', '--username', action='store', default=c.getuser(), type=is_valid_label,
                      help='Owner of workflows to monitor.')
 monitor.add_argument('-i', '--interval', action='store', default=30, type=int,
                      help='Amount of time in seconds to elapse between status checks.')
@@ -715,7 +760,8 @@ query.add_argument('workflow_id', nargs='?', default="None", help='workflow id f
 query.add_argument('-s', '--status', action='store_true', default=False, help='Print status for workflow to stdout')
 query.add_argument('-m', '--metadata', action='store_true', default=False, help='Print metadata for workflow to stdout')
 query.add_argument('-l', '--logs', action='store_true', default=False, help='Print logs for workflow to stdout')
-query.add_argument('-u', '--username', action='store', default=getpass.getuser(), help='Owner of workflows to query.')
+query.add_argument('-u', '--username', action='store', default=c.getuser(), type=is_valid_label,
+                   help='Owner of workflows to query.')
 query.add_argument('-L', '--label', action='append', help='Query status of all workflows with specific label(s).')
 query.add_argument('-d', '--days', action='store', default=7, help='Last n days to query.')
 query.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
@@ -752,7 +798,7 @@ submit.add_argument('-d', '--dependencies', action='store', default=None, type=i
 submit.add_argument('-D', '--disable_caching', action='store_true', default=False, help="Don't used cached data.")
 submit.add_argument('-S', '--server', action='store', type=str, choices=c.servers, default='localhost',
                     help='Choose a cromwell server from {}'.format(c.servers))
-submit.add_argument('-u', '--username', action='store', default=getpass.getuser(), help=argparse.SUPPRESS)
+submit.add_argument('-u', '--username', action='store', default=c.getuser(), help=argparse.SUPPRESS)
 submit.add_argument('-w', '--workflow_id', help=argparse.SUPPRESS)
 submit.add_argument('-x', '--daemon', action='store_true', default=False, help=argparse.SUPPRESS)
 submit.set_defaults(func=call_submit)
@@ -784,7 +830,8 @@ email = sub.add_parser(name ='email',
 email.add_argument('workflow_id', nargs='?', default="None", help='workflow id for workflow to label.')
 email.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
                    help='Choose a cromwell server from {}'.format(c.servers))
-email.add_argument('-u', '--username', action='store', default=getpass.getuser(), help='username of user to e-mail to')
+email.add_argument('-u', '--username', action='store', default=c.getuser(), type=is_valid_label,
+                   help='username of user to e-mail to')
 email.add_argument('-M', '--monitor', action='store_false', default=False, help=argparse.SUPPRESS)
 email.add_argument('-D', '--daemon', action='store_true', default=False,
                    help=argparse.SUPPRESS)
@@ -800,7 +847,8 @@ batch.add_argument('--project-name', action='store', required=True, help='Your p
 batch.add_argument('--dry-run', action='store_true', default=False, help='Generate all workflow but skipping running.')
 batch.add_argument('-l', '--label', action='append', help='A key:value pair to assign. May be used multiple times.')
 batch.add_argument('-S', '--server', action='store', default='localhost', type=str, help='Choose a cromwell server.')
-batch.add_argument('-u', '--username', action='store', default=getpass.getuser(), help=argparse.SUPPRESS)
+batch.add_argument('-u', '--username', action='store', default=c.getuser(), type=is_valid_label,
+                   help=argparse.SUPPRESS)
 batch.set_defaults(func=call_batch)
 
 testapp = sub.add_parser(name="testapp",
@@ -876,16 +924,35 @@ cat_file = sub.add_parser(name="catlog",
 cat_file.add_argument('oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
 cat_file.set_defaults(func=call_cat_remote_file)
 
+search = sub.add_parser(name='search',
+                       description='Query cromwell for information on the submitted workflow.',
+                       usage='choppy search [<args>]',
+                       formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+search.add_argument('-s', '--status', action='store', default="Running", choices=c.status_list, 
+                    help='Print status for workflow to stdout')
+search.add_argument('--project-name', action="store", required=True, help="Project name")
+search.add_argument('--short-format', action="store_true", default=False, 
+                    help="Show by short format, if the option is not specified, show long format by default.")
+search.add_argument('-u', '--username', action='store', default=c.getuser(), type=is_valid_label,
+                    help='Owner of workflows to query.')
+search.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
+                   help='Choose a cromwell server from {}'.format(c.servers))
+search.set_defaults(func=call_search)
 
 def main():
     args = parser.parse_args()
-    user = getpass.getuser()
+    user = c.getuser()
     # Get user's username so we can tag workflows and logs for them.
+    if args.silent:
+        log_level = logging.CRITICAL
+    else:
+        log_level = c.log_level
+
     if hasattr(args, 'project_name'):
         check_identifier(args.project_name)
-        set_logger(args.project_name)
+        set_logger(args.project_name, log_level)
     else:
-        set_logger(user, subdir=None)
+        set_logger(user, log_level, subdir=None)
 
     if not args.silent:
         logger.debug("\n-------------New Choppy Execution by {}-------------".format(user))

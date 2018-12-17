@@ -71,7 +71,7 @@ def write(path, filename, data):
     with open(os.path.join(path, filename), 'w') as f:
         f.write(data)
 
-def submit_workflow(wdl, inputs, dependencies, label, username=getpass.getuser(), 
+def submit_workflow(wdl, inputs, dependencies, label, username=c.getuser(), 
                     server='localhost', extra_options=None, labels_dict=None):
     labels_dict = kv_list_to_dict(label) if kv_list_to_dict(label) != None else {}
     labels_dict['username'] = username
