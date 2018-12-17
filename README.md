@@ -25,7 +25,7 @@ Choppy requires Python 2.7 and Java-1.8 to be loaded in your environment in orde
 ```
 virtualenv -p python2.7 .env
 source .env/bin/activate
-pip install choppy-0.1.0.tar.gz
+pip install choppy-0.2.0.tar.gz
 ```
 
 ## Usage

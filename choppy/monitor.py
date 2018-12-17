@@ -36,7 +36,8 @@ def is_user_workflow(host, user, workflow_id):
     :param workflow_id: workflow
     :return:  The workflow_id if it's the user owns the workflow. Otherwise None.
     """
-    metadata = Cromwell(host=host).query_metadata(workflow_id)
+    host, port, auth = c.get_conn_info(host)
+    metadata = Cromwell(host=host, port=port, auth=auth).query_metadata(workflow_id)
 
     try:
         j_input = json.loads(metadata['submittedFiles']['inputs'])
@@ -56,10 +57,10 @@ class Monitor:
     as well as e-mail notification.
     """
     def __init__(self, user, host, no_notify, verbose, interval, workflow_id=None):
-        self.host = host
+        self.host, self.port, self.auth = c.get_conn_info(host)
         self.user = user
         self.interval = interval
-        self.cromwell = Cromwell(host=host)
+        self.cromwell = Cromwell(host=self.host, port=self.port, auth=self.auth)
         self.messenger = Messenger(self.user)
         self.no_notify = no_notify
         self.verbose = verbose
@@ -104,7 +105,7 @@ class Monitor:
         for event_subscriber in self.event_subscribers:
             metadata = self.cromwell.query_metadata(workflow.id) #get final metadata
             try:
-                event_subscriber.on_changed_workflow_status(workflow, metadata, self.host)
+                event_subscriber.on_changed_workflow_status(workflow, metadata, self.host, self.port)
             except Exception as e:
                 logging.error(str(e))
                 traceback.print_exc()
@@ -191,7 +192,12 @@ class Monitor:
                     for attachment in attachments:
                         if attachment:
                             msg.attach(attachment)
-                    self.messenger.send_email(msg)
+
+                    if c.email_account:
+                        self.messenger.send_email(msg, "{}@{}".format(c.email_account, c.email_domain))
+                    else:
+                        self.messenger.send_email(msg)
+
                     os.unlink(filepath)
                 return 0
             else:
@@ -269,8 +275,8 @@ class Monitor:
             summary = "<b>Workflow Name:</b> {}{}".format(jdata['workflowName'], summary)
         if 'workflowRoot' in jdata:
             summary += "<br><b>workflowRoot:</b> {}".format(jdata['workflowRoot'])
-        summary += "<br><b>Timing graph:</b> http://{}:9000/api/workflows/v2/{}/timing".format(self.host,
-                                                                                               jdata['id'])
+        summary += "<br><b>Timing graph:</b> http://{}:{}/api/workflows/v2/{}/timing".format(self.host, self.port,
+                                                                                             jdata['id'])
         user = self.user if user is None else user
         email_content = {
             'user': user,

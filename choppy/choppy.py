@@ -1,16 +1,19 @@
 import argparse
 import sys
 import os
+import re
 import csv
 import shutil
 import logging
 import getpass
 import json
 import zipfile
+import uuid
 import pprint
 import time
 import pytz
 import datetime
+from subprocess import CalledProcessError, check_output, PIPE, Popen, call as subprocess_call
 from . import config as c
 from .utils import (parse_samples, render_app, write, kv_list_to_dict, submit_workflow, \
                     install_app, uninstall_app, check_identifier)
@@ -22,36 +25,58 @@ __author__ = "Jingcheng Yang"
 __copyright__ = "Copyright 2018, The Genius Medicine Consortium."
 __credits__ = ["Jun Shang", "Yechao Huang"]
 __license__ = "GPL"
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __maintainer__ = "Jingcheng Yang"
 __email__ = "yjcyxky@163.com"
 __status__ = "Production"
 
-# Logging setup
+
 logger = logging.getLogger('choppy')
-logger.setLevel(c.log_level)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-# create file handler which logs even debug messages
-logfile = os.path.join(c.log_dir, '{}.{}.choppy.log'.format(getpass.getuser(), str(time.strftime("%m.%d.%Y"))))
-fh = logging.FileHandler(logfile)
-fh.setLevel(c.log_level)
-fh.setFormatter(formatter)
 
-# create console handler with a higher log level
-ch = logging.StreamHandler()
-ch.setLevel(logging.ERROR)
-ch.setFormatter(formatter)
+def set_logger(log_name, subdir="project_logs"):
+    global logger
+    # Logging setup
+    logger.setLevel(c.log_level)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    # create file handler which logs even debug messages
+    if subdir:
+        project_logs = os.path.join(c.log_dir, "project_logs")
+        check_dir(project_logs, skip=True)
+        logfile = os.path.join(project_logs, '{}_choppy.log'.format(log_name))
+    else:
+        logfile = os.path.join(c.log_dir, '{}_{}_choppy.log'.format(str(time.strftime("%Y-%m-%d")), log_name))
+    fh = logging.FileHandler(logfile)
+    fh.setLevel(c.log_level)
+    fh.setFormatter(formatter)
 
-# add the handlers to the logger
-logger.addHandler(fh)
-logger.addHandler(ch)
+    # create console handler with a higher log level
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    ch.setFormatter(formatter)
+
+    # add the handlers to the logger
+    logger.addHandler(fh)
+    logger.addHandler(ch)
 
 
-def check_dir(path):
+def is_valid_oss_link(path):
+    matchObj = re.match(r'^oss://[a-zA-Z0-9\-_\./]+$', path, re.M|re.I)
+    if matchObj:
+        return path
+    else:
+        raise argparse.ArgumentTypeError("%s is not a valid oss link.\n" % path)
+
+
+def check_dir(path, skip=None):
     if not os.path.isdir(path):
         os.makedirs(path)
-    else:
+    elif not skip:
         raise Exception("%s is not empty" % path)
+
+
+def is_valid_app(path):
+    if not os.path.exists(path):
+        raise Exception("%s is not a valid app.\n" % os.path.basename(path))
 
 
 def is_valid(path):
@@ -94,7 +119,8 @@ def call_submit(args):
     #prep labels and add user
     labels_dict = kv_list_to_dict(args.label) if kv_list_to_dict(args.label) != None else {}
     labels_dict['username'] = args.username
-    cromwell = Cromwell(host=args.server)
+    host, port, auth = c.get_conn_info(args.server)
+    cromwell = Cromwell(host, port, auth)
     result = cromwell.jstart_workflow(wdl_file=args.wdl, json_file=args.json, dependencies=args.dependencies,
                                       disable_caching=args.disable_caching,
                                       extra_options=kv_list_to_dict(args.extra_options),
@@ -132,7 +158,8 @@ def call_query(args):
     :param args:  query subparser arguments.
     :return: A list of json responses based on queries selected by the user.
     """
-    cromwell = Cromwell(host=args.server)
+    host, port, auth = c.get_conn_info(args.server)
+    cromwell = Cromwell(host, port, auth)
     responses = []
     if args.workflow_id == None or args.workflow_id == "None" and not args.label:
         return call_list(args)
@@ -183,7 +210,8 @@ def call_abort(args):
     :param args: abort subparser args.
     :return: JSON containing abort response.
     """
-    cromwell = Cromwell(host=args.server)
+    host, port, auth = c.get_conn_info(args.server)
+    cromwell = Cromwell(host, port, auth)
     logger.info("Abort requested")
     return cromwell.stop_workflow(workflow_id=args.workflow_id)
 
@@ -220,7 +248,8 @@ def call_restart(args):
     :return:
     """
     logger.info("Restart requested")
-    cromwell = Cromwell(host=args.server)
+    host, port, auth = c.get_conn_info(args.server)
+    cromwell = Cromwell(host, port, auth)
     result = cromwell.restart_workflow(workflow_id=args.workflow_id, disable_caching=args.disable_caching)
 
     if result is not None and "id" in result:
@@ -247,7 +276,8 @@ def get_cromwell_links(server, workflow_id, port):
 
 def call_explain(args):
     logger.info("Explain requested")
-    cromwell = Cromwell(host=args.server)
+    host, port, auth = c.get_conn_info(args.server)
+    cromwell = Cromwell(host, port, auth)
     (result, additional_res, stdout_res) = cromwell.explain_workflow(workflow_id=args.workflow_id,
                                                                      include_inputs=args.input)
 
@@ -333,7 +363,8 @@ def call_label(args):
     :param args: label subparser arguments
     :return:
     """
-    cromwell = Cromwell(host=args.server)
+    host, port, auth = c.get_conn_info(args.server)
+    cromwell = Cromwell(host, port, auth)
     labels_dict = kv_list_to_dict(args.label)
     response = cromwell.label_workflow(workflow_id=args.workflow_id, labels=labels_dict)
     if response.status_code == 200:
@@ -348,25 +379,60 @@ def call_log(args):
     :param args: log subparser arguments.
     :return:
     """
-    cromwell = Cromwell(host=args.server)
-    res = cromwell.get('logs', args.workflow_id)
-    print res["calls"]
+    matchedWorkflowId = re.match(r'^[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}$', 
+                                 args.workflow_id, re.M|re.I)
 
-    command = ""
+    if matchedWorkflowId:
+        host, port, auth = c.get_conn_info(args.server)
+        cromwell = Cromwell(host, port, auth)
+        res = cromwell.get('logs', args.workflow_id)
+        print(json.dumps(res["calls"], indent=2, sort_keys=True))
 
-    # for each task, extract the command used
-    for key in res["calls"]:
-        stderr = res["calls"][key][0]["stderr"]
-        script = "/".join(stderr.split("/")[:-1]) + "/script"
+        command = ""
 
-        with open(script, 'r') as f:
-            command_log = f.read()
+        # for each task, extract the command used
+        for key in res["calls"]:
+            stderr = res["calls"][key][0]["stderr"]
+            script = "/".join(stderr.split("/")[:-1]) + "/script"
+            fuuid = uuid.uuid1()
+            dest_script = "/tmp/%s" % fuuid
+            run_copy_files(script, dest_script)
 
-        command = command + key + ":\n\n"
-        command = command + command_log + "\n\n"
+            dest_script = os.path.join(dest_script, "script")
+            with open(dest_script, 'r') as f:
+                command_log = f.read()
 
-    print(command)  # print to stdout
-    return None
+            command = command + key + ":\n\n"
+            command = command + command_log + "\n\n"
+
+        print(command)  # print to stdout
+        return None
+    else:
+        project_logs = os.path.join(c.log_dir, "project_logs")
+        check_dir(project_logs, skip=True)
+        logfile = os.path.join(project_logs, '{}_choppy.log'.format(args.workflow_id))
+        if os.path.isfile(logfile):
+            with open(logfile, 'r') as f:
+                print(f.read())
+        else:
+            print("No such project: %s" % args.workflow_id)
+
+
+def call_cat_remote_file(args):
+    remote_file = args.oss_link
+    fuuid = uuid.uuid1()
+    dest_file = "/tmp/%s" % fuuid
+    run_copy_files(remote_file, dest_file, recursive=False)
+
+    if os.path.isfile(dest_file):
+        with open(dest_file, 'r') as f:
+            while True:
+                line = f.readline()
+                if not line:
+                    break
+                print(line)
+    else:
+        print("Not a file.")
 
 
 def call_email(args):
@@ -392,6 +458,7 @@ def call_list_apps(args):
 
 def run_batch(project_name, app_dir, samples, label, server='localhost', 
               username=None, dry_run=False):
+    is_valid_app(app_dir)
     working_dir = os.getcwd()
     project_path = os.path.join(working_dir, project_name)
     check_dir(project_path)
@@ -412,9 +479,11 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
 
             inputs = render_app(app_dir, 'inputs', sample)
             write(sample_path, 'inputs', inputs)
+            inputs_path = os.path.join(sample_path, 'inputs')
 
             wdl = render_app(app_dir, 'workflow.wdl', sample)
             write(sample_path, 'workflow.wdl', wdl)
+            wdl_path = os.path.join(sample_path, 'workflow.wdl')
 
             src_dependencies = os.path.join(app_dir, 'tasks.zip')
             dest_dependencies = os.path.join(sample_path, 'tasks.zip')
@@ -422,42 +491,46 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
             
             if not dry_run:
                 try:
-                    result = submit_workflow(wdl, inputs, dest_dependencies, label, username=username,
-                                                server=server)
+                    result = submit_workflow(wdl_path, inputs_path, dest_dependencies, label, 
+                                             username=username, server=server)
 
-                    links = get_cromwell_links(server, result['id'], result.port)
+                    links = get_cromwell_links(server, result['id'], result.get('port'))
 
                     sample['metadata_link'] = links['metadata']
                     sample['timing_link'] = links['timing']
                     sample['workflow_id'] = result['id']
-                except Exception:
-                    print("Failed sample: %s" % sample.get('sample_id'))
+                    logger.info("Sample ID: %s, Workflow ID: %s" % (sample.get('sample_id'), result['id']))
+                except Exception as e:
+                    logger.error("Sample ID: %s, %s" % (sample.get('sample_id'), str(e)))
                     failed_samples.append(sample)
                     continue
 
             successed_samples.append(sample)
 
+    submitted_file_path =  os.path.join(project_path, 'submitted.csv')
+    failed_file_path = os.path.join(project_path, 'failed.csv')
     if len(successed_samples) > 0:
         keys = successed_samples[0].keys()
-        with open(os.path.join(project_path, 'submitted.csv'), 'wb') as fsuccess:
+        with open(submitted_file_path, 'wb') as fsuccess:
             dict_writer = csv.DictWriter(fsuccess, keys)
             dict_writer.writeheader()
             dict_writer.writerows(successed_samples)
     
     if len(failed_samples) > 0:
         keys = failed_samples[0].keys()
-        with open(os.path.join(project_path, 'failed.csv'), 'wb') as ffail:
+        with open(failed_file_path, 'wb') as ffail:
             dict_writer = csv.DictWriter(ffail, keys)
             dict_writer.writeheader()
             dict_writer.writerows(failed_samples)
     
     if len(successed_samples) > 0:
         if len(failed_samples) == 0:
-            print("Successed.")
+            logger.info("Successed: %s, %s" % (len(successed_samples), submitted_file_path))
         else:
-            print("Successed: %s, Failed: %s" % (len(successed_samples, len(failed_samples))))
+            logger.info("Successed: %s, %s" % (len(successed_samples), submitted_file_path))
+            logger.error("Failed: %s, %s" % (len(failed_samples), failed_file_path))
     else:
-        print("Failed.")
+        logger.error("Failed: %s, %s" % (len(failed_samples), failed_file_path))
 
 
 def call_batch(args):
@@ -502,10 +575,72 @@ def call_uninstallapp(args):
     uninstall_app(app_dir)
 
 
+def call_list_files(args):
+    oss_link = args.oss_link
+    try:
+        shell_cmd = [c.oss_bin, "ls", oss_link, "-s", "-d", "-i", c.access_key, "-k", c.access_secret]
+        output = check_output(shell_cmd).splitlines()
+        if len(output) > 2:
+            for i in output[1:-2]:
+                print("%s" % i)
+    except CalledProcessError:
+        print("access_key/access_secret or oss_link is not valid.")
+
+
+def run_copy_files(first_path, second_path, include=None, exclude=None, recursive=True):
+    output_dir = os.path.join(c.log_dir, 'oss_outputs')
+    checkpoint_dir = os.path.join(c.log_dir, 'oss_checkpoint')
+
+    try:
+        shell_cmd = [c.oss_bin, "cp", "-u", "-i", c.access_key, "-k", c.access_secret, 
+                     "--output-dir=%s" % output_dir, "--checkpoint-dir=%s" % checkpoint_dir,
+                     "-e", c.endpoint]
+        if include:
+            shell_cmd.extend(["--include", include])
+
+        if exclude:
+            shell_cmd.extend(["--exclude", exclude])
+
+        if recursive:
+            shell_cmd.extend(["-r"])
+        
+        shell_cmd.extend([first_path, second_path])
+        subprocess_call(shell_cmd)
+    except CalledProcessError as e:
+        print(e)
+        print("access_key/access_secret or oss_link is not valid.")
+
+
+def call_upload_files(args):
+    oss_link = args.oss_link
+    local_path = args.local_path
+    include = args.include
+    exclude = args.exclude
+    run_copy_files(local_path, oss_link, include, exclude)
+
+
+def call_download_files(args):
+    oss_link = args.oss_link
+    local_path = args.local_path
+    include = args.include
+    exclude = args.exclude
+    run_copy_files(oss_link, local_path, include, exclude)
+
+
+def call_cp_remote_files(args):
+    src_oss_link = args.src_oss_link
+    dest_oss_link = args.dest_oss_link
+    include = args.include
+    exclude = args.exclude
+    run_copy_files(src_oss_link, dest_oss_link, include, exclude)    
+
+
 parser = argparse.ArgumentParser(
     description='Description: A tool for executing and monitoring WDLs to Cromwell instances.',
     usage='choppy <positional argument> [<args>]',
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+parser.add_argument('--silent', action='store_true', default=False, help="Silent mode.")
 
 sub = parser.add_subparsers()
 restart = sub.add_parser(name='restart',
@@ -531,10 +666,10 @@ explain.add_argument('-M', '--monitor', action='store_false', default=False, hel
 explain.set_defaults(func=call_explain)
 
 log = sub.add_parser(name='log',
-                     description='Print the commands used in a workflow.',
-                     usage='choppy log <workflowid>',
+                     description='Print the log of a workflow or a project.',
+                     usage='choppy log <workflow_id>/<project_name>',
                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-log.add_argument('workflow_id', action='store', help='workflow id of workflow to print commands for.')
+log.add_argument('workflow_id', action='store', help='workflow_id or project_name')
 log.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
                  help='Choose a cromwell server from {}'.format(c.servers))
 log.add_argument('-M', '--monitor', action='store_false', default=False, help=argparse.SUPPRESS)
@@ -548,7 +683,6 @@ abort.add_argument('workflow_id', action='store', help='workflow id of workflow 
 abort.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
                    help='Choose a cromwell server from {}'.format(c.servers))
 abort.add_argument('-M', '--monitor', action='store_false', default=False, help=argparse.SUPPRESS)
-
 abort.set_defaults(func=call_abort)
 
 monitor = sub.add_parser(name='monitor',
@@ -590,14 +724,12 @@ query.add_argument('-f', '--filter', action='append', type=str, choices=c.run_st
                    help='Filter by a workflow status from those listed above. May be specified more than once.')
 query.add_argument('-a', '--all', action='store_true', default=False, help='Query for all users.')
 query.add_argument('-M', '--monitor', action='store_false', default=False, help=argparse.SUPPRESS)
-
 query.set_defaults(func=call_query)
 
 submit = sub.add_parser(name='submit',
                      description='Submit a WDL & JSON for execution on a Cromwell VM.',
                      usage='choppy submit <wdl file> <json file> [<args>]',
                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
 submit.add_argument('wdl', action='store', type=is_valid, help='Path to the WDL to be executed.')
 submit.add_argument('json', action='store', type=is_valid, help='Path the json inputs file.')
 submit.add_argument('-v', '--validate', action='store_true', default=False,
@@ -700,20 +832,75 @@ wdllist = sub.add_parser(name="apps",
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 wdllist.set_defaults(func=call_list_apps)
 
+listfiles = sub.add_parser(name="listfiles",
+                           description="List all files where are in the specified bucket.",
+                           usage="choppy listfiles <oss_link>",
+                           formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+listfiles.add_argument('oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
+listfiles.set_defaults(func=call_list_files)
+
+upload_files = sub.add_parser(name="upload",
+                           description="Upload file/directory to the specified bucket.",
+                           usage="choppy upload <local_path> <oss_link>",
+                           formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+upload_files.add_argument('local_path', action='store', type=is_valid, help='local_path.')
+upload_files.add_argument('oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
+upload_files.add_argument('--include', action='store', help='Include Pattern of key, e.g., *.jpg')
+upload_files.add_argument('--exclude', action='store', help='Exclude Pattern of key, e.g., *.txt')
+upload_files.set_defaults(func=call_upload_files)
+
+download_files = sub.add_parser(name="download",
+                           description="Download file/directory to the specified bucket.",
+                           usage="choppy download <oss_link> <local_path>",
+                           formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+download_files.add_argument('oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
+download_files.add_argument('local_path', action='store', type=is_valid, help='local_path.')
+download_files.add_argument('--include', action='store', help='Include Pattern of key, e.g., *.jpg')
+download_files.add_argument('--exclude', action='store', help='Exclude Pattern of key, e.g., *.txt')
+download_files.set_defaults(func=call_download_files)
+
+copy_files = sub.add_parser(name="copy",
+                           description="Copy file/directory from an oss path to another.",
+                           usage="choppy copy <src_oss_link> <dest_oss_link>",
+                           formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+copy_files.add_argument('src_oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
+copy_files.add_argument('dest_oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
+copy_files.add_argument('--include', action='store', help='Include Pattern of key, e.g., *.jpg')
+copy_files.add_argument('--exclude', action='store', help='Exclude Pattern of key, e.g., *.txt')
+copy_files.set_defaults(func=call_cp_remote_files)
+
+cat_file = sub.add_parser(name="catlog",
+                          description="Cat log file.",
+                          usage="choppy cat <oss_link>",
+                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+cat_file.add_argument('oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
+cat_file.set_defaults(func=call_cat_remote_file)
+
+
 def main():
     args = parser.parse_args()
-    # Get user's username so we can tag workflows and logs for them.
     user = getpass.getuser()
-    logger.info("\n-------------New Choppy Execution by {}-------------".format(user))
-    logger.info("Parameters chosen: {}".format(vars(args)))
+    # Get user's username so we can tag workflows and logs for them.
+    if hasattr(args, 'project_name'):
+        check_identifier(args.project_name)
+        set_logger(args.project_name)
+    else:
+        set_logger(user, subdir=None)
+
+    if not args.silent:
+        logger.debug("\n-------------New Choppy Execution by {}-------------".format(user))
+        logger.debug("Parameters chosen: {}".format(vars(args)))
+
     result = args.func(args)
-    logger.info("Result: {}".format(result))
-    # If we aren't using persistent monitoring, we'll give the user a basically formated json dump to stdout.
-    try:
-        if not args.monitor:
-            print(json.dumps(result, indent=4))
-    except AttributeError:
-        pass
-    logger.info("\n-------------End Choppy Execution by {}-------------".format(user))
+
+    if not args.silent:
+        logger.debug("Result: {}".format(result))
+        # If we aren't using persistent monitoring, we'll give the user a basically formated json dump to stdout.
+        try:
+            if not args.monitor and result:
+                print(json.dumps(result, indent=4))
+        except AttributeError:
+            pass
+        logger.debug("\n-------------End Choppy Execution by {}-------------\n\n".format(user))
 
 

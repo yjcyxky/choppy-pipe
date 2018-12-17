@@ -14,16 +14,19 @@ class EmailNotification(object):
     def __init__(self, cromwell):
         self.messenger = Messenger("")
 
-    def on_changed_workflow_status(self, workflow, metadata, host):
+    def on_changed_workflow_status(self, workflow, metadata, host, port):
         if (workflow.status == "Aborted" or workflow.status == "Failed" or workflow.status == "Succeeded") and \
                 (workflow.person_id != "" and workflow.person_id != None):
-            email_body = self.generate_content(metadata=metadata,
-                                                user=workflow.person_id, host=host)
+            if c.sender_user:
+                user = c.sender_user
+            else:
+                user = workflow.person_id
+            email_body = self.generate_content(metadata=metadata, user=user, host=host, port=port)
             msg = self.messenger.compose_email(email_body)
             EmailNotification.attach_logs(msg, metadata)
 
-            logging.warn("E-mail notification for: " + str(workflow) + " to " + workflow.person_id)
-            self.messenger.send_email(msg, workflow.person_id + "@broadinstitute.org")
+            logging.warn("E-mail notification for: " + str(workflow) + " to " + user)
+            self.messenger.send_email(msg, user + "@{}".format(c.email_domain))
 
     @staticmethod
     def attach_logs(msg, metadata):
@@ -51,7 +54,7 @@ class EmailNotification(object):
                 return int(calendar.timegm(obj.timetuple()) * 1000 +obj.microsecond / 1000)
         raise TypeError('Not sure how to serialize %s' % (obj,))
 
-    def generate_content(self, metadata, user, host):
+    def generate_content(self, metadata, user, host, port):
         """
         a method for generating the email content to be sent to user.
         :param metadata: The metadata of the workflow (optional).
@@ -78,8 +81,6 @@ class EmailNotification(object):
             summary = "<b>Workflow Name:</b> {}{}".format(jdata['workflowName'], summary)
         if 'workflowRoot' in jdata:
             summary += "<br><b>workflowRoot:</b> {}".format(jdata['workflowRoot'])
-
-        port = c.local_port
 
         summary += "<br><b>Timing graph:</b> http://{}:{}/api/workflows/v2/{}/timing".format(host, port, jdata['id'])
         email_content = {

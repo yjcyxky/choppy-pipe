@@ -3,6 +3,8 @@ A module that handles messaging of workflow results.
 """
 import smtplib
 import os
+import logging
+import socket
 from email.mime.text import MIMEText
 from string import Template
 from email.mime.multipart import MIMEMultipart
@@ -12,7 +14,7 @@ from ratelimit import rate_limited
 
 __author__ = "Amr Abouelleil"
 
-
+logger = logging.getLogger('choppy.messenger')
 ONE_MINUTE = 60
 
 
@@ -22,8 +24,8 @@ class Messenger(object):
     """
 
     def __init__(self, user):
-        self.user_email = "{}@broadinstitute.org".format(user)
-        self.sender = "choppy@broadinstitute.org"
+        self.user_email = "{}@{}".format(user, c.email_domain)
+        self.sender = "{}@{}".format(c.sender_user, c.email_domain) 
 
     def compose_email(self, content_dict):
         """
@@ -50,8 +52,15 @@ class Messenger(object):
         :param msg: A MIMEMultipart message object.
         :return: 
         """
-        mailer = smtplib.SMTP('smtp.broadinstitute.org')
         if not user:
-            mailer.sendmail(self.sender, self.user_email, msg.as_string())
-        else:
+            user = self.user_email
+
+        try:
+            mailer = smtplib.SMTP_SSL(c.email_smtp_server)
+            mailer.login(c.sender_user, c.sender_password)
             mailer.sendmail(self.sender, user, msg.as_string())
+            logger.info("Send email to %s successfully." % user)
+        except Exception as e:
+            logger.warn("Can't send email to %s" % user)
+            logger.warn(str(e))
+

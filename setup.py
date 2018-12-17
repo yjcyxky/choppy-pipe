@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='choppy',
-    version='0.1.0',
+    version='0.2.0',
     description='A command-line tool for executing WDL workflows on Cromwell servers.',
     long_description=open('README.md').read(),
     author='Jingcheng Yang',
@@ -25,12 +25,6 @@ setup(
         'chardet==3.0.4',
         'configparser==3.5.0',
         'futures==3.2.0',
-        'google-api-core==1.6.0',
-        'google-auth==1.6.1',
-        'google-cloud-core==0.29.0',
-        'google-cloud-storage==1.13.1',
-        'google-resumable-media==0.3.1',
-        'googleapis-common-protos==1.5.5',
         'idna==2.8',
         'Jinja2==2.10',
         'MarkupSafe==1.1.0',

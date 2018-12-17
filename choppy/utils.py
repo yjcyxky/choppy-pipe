@@ -4,6 +4,7 @@ import csv
 import getpass
 import shutil
 import zipfile
+import config as c
 from jinja2 import Environment, FileSystemLoader
 from cromwell import Cromwell
 
@@ -74,7 +75,8 @@ def submit_workflow(wdl, inputs, dependencies, label, username=getpass.getuser()
                     server='localhost', extra_options=None, labels_dict=None):
     labels_dict = kv_list_to_dict(label) if kv_list_to_dict(label) != None else {}
     labels_dict['username'] = username
-    cromwell = Cromwell(host=server)
+    host, port, auth = c.get_conn_info(server)
+    cromwell = Cromwell(host=host, port=port, auth=auth)
     result = cromwell.jstart_workflow(wdl_file=wdl, json_file=inputs, dependencies=dependencies,
                                       extra_options=kv_list_to_dict(extra_options), 
                                       custom_labels=labels_dict)

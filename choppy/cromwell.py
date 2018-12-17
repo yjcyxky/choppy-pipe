@@ -12,7 +12,7 @@ import config as c
 from requests.utils import quote
 from ratelimit import rate_limited
 
-module_logger = logging.getLogger('choppy.Cromwell')
+module_logger = logging.getLogger('choppy.cromwell')
 ONE_MINUTE = 60
 
 
@@ -25,12 +25,11 @@ class Cromwell:
         {"VesperWorkflow.project_name":"Vesper_Anid_test"}
     """
 
-    def __init__(self, host='localhost', port=8000):
+    def __init__(self, host='localhost', port=8000, auth=None):
         self.host = host
-        if self.host == 'localhost':
-            self.port = c.local_port
-        else:
-            self.port = port
+        self.port = port
+        self.auth = auth
+
         self.url = 'http://' + host + ':' + str(self.port) + '/api/workflows/v1'
         self.url2 = 'http://' + host + ':' + str(self.port) + '/api/workflows/v2'
         self.logger = logging.getLogger('choppy.cromwell.Cromwell')
@@ -41,11 +40,12 @@ class Cromwell:
         try:
             self.long_version = json\
                 .loads(requests
-                       .get(v_url)
+                       .get(v_url, auth=self.auth)
                        .content)['cromwell']
-        except requests.ConnectionError as e:
+        except (requests.ConnectionError, ValueError) as e:
             msg = "Unable to connect to {}:{}:\n{}".format(self.host, self.port, str(e))
             print_log_exit(msg)
+
 
         self.short_version = int(self.long_version.split('-')[0])
         self.cached_metadata = {}
@@ -65,9 +65,9 @@ class Cromwell:
             workflow_url = url + '/' + rtype
         self.logger.info("GET REQUEST:{}".format(workflow_url))
         if headers:
-            r = requests.get(workflow_url, headers=headers)
+            r = requests.get(workflow_url, headers=headers, auth=self.auth)
         else:
-            r = requests.get(workflow_url)
+            r = requests.get(workflow_url, auth=self.auth)
         return json.loads(r.content)
 
     def post(self, rtype, workflow_id=None):
@@ -82,7 +82,7 @@ class Cromwell:
         else:
             workflow_url = self.url + '/' + rtype
         self.logger.info("POST REQUEST:{}".format(workflow_url))
-        r = requests.post(workflow_url)
+        r = requests.post(workflow_url, auth=self.auth)
         return json.loads(r.text)
 
     def patch(self, rtype, workflow_id, payload, headers):
@@ -98,7 +98,7 @@ class Cromwell:
         self.logger.info("POST REQUEST:{}".format(workflow_url))
         tries = 4
         while tries != 0:
-            r = requests.patch(url=workflow_url, data=payload, headers=headers)
+            r = requests.patch(url=workflow_url, data=payload, headers=headers, auth=self.auth)
             if r.status_code == 200:
                 logging.info('{} request succeeded.'.format(rtype))
                 tries = 0
@@ -217,7 +217,7 @@ class Cromwell:
         if dependencies:
             # add dependency as zip file
             files['wdlDependencies'] = (dependencies, open(dependencies, 'rb'), 'application/zip')
-        r = requests.post(self.url, files=files)
+        r = requests.post(self.url, files=files, auth=self.auth)
         return json.loads(r.text)
 
     def jstart_workflow(self, wdl_file, json_file, dependencies=None, wdl_string=False, disable_caching=False,
@@ -272,7 +272,7 @@ class Cromwell:
             for k, v in workflow_options.items():
                 print("{}:{}".format(k, v))
 
-        r = requests.post(self.url, files=files) if not v2 else requests.post(self.url2, files=files)
+        r = requests.post(self.url, files=files, auth=self.auth) if not v2 else requests.post(self.url2, files=files, auth=self.auth)
         if r.status_code not in [200, 201]:
             print_log_exit("Request Failed: {}".format(r.content))
         return json.loads(r.text)
@@ -362,7 +362,7 @@ class Cromwell:
         url = url + 'status=Running' if running_jobs else url
 
         # In some cases we can get a dangling & so this removed that.
-        r = requests.get(url.rstrip('&'))
+        r = requests.get(url.rstrip('&'), auth=self.auth)
         return json.loads(r.content)
 
     def query_status(self, workflow_id):
@@ -401,7 +401,7 @@ class Cromwell:
         base_url = self.url + '/query?'
         query_url = self.build_query_url(base_url, query_dict)
         self.logger.info("QUERY REQUEST:{}".format(query_url))
-        r = requests.get(query_url)
+        r = requests.get(query_url, auth=self.auth)
         return json.loads(r.text)
 
     @staticmethod
