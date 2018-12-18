@@ -591,7 +591,8 @@ def call_uninstallapp(args):
 def call_list_files(args):
     oss_link = args.oss_link
     try:
-        shell_cmd = [c.oss_bin, "ls", oss_link, "-s", "-d", "-i", c.access_key, "-k", c.access_secret]
+        shell_cmd = [c.oss_bin, "ls", oss_link, "-s", "-d", "-i", c.access_key, "-k", c.access_secret,
+                     "-e", c.endpoint]
         output = check_output(shell_cmd).splitlines()
         if len(output) > 2:
             for i in output[1:-2]:
@@ -618,7 +619,14 @@ def run_copy_files(first_path, second_path, include=None, exclude=None, recursiv
             shell_cmd.extend(["-r"])
         
         shell_cmd.extend([first_path, second_path])
-        subprocess_call(shell_cmd)
+        process = Popen(shell_cmd, stdout=PIPE)
+        while True:
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
+                break
+            if output:
+                print output.strip()
+            process.poll()
     except CalledProcessError as e:
         print(e)
         print("access_key/access_secret or oss_link is not valid.")
