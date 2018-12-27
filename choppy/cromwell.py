@@ -32,7 +32,7 @@ class Cromwell:
         self.url = 'http://' + host + ':' + str(self.port) + '/api/workflows/v1'
         self.url2 = 'http://' + host + ':' + str(self.port) + '/api/workflows/v2'
         self.logger = logging.getLogger('choppy.cromwell.Cromwell')
-        self.logger.info('URL:{}'.format(self.url))
+        self.logger.debug('URL:{}'.format(self.url))
 
         v_url = "http://{}:{}/engine/v1/version".format(host, str(self.port))
 
@@ -62,7 +62,7 @@ class Cromwell:
             workflow_url = url + '/' + workflow_id + '/' + rtype
         else:
             workflow_url = url + '/' + rtype
-        self.logger.info("GET REQUEST:{}".format(workflow_url))
+        self.logger.debug("GET REQUEST:{}".format(workflow_url))
         if headers:
             r = requests.get(workflow_url, headers=headers, auth=self.auth)
         else:
@@ -80,7 +80,7 @@ class Cromwell:
             workflow_url = self.url + '/' + workflow_id + '/' + rtype
         else:
             workflow_url = self.url + '/' + rtype
-        self.logger.info("POST REQUEST:{}".format(workflow_url))
+        self.logger.debug("POST REQUEST:{}".format(workflow_url))
         r = requests.post(workflow_url, auth=self.auth)
         return json.loads(r.text)
 
@@ -94,7 +94,7 @@ class Cromwell:
         :return: request result
         """
         workflow_url = self.url + '/' + workflow_id + '/' + rtype
-        self.logger.info("POST REQUEST:{}".format(workflow_url))
+        self.logger.debug("POST REQUEST:{}".format(workflow_url))
         tries = 4
         while tries != 0:
             r = requests.patch(url=workflow_url, data=payload, headers=headers, auth=self.auth)

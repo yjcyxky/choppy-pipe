@@ -1,10 +1,11 @@
  #!/usr/bin/env python
 
 from setuptools import setup, find_packages
+from choppy.version import get_version 
 
 setup(
     name='choppy',
-    version='0.2.0',
+    version=get_version(),
     description='A command-line tool for executing WDL workflows on Cromwell servers.',
     long_description=open('README.md').read(),
     author='Jingcheng Yang',
@@ -39,5 +40,6 @@ setup(
         'six==1.12.0',
         'SQLAlchemy==1.2.15',
         'urllib3==1.24.1',
+        'coloredlogs==10.0'
     ]
 )

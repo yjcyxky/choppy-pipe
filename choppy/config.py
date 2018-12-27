@@ -89,7 +89,6 @@ else:
     log_dir = os.path.join(os.path.expanduser(config.get('general', 'log_dir')), 'logs')
 
 check_dir(log_dir)
-subprocess.call(["chmod", "u+x", oss_bin])
 
 log_level = config.get('general', 'log_level').upper()
 

@@ -12,10 +12,12 @@ import pprint
 import time
 import pytz
 import datetime
+import coloredlogs
 from subprocess import CalledProcessError, check_output, PIPE, Popen, call as subprocess_call
 from . import config as c
 from .utils import (parse_samples, render_app, write, kv_list_to_dict, submit_workflow, \
-                    install_app, uninstall_app, check_identifier)
+                    install_app, uninstall_app, check_identifier, parse_json)
+from .version import get_version
 from .cromwell import Cromwell, print_log_exit
 from .monitor import Monitor
 from .validator import Validator
@@ -24,15 +26,14 @@ __author__ = "Jingcheng Yang"
 __copyright__ = "Copyright 2018, The Genius Medicine Consortium."
 __credits__ = ["Jun Shang", "Yechao Huang"]
 __license__ = "GPL"
-__version__ = "0.2.0"
+__version__ = get_version()
 __maintainer__ = "Jingcheng Yang"
 __email__ = "yjcyxky@163.com"
 __status__ = "Production"
 
-
 logger = logging.getLogger('choppy')
 
-def set_logger(log_name, ch_log_level=c.log_level,subdir="project_logs"):
+def set_logger(log_name, subdir="project_logs"):
     global logger
     # Logging setup
     logger.setLevel(c.log_level)
@@ -47,14 +48,20 @@ def set_logger(log_name, ch_log_level=c.log_level,subdir="project_logs"):
     fh = logging.FileHandler(logfile)
     fh.setLevel(c.log_level)
     fh.setFormatter(formatter)
+    logger.addHandler(fh)
 
+
+def set_ch_logger(ch_log_level):
     # create console handler with a higher log level
+    if ch_log_level == logging.DEBUG:
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    else:
+        formatter = logging.Formatter('%(message)s')
     ch = logging.StreamHandler()
     ch.setLevel(ch_log_level)
     ch.setFormatter(formatter)
 
     # add the handlers to the logger
-    logger.addHandler(fh)
     logger.addHandler(ch)
 
 
@@ -133,12 +140,10 @@ def call_submit(args):
                                       extra_options=kv_list_to_dict(args.extra_options),
                                       custom_labels=labels_dict)
 
-    print("-------------Cromwell Links-------------")
+    logger.info("-------------Cromwell Links-------------")
     links = get_cromwell_links(args.server, result['id'], cromwell.port)
-    print(links['metadata'])
-    print(links['timing'])
-    logger.info("Metadata:{}".format(links['metadata']))
-    logger.info("Timing Graph:{}".format(links['timing']))
+    logger.info(links['metadata'])
+    logger.info(links['timing'])
 
     args.workflow_id = result['id']
 
@@ -147,7 +152,7 @@ def call_submit(args):
         # Probably better ways to do this but for now this works.
         time.sleep(5)
 
-        print ("These will also be e-mailed to you when the workflow completes.")
+        logger.info("These will also be e-mailed to you when the workflow completes.")
         retry = 4
         while retry != 0:
             try:
@@ -171,22 +176,22 @@ def call_query(args):
     if args.workflow_id == None or args.workflow_id == "None" and not args.label:
         return call_list(args)
     if args.label:
-        logger.info("Label query requested.")
+        logger.debug("Label query requested.")
         labeled = cromwell.query_labels(labels=kv_list_to_dict(args.label))
         return labeled
     if args.status:
-        logger.info("Status requested.")
+        logger.debug("Status requested.")
         status = cromwell.query_status(args.workflow_id)
         responses.append(status)
     if args.metadata:
-        logger.info("Metadata requested.")
+        logger.debug("Metadata requested.")
         metadata = cromwell.query_metadata(args.workflow_id)
         responses.append(metadata)
     if args.logs:
-        logger.info("Logs requested.")
+        logger.debug("Logs requested.")
         logs = cromwell.query_logs(args.workflow_id)
         responses.append(logs)
-    logger.debug("Query Results:\n" + str(responses))
+    logger.info("\n%s\n" % json.dumps(parse_json(responses), indent=2, sort_keys=True))
     return responses
 
 
@@ -207,7 +212,6 @@ def call_validate(args):
         sys.exit(1)
     else:
         s = 'No errors found in {}'.format(args.wdl)
-        print(s)
         logger.info(s)
 
 
@@ -231,7 +235,7 @@ def call_monitor(args):
     """
     logger.info("Monitoring requested")
 
-    print("-------------Monitoring Workflow-------------")
+    logger.info("-------------Monitoring Workflow-------------")
     try:
         if args.daemon:
             m = Monitor(host=args.server, user="*", no_notify=args.no_notify, verbose=args.verbose,
@@ -261,11 +265,9 @@ def call_restart(args):
 
     if result is not None and "id" in result:
         msg = "Workflow restarted successfully; new workflow-id: " + str(result['id'])
-        print(msg)
         logger.info(msg)
     else:
         msg = "Workflow was not restarted successfully; server response: " + str(result)
-        print(msg)
         logger.critical(msg)
 
 
@@ -297,7 +299,7 @@ def call_explain(args):
     printer = pprint.PrettyPrinter()
     printer.format = my_safe_repr
     if result is not None:
-        print("-------------Workflow Status-------------")
+        logger.info("-------------Workflow Status-------------")
         printer.pprint(result)
 
         if len(additional_res) > 0:
@@ -315,13 +317,13 @@ def call_explain(args):
                 print (log["stderr"]["name"] + ":")
                 print (log["stderr"]["log"])
 
-        print("-------------Cromwell Links-------------")
+        logger.info("-------------Cromwell Links-------------")
         links = get_cromwell_links(args.server, result['id'], cromwell.port)
-        print (links['metadata'])
-        print (links['timing'])
+        logger.info(links['metadata'])
+        logger.info(links['timing'])
 
     else:
-        print("Workflow not found.")
+        logger.warn("Workflow not found.")
 
     args.monitor = True
     return None
@@ -375,7 +377,7 @@ def call_label(args):
     labels_dict = kv_list_to_dict(args.label)
     response = cromwell.label_workflow(workflow_id=args.workflow_id, labels=labels_dict)
     if response.status_code == 200:
-        print("Labels successfully applied:\n{}".format(response.content))
+        logger.info("Labels successfully applied:\n{}".format(response.content))
     else:
         logger.critical("Unable to apply specified labels:\n{}".format(response.content))
 
@@ -393,43 +395,43 @@ def call_log(args):
         host, port, auth = c.get_conn_info(args.server)
         cromwell = Cromwell(host, port, auth)
         res = cromwell.get('logs', args.workflow_id)
-        print(json.dumps(res["calls"], indent=2, sort_keys=True))
+        if res.get('calls'):
+            logger.info("\n%s\n" % json.dumps(parse_json(res["calls"]), indent=2, sort_keys=True))
 
-        command = ""
+            logger.info("-------------Commands-------------")
+            # for each task, extract the command used
+            for key in res["calls"]:
+                stderr = res["calls"][key][0]["stderr"]
+                script = "/".join(stderr.split("/")[:-1]) + "/script"
+                fuuid = uuid.uuid1()
+                dest_script = "/tmp/%s/%s" % (fuuid, "script")
+                run_copy_files(script, dest_script, recursive=False, silent=True)
+                with open(dest_script, 'r') as f:
+                    command_log = f.read()
 
-        # for each task, extract the command used
-        for key in res["calls"]:
-            stderr = res["calls"][key][0]["stderr"]
-            script = "/".join(stderr.split("/")[:-1]) + "/script"
-            fuuid = uuid.uuid1()
-            dest_script = "/tmp/%s" % fuuid
-            run_copy_files(script, dest_script)
+                logger.info(key + ":")
+                logger.info("\n" + command_log)
 
-            dest_script = os.path.join(dest_script, "script")
-            with open(dest_script, 'r') as f:
-                command_log = f.read()
-
-            command = command + key + ":\n\n"
-            command = command + command_log + "\n\n"
-
-        print(command)  # print to stdout
-        return None
+            return None
+        else:
+            metadata = cromwell.query_metadata(args.workflow_id)
+            logger.info("\n%s\n" % json.dumps(parse_json(metadata), indent=2, sort_keys=True))
     else:
         project_logs = os.path.join(c.log_dir, "project_logs")
         check_dir(project_logs, skip=True)
         logfile = os.path.join(project_logs, '{}_choppy.log'.format(args.workflow_id))
         if os.path.isfile(logfile):
             with open(logfile, 'r') as f:
-                print(f.read())
+                logger.info(f.read())
         else:
-            print("No such project: %s" % args.workflow_id)
+            logger.warn("No such project: %s" % args.workflow_id)
 
 
 def call_cat_remote_file(args):
     remote_file = args.oss_link
     fuuid = uuid.uuid1()
     dest_file = "/tmp/%s" % fuuid
-    run_copy_files(remote_file, dest_file, recursive=False)
+    run_copy_files(remote_file, dest_file, recursive=False, silent=True)
 
     if os.path.isfile(dest_file):
         with open(dest_file, 'r') as f:
@@ -437,9 +439,9 @@ def call_cat_remote_file(args):
                 line = f.readline()
                 if not line:
                     break
-                print(line)
+                logger.info(line)
     else:
-        print("Not a file.")
+        logger.warn("Not a file.")
 
 
 def call_email(args):
@@ -458,7 +460,7 @@ def call_email(args):
 def call_list_apps(args):
     if os.path.isdir(c.app_dir):
         files = os.listdir(c.app_dir)
-        print(files)
+        logger.info(files)
     else:
         raise Exception("choppy.conf.general.app_dir is wrong.")
 
@@ -596,12 +598,12 @@ def call_list_files(args):
         output = check_output(shell_cmd).splitlines()
         if len(output) > 2:
             for i in output[1:-2]:
-                print("%s" % i)
+                logger.info("%s" % i)
     except CalledProcessError:
-        print("access_key/access_secret or oss_link is not valid.")
+        logger.critical("access_key/access_secret or oss_link is not valid.")
 
 
-def run_copy_files(first_path, second_path, include=None, exclude=None, recursive=True):
+def run_copy_files(first_path, second_path, include=None, exclude=None, recursive=True, silent=False):
     output_dir = os.path.join(c.log_dir, 'oss_outputs')
     checkpoint_dir = os.path.join(c.log_dir, 'oss_checkpoint')
 
@@ -624,12 +626,12 @@ def run_copy_files(first_path, second_path, include=None, exclude=None, recursiv
             output = process.stdout.readline()
             if output == '' and process.poll() is not None:
                 break
-            if output:
-                print output.strip()
+            if output and not silent:
+                logger.info(output.strip())
             process.poll()
     except CalledProcessError as e:
-        print(e)
-        print("access_key/access_secret or oss_link is not valid.")
+        logger.critical(e)
+        logger.critical("access_key/access_secret or oss_link is not valid.")
 
 
 def call_upload_files(args):
@@ -677,16 +679,19 @@ def call_search(args):
     res = cromwell.query(query_dict)
     
     if short_format:
-        print("workflow-id\tsample-id")
+        logger.info("workflow-id\tsample-id")
         for result in res['results']:
             sample_id = result.get('labels').get('sample-id')
             if not sample_id:
                 sample_id = ""
 
-            print("%s\t%s" % (result.get('id'), sample_id.upper()))
+            logger.info("%s\t%s" % (result.get('id'), sample_id.upper()))
     else:
-        print(json.dumps(res['results'], indent=2, sort_keys=True))
+        logger.info(json.dumps(parse_json(res['results']), indent=2, sort_keys=True))
 
+
+def call_version(args):
+    print("Choppy %s" % get_version())
 
 parser = argparse.ArgumentParser(
     description='Description: A tool for executing and monitoring WDLs to Cromwell instances.',
@@ -947,35 +952,35 @@ search.add_argument('-S', '--server', action='store', default="localhost", type=
                    help='Choose a cromwell server from {}'.format(c.servers))
 search.set_defaults(func=call_search)
 
+version = sub.add_parser(name="version",
+                          description="show the version.",
+                          usage="choppy version",
+                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+version.set_defaults(func=call_version)
+
 def main():
     args = parser.parse_args()
     user = c.getuser()
     # Get user's username so we can tag workflows and logs for them.
-    if args.silent:
-        log_level = logging.CRITICAL
-    else:
-        log_level = c.log_level
+    if  args.func != call_version:
+        if args.silent:
+            set_ch_logger(logging.INFO)
+        else:
+            coloredlogs.install(level='DEBUG')
 
     if hasattr(args, 'project_name'):
         check_identifier(args.project_name)
-        set_logger(args.project_name, log_level)
+        set_logger(args.project_name)
     else:
-        set_logger(user, log_level, subdir=None)
+        set_logger(user, subdir=None)
 
     if not args.silent:
-        logger.debug("\n-------------New Choppy Execution by {}-------------".format(user))
+        logger.debug("\n-------------New Choppy Execution by {}-------------\n".format(user))
         logger.debug("Parameters chosen: {}".format(vars(args)))
 
-    result = args.func(args)
+    args.func(args)
 
     if not args.silent:
-        logger.debug("Result: {}".format(result))
-        # If we aren't using persistent monitoring, we'll give the user a basically formated json dump to stdout.
-        try:
-            if not args.monitor and result:
-                print(json.dumps(result, indent=4))
-        except AttributeError:
-            pass
-        logger.debug("\n-------------End Choppy Execution by {}-------------\n\n".format(user))
+        logger.debug("\n-------------End Choppy Execution by {}-------------\n".format(user))
 
 
