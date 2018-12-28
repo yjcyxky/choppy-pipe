@@ -5,13 +5,17 @@ import csv
 import getpass
 import shutil
 import zipfile
+import logging
 import config as c
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, meta
 from cromwell import Cromwell
+
+logger = logging.getLogger('utils')
 
 
 def check_identifier(identifier):
-    matchObj = re.match(r'^[a-zA-Z][a-zA-Z0-9_]+$', identifier, re.M | re.I)
+    matchObj = re.match(r'([a-z0-9]*[-a-z0-9]*[a-z0-9])?.',
+                        identifier, re.M | re.I)
     if matchObj:
         return True
     else:
@@ -68,6 +72,38 @@ def render_app(app_path, template_file, data):
     env = Environment(loader=FileSystemLoader(app_path))
     template = env.get_template(template_file)
     return template.render(**data)
+
+
+def get_vars_from_app(app_path, template_file):
+    env = Environment()
+    template = os.path.join(app_path, template_file)
+    with open(template) as f:
+        templ_str = f.read()
+        ast = env.parse(templ_str)
+        variables = meta.find_undeclared_variables(ast)
+
+    return variables
+
+
+def check_variables(app_path, template_file, line_dict=None, header_list=None):
+    variables = get_vars_from_app(app_path, template_file)
+    for var in variables:
+        if line_dict:
+            if var not in line_dict.keys() and var != 'project_name':
+                logger.warn('%s not in samples header.' % var)
+                return False
+        elif header_list:
+            if var not in header_list and var != 'project_name':
+                logger.warn('%s not in samples header.' % var)
+                return False
+
+    return True
+
+
+def get_header(file):
+    reader = csv.DictReader(open(file, 'rb'))
+
+    return reader.fieldnames
 
 
 def write(path, filename, data):

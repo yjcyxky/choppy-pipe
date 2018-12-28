@@ -25,7 +25,7 @@ class Messenger(object):
 
     def __init__(self, user):
         self.user_email = "{}@{}".format(user, c.email_domain)
-        self.sender = "{}@{}".format(c.sender_user, c.email_domain) 
+        self.sender = "{}@{}".format(c.sender_user, c.email_domain)
 
     def compose_email(self, content_dict):
         """
@@ -34,7 +34,8 @@ class Messenger(object):
         are: workflow_id, user, status, and metadata.
         :return: A MIMEMultipart message object.
         """
-        subject = "Workflow ({}) {}".format(content_dict['workflow_id'], content_dict['status'])
+        subject = "Workflow ({}) {}".format(
+            content_dict['workflow_id'], content_dict['status'])
         msg = MIMEMultipart(From=self.sender, To=self.user_email, Date=formatdate(localtime=True),
                             Subject=subject)
         msg["Subject"] = subject
@@ -63,4 +64,3 @@ class Messenger(object):
         except Exception as e:
             logger.warn("Can't send email to %s" % user)
             logger.warn(str(e))
-

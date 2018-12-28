@@ -9,9 +9,10 @@ from itertools import chain, imap
 
 DIRNAME = os.path.split(os.path.abspath(__file__))[0]
 
-CONFIG_FILES = ['~/.choppy.conf', 
-                os.path.join(os.path.dirname(DIRNAME), 'choppy', 'conf', 'choppy.conf'), 
-                '/etc/choppy.conf']
+CONFIG_FILES = ['~/.choppy.conf',
+                '/etc/choppy.conf',
+                os.path.join(os.path.dirname(DIRNAME), 'choppy', 'conf', 'choppy.conf')]
+
 
 def getconf():
     for f in CONFIG_FILES:
@@ -26,11 +27,14 @@ def getconf():
         if os.path.exists(loc):
             return loc
 
+
 config = configparser.ConfigParser()
+
 
 def check_dir(path):
     if not os.path.isdir(path):
         os.makedirs(path)
+
 
 conf_path = getconf()
 if conf_path:
@@ -44,9 +48,11 @@ servers = ['localhost', 'remote']
 run_states = ['Running', 'Submitted', 'QueuedInCromwell']
 terminal_states = ['Failed', 'Aborted', 'Succeeded']
 status_list = run_states + terminal_states
-resource_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'resources'))
+resource_dir = os.path.abspath(os.path.join(
+    os.path.dirname(__file__), 'resources'))
 workflow_db = os.path.expanduser(config.get('general', 'workflow_db'))
-app_dir = os.path.join(os.path.expanduser(config.get('general', 'app_dir')), 'apps')
+app_dir = os.path.join(os.path.expanduser(
+    config.get('general', 'app_dir')), 'apps')
 check_dir(app_dir)
 
 email_smtp_server = config.get('email', 'email_smtp_server')
@@ -67,6 +73,7 @@ if username and password:
 else:
     auth = None
 
+
 def get_conn_info(server):
     if server == 'localhost':
         return 'localhost', local_port, auth
@@ -82,11 +89,13 @@ endpoint = config.get('oss', 'endpoint')
 
 # Log
 if sys.platform == 'darwin':
-    log_dir = os.path.join(os.path.expanduser(config.get('general', 'log_dir')), 'logs')
+    log_dir = os.path.join(os.path.expanduser(
+        config.get('general', 'log_dir')), 'logs')
     oss_bin = os.path.join(os.path.dirname(__file__), "lib", 'ossutilmac64')
 else:
     oss_bin = os.path.join(os.path.dirname(__file__), "lib", 'ossutil64')
-    log_dir = os.path.join(os.path.expanduser(config.get('general', 'log_dir')), 'logs')
+    log_dir = os.path.join(os.path.expanduser(
+        config.get('general', 'log_dir')), 'logs')
 
 check_dir(log_dir)
 
@@ -105,10 +114,12 @@ elif log_level == 'FATAL':
 else:
     log_level = logging.DEBUG
 
+
 def getuser():
     user = getpass.getuser().lower()
-    matchObj = re.match(r'^[a-zA-Z][a-zA-Z0-9_]+$', user, re.M|re.I)
+    matchObj = re.match(r'^[a-zA-Z][a-zA-Z0-9_]+$', user, re.M | re.I)
     if matchObj:
         return user
     else:
-        raise Exception("Your account name is not valid. Did not match the regex ([a-z0-9]*[-a-z0-9]*[a-z0-9])?")
+        raise Exception(
+            "Your account name is not valid. Did not match the regex ([a-z0-9]*[-a-z0-9]*[a-z0-9])?")

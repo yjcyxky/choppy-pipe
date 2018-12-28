@@ -13,7 +13,7 @@ import pytz
 import threading
 import config
 import datetime
-from models import Workflow,Base
+from models import Workflow, Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from email_notification import EmailNotification
@@ -37,7 +37,8 @@ def is_user_workflow(host, user, workflow_id):
     :return:  The workflow_id if it's the user owns the workflow. Otherwise None.
     """
     host, port, auth = c.get_conn_info(host)
-    metadata = Cromwell(host=host, port=port, auth=auth).query_metadata(workflow_id)
+    metadata = Cromwell(host=host, port=port,
+                        auth=auth).query_metadata(workflow_id)
 
     try:
         j_input = json.loads(metadata['submittedFiles']['inputs'])
@@ -56,11 +57,13 @@ class Monitor:
     A class for monitoring a user's workflows, providing status reports at regular intervals
     as well as e-mail notification.
     """
+
     def __init__(self, user, host, no_notify, verbose, interval, workflow_id=None):
         self.host, self.port, self.auth = c.get_conn_info(host)
         self.user = user
         self.interval = interval
-        self.cromwell = Cromwell(host=self.host, port=self.port, auth=self.auth)
+        self.cromwell = Cromwell(
+            host=self.host, port=self.port, auth=self.auth)
         self.messenger = Messenger(self.user)
         self.no_notify = no_notify
         self.verbose = verbose
@@ -85,9 +88,11 @@ class Monitor:
         user_workflows = []
         results = None
         if self.user == "*":
-            results = self.cromwell.query_labels({}, start_time=start_time, running_jobs=True)
+            results = self.cromwell.query_labels(
+                {}, start_time=start_time, running_jobs=True)
         else:
-            results = self.cromwell.query_labels({'username': self.user}, start_time=start_time)
+            results = self.cromwell.query_labels(
+                {'username': self.user}, start_time=start_time)
 
         if raw:
             return results
@@ -103,9 +108,11 @@ class Monitor:
 
     def process_events(self, workflow):
         for event_subscriber in self.event_subscribers:
-            metadata = self.cromwell.query_metadata(workflow.id) #get final metadata
+            metadata = self.cromwell.query_metadata(
+                workflow.id)  # get final metadata
             try:
-                event_subscriber.on_changed_workflow_status(workflow, metadata, self.host, self.port)
+                event_subscriber.on_changed_workflow_status(
+                    workflow, metadata, self.host, self.port)
             except Exception as e:
                 logging.error(str(e))
                 traceback.print_exc()
@@ -115,14 +122,19 @@ class Monitor:
         while True:
             try:
                 one_day_ago = datetime.datetime.now() - datetime.timedelta(days=int(1))
-                db_workflows = dict( (d.id, d) for d in self.session.query(Workflow).filter(Workflow.start > one_day_ago) )
-                cromwell_workflows = dict( (c["id"], c) for c in self.get_user_workflows(raw=True, start_time=get_iso_datestr(one_day_ago), silent=True)['results'] )
+                db_workflows = dict((d.id, d) for d in self.session.query(
+                    Workflow).filter(Workflow.start > one_day_ago))
+                cromwell_workflows = dict((c["id"], c) for c in self.get_user_workflows(
+                    raw=True, start_time=get_iso_datestr(one_day_ago), silent=True)['results'])
 
-                new_workflows = map(lambda c: Workflow(self.cromwell, c["id"]), filter(lambda w: w["id"] not in db_workflows, cromwell_workflows.values()))
+                new_workflows = map(lambda c: Workflow(self.cromwell, c["id"]), filter(
+                    lambda w: w["id"] not in db_workflows, cromwell_workflows.values()))
                 [self.session.add(w) for w in new_workflows]
 
-                changed_workflows = filter(lambda d: d.id in cromwell_workflows and d.status != cromwell_workflows[d.id]["status"], db_workflows.values())
-                [w.update_status(cromwell_workflows[w.id]["status"]) for w in changed_workflows]
+                changed_workflows = filter(lambda d: d.id in cromwell_workflows and d.status !=
+                                           cromwell_workflows[d.id]["status"], db_workflows.values())
+                [w.update_status(cromwell_workflows[w.id]["status"])
+                 for w in changed_workflows]
 
                 workflows_to_notify = new_workflows + changed_workflows
                 [self.process_events(w) for w in workflows_to_notify]
@@ -145,7 +157,8 @@ class Monitor:
             print("User {} has no running workflows.".format(self.user))
         else:
             for workflow in workflows:
-                t = threading.Thread(target=self.monitor_workflow, args=[workflow])
+                t = threading.Thread(
+                    target=self.monitor_workflow, args=[workflow])
                 t.start()
 
     def monitor_workflow(self, workflow_id):
@@ -158,15 +171,19 @@ class Monitor:
         while 0 == 0:
             query_status = self.cromwell.query_status(workflow_id)
             if self.verbose:
-                print('Workflow {} | {}'.format(query_status['id'], query_status['status']))
+                print('Workflow {} | {}'.format(
+                    query_status['id'], query_status['status']))
             if query_status['status'] not in c.run_states:
                 if not self.no_notify:
                     filename = '{}.metadata.json'.format(query_status['id'])
-                    filepath = os.path.join(c.log_dir, '{}.metadata.json'.format(query_status['id']))
+                    filepath = os.path.join(
+                        c.log_dir, '{}.metadata.json'.format(query_status['id']))
                     metadata = open(filepath, 'w+')
-                    json.dump(self.cromwell.query_metadata(workflow_id), indent=4, fp=metadata)
+                    json.dump(self.cromwell.query_metadata(
+                        workflow_id), indent=4, fp=metadata)
                     metadata.close()
-                    email_content = self.generate_content(query_status=query_status, workflow_id=workflow_id)
+                    email_content = self.generate_content(
+                        query_status=query_status, workflow_id=workflow_id)
                     msg = self.messenger.compose_email(email_content)
 
                     file_dict = {filename: filepath}
@@ -175,7 +192,8 @@ class Monitor:
                         for task, call in jdata['calls'].items():
                             for shard in call:
                                 if 'Failed' in shard['executionStatus']:
-                                    attach_prefix = "{}.{}".format(task, shard['shardIndex'])
+                                    attach_prefix = "{}.{}".format(
+                                        task, shard['shardIndex'])
                                     stdout = "{}.stdout".format(attach_prefix)
                                     stderr = "{}.stderr".format(attach_prefix)
                                     try:
@@ -194,7 +212,8 @@ class Monitor:
                             msg.attach(attachment)
 
                     if c.email_account:
-                        self.messenger.send_email(msg, "{}@{}".format(c.email_account, c.email_domain))
+                        self.messenger.send_email(msg, "{}@{}".format(
+                            c.email_account, c.email_domain))
                     else:
                         self.messenger.send_email(msg)
 
@@ -215,10 +234,12 @@ class Monitor:
             read_data = open(filepath, 'r')
             attachment = MIMEText(read_data.read())
             read_data.close()
-            attachment.add_header('Content-Disposition', 'attachment', filename=filename)
+            attachment.add_header('Content-Disposition',
+                                  'attachment', filename=filename)
             return attachment
         except Exception as e:
-            logging.warn('Unable to generate attachment for {}:\n{}'.format(filename, e))
+            logging.warn(
+                'Unable to generate attachment for {}:\n{}'.format(filename, e))
 
     def generate_attachments(self, file_dict):
         """
@@ -254,7 +275,8 @@ class Monitor:
         :param metadata: The metadata of the workflow (optional).
         :return: a dictionary containing the email contents for the template.
         """
-        jdata = self.cromwell.query_metadata(workflow_id) if metadata is None else metadata
+        jdata = self.cromwell.query_metadata(
+            workflow_id) if metadata is None else metadata
         summary = ""
         if 'start' in jdata:
             summary += "<br><b>Started:</b> {}".format(jdata['start'])
@@ -266,15 +288,19 @@ class Monitor:
             duration = (end - start)
             hours, remainder = divmod(duration.seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
-            summary += '<br><b>Duration:</b> {} hours, {} minutes, {} seconds'.format(hours, minutes, seconds)
+            summary += '<br><b>Duration:</b> {} hours, {} minutes, {} seconds'.format(
+                hours, minutes, seconds)
         if 'Failed' in jdata['status']:
-            fail_summary = "<br><b>Failures:</b> {}".format(json.dumps(jdata['failures']))
+            fail_summary = "<br><b>Failures:</b> {}".format(
+                json.dumps(jdata['failures']))
             fail_summary = fail_summary.replace(',', '<br>')
             summary += fail_summary.replace('\n', '<br>')
         if 'workflowName' in jdata:
-            summary = "<b>Workflow Name:</b> {}{}".format(jdata['workflowName'], summary)
+            summary = "<b>Workflow Name:</b> {}{}".format(
+                jdata['workflowName'], summary)
         if 'workflowRoot' in jdata:
-            summary += "<br><b>workflowRoot:</b> {}".format(jdata['workflowRoot'])
+            summary += "<br><b>workflowRoot:</b> {}".format(
+                jdata['workflowRoot'])
         summary += "<br><b>Timing graph:</b> http://{}:{}/api/workflows/v2/{}/timing".format(self.host, self.port,
                                                                                              jdata['id'])
         user = self.user if user is None else user
