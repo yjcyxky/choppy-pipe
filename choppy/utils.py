@@ -10,7 +10,7 @@ import config as c
 from jinja2 import Environment, FileSystemLoader, meta
 from cromwell import Cromwell
 
-logger = logging.getLogger('utils')
+logger = logging.getLogger('choppy')
 
 
 def check_identifier(identifier):
@@ -87,6 +87,7 @@ def get_vars_from_app(app_path, template_file):
 
 def check_variables(app_path, template_file, line_dict=None, header_list=None):
     variables = get_vars_from_app(app_path, template_file)
+    variables = list(variables) + ['sample_id', ]
     for var in variables:
         if line_dict:
             if var not in line_dict.keys() and var != 'project_name':

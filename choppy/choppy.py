@@ -712,6 +712,7 @@ def call_samples(args):
     elif output:
         with open(output, 'w') as f:
             variables = get_vars_from_app(app_dir, 'inputs')
+            variables = list(variables) + ['sample_id', ]
             f.write(','.join(variables))
 
 
