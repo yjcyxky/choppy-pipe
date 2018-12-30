@@ -713,6 +713,10 @@ def call_samples(args):
         with open(output, 'w') as f:
             variables = get_vars_from_app(app_dir, 'inputs')
             variables = list(variables) + ['sample_id', ]
+
+            if 'project_name' in variables:
+                variables.remove('project_name')
+
             f.write(','.join(variables))
 
 
