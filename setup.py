@@ -1,7 +1,7 @@
- #!/usr/bin/env python
+#!/usr/bin/env python
 
 from setuptools import setup, find_packages
-from choppy.version import get_version 
+from choppy.version import get_version
 
 setup(
     name='choppy',
@@ -11,14 +11,14 @@ setup(
     author='Jingcheng Yang',
     author_email='yjcyxky@163.com',
     url='http://www.nordata.cn',
-    packages = find_packages(exclude=['tests']),
+    packages=find_packages(exclude=['tests']),
     include_package_data=True,
     zip_safe=False,
     platforms='any',
     entry_points={
         'console_scripts': [
-            'choppy = choppy.choppy:main',                  
-        ],              
+            'choppy = choppy.choppy:main',
+        ],
     },
     install_requires=[
         'cachetools==3.0.0',
@@ -40,6 +40,7 @@ setup(
         'six==1.12.0',
         'SQLAlchemy==1.2.15',
         'urllib3==1.24.1',
-        'coloredlogs==10.0'
+        'coloredlogs==10.0',
+        'argcomplete==1.9.4',
     ]
 )

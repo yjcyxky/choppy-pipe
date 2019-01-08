@@ -1,3 +1,4 @@
+import argcomplete
 import argparse
 import sys
 import os
@@ -1071,6 +1072,7 @@ version = sub.add_parser(name="version",
 version.set_defaults(func=call_version)
 
 def main():
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
     user = c.getuser()
     # Get user's username so we can tag workflows and logs for them.
