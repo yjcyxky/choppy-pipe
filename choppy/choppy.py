@@ -718,10 +718,14 @@ def call_samples(args):
             header_list = get_header(checkfile)
             if check_variables(app_dir, 'inputs', header_list=header_list):
                 logger.info("%s is valid." % checkfile)
+            
+            if check_variables(app_dir, 'workflow.wdl', header_list=header_list):
+                logger.info("%s is valid." % checkfile)
     elif output:
         with open(output, 'w') as f:
-            variables = get_vars_from_app(app_dir, 'inputs')
-            variables = list(variables) + ['sample_id', ]
+            inputs_variables = get_vars_from_app(app_dir, 'inputs')
+            workflow_variables = get_vars_from_app(app_dir, 'workflow.wdl')
+            variables = list(set(list(inputs_variables) + list(workflow_variables) + ['sample_id', ]))
 
             if 'project_name' in variables:
                 variables.remove('project_name')
