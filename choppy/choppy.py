@@ -596,9 +596,18 @@ def call_uninstallapp(args):
 
 def call_list_files(args):
     oss_link = args.oss_link
+    recursive = args.recursive
+    long_format = args.long_format
     try:
-        shell_cmd = [c.oss_bin, "ls", oss_link, "-s", "-d", "-i", c.access_key, "-k", c.access_secret,
+        shell_cmd = [c.oss_bin, "ls", oss_link, "-i", c.access_key, "-k", c.access_secret,
                      "-e", c.endpoint]
+
+        if not long_format:
+            if not recursive:
+                shell_cmd.append('-d')
+            else:
+                shell_cmd.append('-s')
+
         output = check_output(shell_cmd).splitlines()
 
         if len(output) > 2:
@@ -731,16 +740,48 @@ def call_config(args):
         print(f.read())
         sys.stdout.flush()
 
+description = """Global Management:
+    config      Generate config template.
+    version     Show the version.
+
+Single Workflow Management:
+    submit      Submit a WDL & JSON for execution on a Cromwell VM.
+    abort       Abort a submitted workflow.
+    restart     Restart a submitted workflow.
+    explain     Explain the status of a workflow.
+    log         Print the log of a workflow or a project.
+    monitor     Monitor a particular workflow and notify user via e-mail upon completion. If a workflow ID is not provided, user-level monitoring is assumed.
+    query       Query cromwell for information on the submitted workflow.
+    validate    Validate (but do not run) a json for a specific WDL file.
+    label       Label a specific workflow with one or more key/value pairs.
+    email       Email data to user regarding a workflow.
+
+Choppy App Management:
+    batch       Submit batch jobs for execution on a Cromwell VM.
+    apps        List all apps that is supported by choppy.
+    testapp     Test an app.
+    install     Install an app.
+    uninstall   Uninstall an app.
+    samples     Generate or check samples file.
+    search      Query cromwell for information on the submitted workflow.
+
+OSS Management:
+    listfiles   List all files where are in the specified bucket.
+    upload      Upload file/directory to the specified bucket.
+    download    Download file/directory to the specified bucket.
+    copy        Copy file/directory from an oss path to another.
+    catlog      Cat log file."""
+
+
 parser = argparse.ArgumentParser(
     description='Description: A tool for executing and monitoring WDLs to Cromwell instances.',
     usage='choppy <positional argument> [<args>]',
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    formatter_class=argparse.RawDescriptionHelpFormatter)
 
 parser.add_argument('--debug', action='store_true', default=False, help="Debug mode.")
 
-sub = parser.add_subparsers()
+sub = parser.add_subparsers(title='commands', description=description)
 restart = sub.add_parser(name='restart',
-                         help='Restart a submitted workflow.',
                          description='Restart a submitted workflow.',
                          usage='choppy restart <workflow id>',
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -752,7 +793,6 @@ restart.add_argument('-D', '--disable_caching', action='store_true', default=Fal
 restart.set_defaults(func=call_restart)
 
 explain = sub.add_parser(name='explain',
-                         help='Explain the status of a workflow.',
                          description='Explain the status of a workflow.',
                          usage='choppy explain <workflowid>',
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -764,7 +804,6 @@ explain.add_argument('-M', '--monitor', action='store_false', default=False, hel
 explain.set_defaults(func=call_explain)
 
 log = sub.add_parser(name='log',
-                     help='Print the log of a workflow or a project.',
                      description='Print the log of a workflow or a project.',
                      usage='choppy log <workflow_id>/<project_name>',
                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -775,7 +814,6 @@ log.add_argument('-M', '--monitor', action='store_false', default=False, help=ar
 log.set_defaults(func=call_log)
 
 abort = sub.add_parser(name='abort',
-                       help='Abort a submitted workflow.',
                        description='Abort a submitted workflow.',
                        usage='choppy abort <workflow id>',
                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -786,8 +824,6 @@ abort.add_argument('-M', '--monitor', action='store_false', default=False, help=
 abort.set_defaults(func=call_abort)
 
 monitor = sub.add_parser(name='monitor',
-                         help='Monitor a particular workflow and notify user via e-mail upon completion. If a'
-                              'workflow ID is not provided, user-level monitoring is assumed.',
                          description='Monitor a particular workflow and notify user via e-mail upon completion. If a'
                                      'workflow ID is not provided, user-level monitoring is assumed.',
                          usage='choppy monitor <workflow_id> [<args>]',
@@ -810,7 +846,6 @@ monitor.add_argument('-D', '--daemon', action='store_true', default=False,
 monitor.set_defaults(func=call_monitor)
 
 query = sub.add_parser(name='query',
-                       help='Query cromwell for information on the submitted workflow.',
                        description='Query cromwell for information on the submitted workflow.',
                        usage='choppy query <workflow id> [<args>]',
                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -831,7 +866,6 @@ query.add_argument('-M', '--monitor', action='store_false', default=False, help=
 query.set_defaults(func=call_query)
 
 submit = sub.add_parser(name='submit',
-                        help='Submit a WDL & JSON for execution on a Cromwell VM.',
                         description='Submit a WDL & JSON for execution on a Cromwell VM.',
                         usage='choppy submit <wdl file> <json file> [<args>]',
                         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -863,7 +897,6 @@ submit.add_argument('-x', '--daemon', action='store_true', default=False, help=a
 submit.set_defaults(func=call_submit)
 
 validate = sub.add_parser(name='validate',
-                          help='Validate (but do not run) a json for a specific WDL file.',
                           description='Validate (but do not run) a json for a specific WDL file.',
                           usage='choppy validate <wdl_file> <json_file>',
                           formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -873,7 +906,6 @@ validate.add_argument('-M', '--monitor', action='store_false', default=False, he
 validate.set_defaults(func=call_validate)
 
 label = sub.add_parser(name='label',
-                       help='Label a specific workflow with one or more key/value pairs.',
                        description='Label a specific workflow with one or more key/value pairs.',
                        usage='choppy label <workflow_id> [<args>]',
                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -885,7 +917,6 @@ label.add_argument('-M', '--monitor', action='store_false', default=False, help=
 label.set_defaults(func=call_label)
 
 email = sub.add_parser(name ='email',
-                       help='Email data to user regarding a workflow.',
                        description='Email data to user regarding a workflow.',
                        usage='choppy label <workflow_id> [<args>]',
                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -900,7 +931,6 @@ email.add_argument('-D', '--daemon', action='store_true', default=False,
 email.set_defaults(func=call_email)
 
 batch = sub.add_parser(name="batch",
-                       help='Submit batch jobs for execution on a Cromwell VM.',
                        description="Submit batch jobs for execution on a Cromwell VM.",
                        usage="choppy batch <app_name> <samples>",
                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -915,7 +945,6 @@ batch.add_argument('-u', '--username', action='store', default=c.getuser(), type
 batch.set_defaults(func=call_batch)
 
 testapp = sub.add_parser(name="testapp",
-                         help='Test an app.',
                          description="Test an app.",
                          usage="choppy testapp <app_dir> <samples>",
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -933,7 +962,6 @@ testapp.add_argument('-u', '--username', action='store', default=c.getuser(), ty
 testapp.set_defaults(func=call_testapp)
 
 installapp = sub.add_parser(name="install",
-                            help="Install an app.",
                             description="Install an app.",
                             usage="choppy install <zip_file>",
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -941,7 +969,6 @@ installapp.add_argument('zip_file', action='store', type=is_valid_zip, help='The
 installapp.set_defaults(func=call_installapp)
 
 uninstallapp = sub.add_parser(name="uninstall",
-                              help="Uninstall an app.",
                               description="Uninstall an app.",
                               usage="choppy uninstall app_name",
                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -949,22 +976,23 @@ uninstallapp.add_argument('app_name', action='store', help='App name.')
 uninstallapp.set_defaults(func=call_uninstallapp)
 
 wdllist = sub.add_parser(name="apps",
-                         help="List all apps that is supported by choppy.",
                          description="List all apps that is supported by choppy.",
                          usage="choppy apps",
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 wdllist.set_defaults(func=call_list_apps)
 
 listfiles = sub.add_parser(name="listfiles",
-                           help="List all files where are in the specified bucket.",
                            description="List all files where are in the specified bucket.",
                            usage="choppy listfiles <oss_link>",
                            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 listfiles.add_argument('oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
+listfiles.add_argument('-l', '--long-format', action="store_true", default=False,
+                       help="Show by long format, if the option is not specified, show short format by default.")
+listfiles.add_argument('-r', '--recursive', action='store_true',
+                       default=False, help='Recursively list subdirectories encountered.')
 listfiles.set_defaults(func=call_list_files)
 
 upload_files = sub.add_parser(name="upload",
-                              help="Upload file/directory to the specified bucket.",
                               description="Upload file/directory to the specified bucket.",
                               usage="choppy upload <local_path> <oss_link>",
                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -975,7 +1003,6 @@ upload_files.add_argument('--exclude', action='store', help='Exclude Pattern of 
 upload_files.set_defaults(func=call_upload_files)
 
 download_files = sub.add_parser(name="download",
-                                help="Download file/directory to the specified bucket.",
                                 description="Download file/directory to the specified bucket.",
                                 usage="choppy download <oss_link> <local_path>",
                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -986,7 +1013,6 @@ download_files.add_argument('--exclude', action='store', help='Exclude Pattern o
 download_files.set_defaults(func=call_download_files)
 
 copy_files = sub.add_parser(name="copy",
-                            help="Copy file/directory from an oss path to another.",
                             description="Copy file/directory from an oss path to another.",
                             usage="choppy copy <src_oss_link> <dest_oss_link>",
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -997,7 +1023,6 @@ copy_files.add_argument('--exclude', action='store', help='Exclude Pattern of ke
 copy_files.set_defaults(func=call_cp_remote_files)
 
 cat_file = sub.add_parser(name="catlog",
-                          help="Cat log file.",
                           description="Cat log file.",
                           usage="choppy cat <oss_link>",
                           formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -1005,14 +1030,12 @@ cat_file.add_argument('oss_link', action='store', type=is_valid_oss_link, help='
 cat_file.set_defaults(func=call_cat_remote_file)
 
 config = sub.add_parser(name="config",
-                          help="Generate config template.",
                           description="Generate config template.",
                           usage="choppy config",
                           formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 config.set_defaults(func=call_config)
 
 samples = sub.add_parser(name="samples",
-                         help="Generate or check samples file.",
                          description="samples file.",
                          usage="choppy samples",
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -1023,7 +1046,6 @@ samples.add_argument('--checkfile', action='store', help="Your samples file.")
 samples.set_defaults(func=call_samples)
 
 search = sub.add_parser(name='search',
-                        help='Query cromwell for information on the submitted workflow.',
                         description='Query cromwell for information on the submitted workflow.',
                         usage='choppy search [<args>]',
                         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -1039,7 +1061,6 @@ search.add_argument('-S', '--server', action='store', default="localhost", type=
 search.set_defaults(func=call_search)
 
 version = sub.add_parser(name="version",
-                         help="Show the version.",
                          description="Show the version.",
                          usage="choppy version",
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
