@@ -1,12 +1,12 @@
 import datetime
 import calendar
-from cromwell import Cromwell
-from messenger import Messenger
+from .cromwell import Cromwell
+from .messenger import Messenger
 from dateutil.parser import parse
 import json
 from email.mime.text import MIMEText
 import logging
-import config as c
+from . import config as c
 
 
 class EmailNotification(object):

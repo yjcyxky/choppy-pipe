@@ -6,10 +6,10 @@ import getpass
 import shutil
 import zipfile
 import logging
-import config as c
+from . import config as c
 from markdown2 import Markdown
 from jinja2 import Environment, FileSystemLoader, meta
-from cromwell import Cromwell
+from .cromwell import Cromwell
 
 logger = logging.getLogger('choppy')
 

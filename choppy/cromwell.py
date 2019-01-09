@@ -6,7 +6,7 @@ import urllib
 import os
 import re
 import sys
-import config as c
+from . import config as c
 
 from requests.utils import quote
 from ratelimit import rate_limited

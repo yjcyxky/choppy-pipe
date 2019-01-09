@@ -11,12 +11,11 @@ from .messenger import Messenger
 from email.mime.text import MIMEText
 import pytz
 import threading
-import config
 import datetime
-from models import Workflow, Base
+from .models import Workflow, Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from email_notification import EmailNotification
+from .email_notification import EmailNotification
 
 import traceback
 import calendar
@@ -71,7 +70,7 @@ class Monitor:
         if user == "*":
             self.event_subscribers = [EmailNotification(self.cromwell), ]
 
-            engine = create_engine("sqlite:///" + config.workflow_db)
+            engine = create_engine("sqlite:///" + c.workflow_db)
             Base.metadata.bind = engine
             DBSession = sessionmaker()
             DBSession.bind = engine

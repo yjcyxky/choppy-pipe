@@ -5,7 +5,6 @@ import logging
 import getpass
 import configparser
 import subprocess
-from itertools import chain, imap
 
 DIRNAME = os.path.split(os.path.abspath(__file__))[0]
 

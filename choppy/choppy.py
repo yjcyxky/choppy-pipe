@@ -440,10 +440,7 @@ def call_cat_remote_file(args):
 
     if os.path.isfile(dest_file):
         with open(dest_file, 'r') as f:
-            while True:
-                line = f.readline()
-                if not line:
-                    break
+            for line in f.readlines():
                 print(line)
                 sys.stdout.flush()
     else:
@@ -639,7 +636,7 @@ def run_copy_files(first_path, second_path, include=None, exclude=None, recursiv
         
         shell_cmd.extend([first_path, second_path])
         process = Popen(shell_cmd, stdout=PIPE)
-        while True:
+        while process.poll() is None:
             output = process.stdout.readline()
             if output == '' and process.poll() is not None:
                 break
