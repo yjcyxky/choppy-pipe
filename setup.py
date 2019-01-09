@@ -1,7 +1,40 @@
 #!/usr/bin/env python
-
+import os
+import re
 from setuptools import setup, find_packages
 from choppy.version import get_version
+from setuptools.command.install import install
+from subprocess import check_output
+
+auto_complete_cmd = """
+# Bash Auto Complete for Choppy
+if command -v activate-global-python-argcomplete > /dev/null 2>&1; then 
+    activate-global-python-argcomplete > /dev/null
+    eval "$(register-python-argcomplete choppy)"
+else 
+    echo '' 
+fi
+"""
+
+
+class PostInstallCommand(install):
+    """Post-installation for installation mode."""
+
+    def search_pattern(self, pattern):
+        path = os.path.expanduser('~/.bashrc')
+        with open(path, 'r') as f:
+            lines = f.read()
+            data = re.findall(pattern, lines)
+            return data
+
+    def run(self):
+        install.run(self)
+        matched_str_lst = self.search_pattern(r'Bash Auto Complete for Choppy')
+        if len(matched_str_lst) == 0:
+            path = os.path.expanduser('~/.bashrc')
+            with open(path, 'w+') as f:
+                f.write(auto_complete_cmd)
+
 
 setup(
     name='choppy',
@@ -20,12 +53,15 @@ setup(
             'choppy = choppy.choppy:main',
         ],
     },
+    cmdclass={
+        'install': PostInstallCommand,
+    },
     install_requires=[
         'cachetools==3.0.0',
         'certifi==2018.11.29',
         'chardet==3.0.4',
         'configparser==3.5.0',
-        'futures==3.2.0',
+        # 'futures==3.2.0',
         'idna==2.8',
         'Jinja2==2.10',
         'MarkupSafe==1.1.0',
@@ -42,5 +78,6 @@ setup(
         'urllib3==1.24.1',
         'coloredlogs==10.0',
         'argcomplete==1.9.4',
+        'markdown2==2.3.7',
     ]
 )

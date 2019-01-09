@@ -14,11 +14,12 @@ import time
 import pytz
 import datetime
 import coloredlogs
+from argcomplete.completers import ChoicesCompleter
 from subprocess import CalledProcessError, check_output, PIPE, Popen, call as subprocess_call
 from . import config as c
 from .utils import (parse_samples, render_app, write, kv_list_to_dict, submit_workflow, \
                     install_app, uninstall_app, check_identifier, parse_json, check_variables,\
-                    get_header, get_vars_from_app)
+                    get_header, get_vars_from_app, listapps, render_readme)
 from .version import get_version
 from .cromwell import Cromwell, print_log_exit
 from .monitor import Monitor
@@ -745,6 +746,16 @@ def call_config(args):
         print(f.read())
         sys.stdout.flush()
 
+
+def call_readme(args):
+    output = args.output
+    format = args.format
+    app_name = args.app_name
+    results = render_readme(c.app_dir, app_name, readme="README.md", format=format, output=output)
+    print(results)
+    sys.stdout.flush()
+
+
 description = """Global Management:
     config      Generate config template.
     version     Show the version.
@@ -769,6 +780,7 @@ Choppy App Management:
     uninstall   Uninstall an app.
     samples     Generate or check samples file.
     search      Query cromwell for information on the submitted workflow.
+    man         Get manual about app.
 
 OSS Management:
     listfiles   List all files where are in the specified bucket.
@@ -939,12 +951,14 @@ batch = sub.add_parser(name="batch",
                        description="Submit batch jobs for execution on a Cromwell VM.",
                        usage="choppy batch <app_name> <samples>",
                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-batch.add_argument('app_name', action='store', help='The app name for your project.')
+batch.add_argument('app_name', action='store', choices=listapps(), metavar="app_name",
+                   help='The app name for your project.')
 batch.add_argument('samples', action='store', type=is_valid, help='Path the samples file to validate.')
 batch.add_argument('--project-name', action='store', required=True, help='Your project name.')
 batch.add_argument('--dry-run', action='store_true', default=False, help='Generate all workflow but skipping running.')
 batch.add_argument('-l', '--label', action='append', help='A key:value pair to assign. May be used multiple times.')
-batch.add_argument('-S', '--server', action='store', default='localhost', type=str, help='Choose a cromwell server.')
+batch.add_argument('-S', '--server', action='store', default='localhost', type=str, 
+                   help='Choose a cromwell server.', choices=c.servers)
 batch.add_argument('-u', '--username', action='store', default=c.getuser(), type=is_valid_label,
                    help=argparse.SUPPRESS)
 batch.set_defaults(func=call_batch)
@@ -960,7 +974,7 @@ testapp.add_argument('--dry-run', action='store_true', default=False,
                    help='Generate all workflow but skipping running.')
 testapp.add_argument('-l', '--label', action='append',
                      help='A key:value pair to assign. May be used multiple times.')
-testapp.add_argument('-S', '--server', action='store',
+testapp.add_argument('-S', '--server', action='store', choices=c.servers,
                      default='localhost', type=str, help='Choose a cromwell server.')
 testapp.add_argument('-u', '--username', action='store', default=c.getuser(), type=is_valid_label,
                      help=argparse.SUPPRESS)
@@ -977,7 +991,8 @@ uninstallapp = sub.add_parser(name="uninstall",
                               description="Uninstall an app.",
                               usage="choppy uninstall app_name",
                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-uninstallapp.add_argument('app_name', action='store', help='App name.')
+uninstallapp.add_argument('app_name', action='store', metavar="app_name",
+                          help='App name.', choices=listapps())
 uninstallapp.set_defaults(func=call_uninstallapp)
 
 wdllist = sub.add_parser(name="apps",
@@ -1042,10 +1057,10 @@ config.set_defaults(func=call_config)
 
 samples = sub.add_parser(name="samples",
                          description="samples file.",
-                         usage="choppy samples",
+                         usage="choppy samples <app_name>",
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-samples.add_argument('app_name', action='store',
-                     help='The app name for your project.')
+samples.add_argument('app_name', action='store', choices=listapps(),
+                     help='The app name for your project.', metavar="app_name")
 samples.add_argument('--output', action='store', help='Samples file name.')
 samples.add_argument('--checkfile', action='store', help="Your samples file.")
 samples.set_defaults(func=call_samples)
@@ -1062,7 +1077,7 @@ search.add_argument('--short-format', action="store_true", default=False,
 search.add_argument('-u', '--username', action='store', default=c.getuser(), type=is_valid_label,
                     help='Owner of workflows to query.')
 search.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
-                   help='Choose a cromwell server from {}'.format(c.servers))
+                    help='Choose a cromwell server from {}'.format(c.servers))
 search.set_defaults(func=call_search)
 
 version = sub.add_parser(name="version",
@@ -1070,6 +1085,18 @@ version = sub.add_parser(name="version",
                          usage="choppy version",
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 version.set_defaults(func=call_version)
+
+manual = sub.add_parser(name="man",
+                        description="Get manual about app.",
+                        usage="choppy man <app_name> [<args>]",
+                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+manual.add_argument('app_name', action='store', choices=listapps(),
+                     help='The app name for your project.', metavar="app_name")
+manual.add_argument('-o', '--output', action='store', help='output file name.')
+manual.add_argument('-f', '--format', action='store', help='output format.', default='html',
+                    choices=('html', 'markdown'))
+manual.set_defaults(func=call_readme)
+
 
 def main():
     argcomplete.autocomplete(parser)

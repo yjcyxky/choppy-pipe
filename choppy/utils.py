@@ -7,6 +7,7 @@ import shutil
 import zipfile
 import logging
 import config as c
+from markdown2 import Markdown
 from jinja2 import Environment, FileSystemLoader, meta
 from cromwell import Cromwell
 
@@ -74,6 +75,42 @@ def render_app(app_path, template_file, data):
     return template.render(**data)
 
 
+def read_file_as_string(filepath):
+    if os.path.exists(filepath):
+        with open(filepath, 'r') as f:
+            return f.read()
+    else:
+        return ''
+
+
+def write_string_as_file(filepath, string):
+    with open(filepath, 'w') as f:
+        f.write(string)
+
+
+def render_readme(app_path, app_name, readme="README.md", format="html", output=None):
+    readme_path = os.path.join(app_path, app_name, readme)
+    if os.path.exists(readme_path):
+        if format.lower() == 'html':
+            markdown_text = read_file_as_string(readme_path)
+            markdowner = Markdown()
+            html = markdowner.convert(markdown_text)
+            if output:
+                write_string_as_file(output, html)
+                return 'Save manual to %s' % output
+            else:
+                return html
+        else:
+            markdown_text = read_file_as_string(readme_path)
+            if output:
+                write_string_as_file(output, markdown_text)
+                return 'Save manual to %s' % output
+            else:
+                return markdown_text
+    else:
+        return 'No manual entry for %s' % app_name
+
+
 def get_vars_from_app(app_path, template_file):
     env = Environment()
     template = os.path.join(app_path, template_file)
@@ -83,6 +120,14 @@ def get_vars_from_app(app_path, template_file):
         variables = meta.find_undeclared_variables(ast)
 
     return variables
+
+
+def listapps():
+    if os.path.isdir(c.app_dir):
+        files = os.listdir(c.app_dir)
+        return files
+    else:
+        return []
 
 
 def check_variables(app_path, template_file, line_dict=None, header_list=None):
