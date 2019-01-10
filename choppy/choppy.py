@@ -1,3 +1,4 @@
+#-*- coding:utf-8 -*-
 import argcomplete
 import argparse
 import sys
@@ -19,7 +20,8 @@ from subprocess import CalledProcessError, check_output, PIPE, Popen, call as su
 from . import config as c
 from .utils import (parse_samples, render_app, write, kv_list_to_dict, submit_workflow, \
                     install_app, uninstall_app, check_identifier, parse_json, check_variables,\
-                    get_header, get_vars_from_app, listapps, render_readme)
+                    get_header, get_vars_from_app, listapps, render_readme, print_obj)
+from .json_checker import check_json
 from .version import get_version
 from .cromwell import Cromwell, print_log_exit
 from .monitor import Monitor
@@ -138,6 +140,7 @@ def call_submit(args):
     labels_dict['username'] = args.username.lower()
     host, port, auth = c.get_conn_info(args.server)
     cromwell = Cromwell(host, port, auth)
+    check_json(json_file=args.json)
     result = cromwell.jstart_workflow(wdl_file=args.wdl, json_file=args.json, dependencies=args.dependencies,
                                       disable_caching=args.disable_caching,
                                       extra_options=kv_list_to_dict(args.extra_options),
@@ -194,7 +197,7 @@ def call_query(args):
         logger.debug("Logs requested.")
         logs = cromwell.query_logs(args.workflow_id)
         responses.append(logs)
-    print("\n%s\n" % json.dumps(parse_json(responses), indent=2, sort_keys=True))
+    print_obj("\n%s\n" % json.dumps(parse_json(responses), indent=2, sort_keys=True))
     sys.stdout.flush()
     return responses
 
@@ -307,19 +310,19 @@ def call_explain(args):
         printer.pprint(result)
 
         if len(additional_res) > 0:
-            print("-------------Additional Parameters-------------")
+            print_obj("-------------Additional Parameters-------------")
             printer.pprint(additional_res)
 
         if len(stdout_res) > 0:
             for log in stdout_res["failed_jobs"]:
-                print("-------------Failed Stdout-------------")
-                print ("Shard: "+ log["stdout"]["label"])
-                print (log["stdout"]["name"] + ":")
-                print (log["stdout"]["log"])
-                print ("-------------Failed Stderr-------------")
-                print ("Shard: " + log["stderr"]["label"])
-                print (log["stderr"]["name"] + ":")
-                print (log["stderr"]["log"])
+                print_obj("-------------Failed Stdout-------------")
+                print_obj("Shard: "+ log["stdout"]["label"])
+                print_obj(log["stdout"]["name"] + ":")
+                print_obj(log["stdout"]["log"])
+                print_obj("-------------Failed Stderr-------------")
+                print_obj("Shard: " + log["stderr"]["label"])
+                print_obj(log["stderr"]["name"] + ":")
+                print_obj(log["stderr"]["log"])
 
         logger.info("-------------Cromwell Links-------------")
         links = get_cromwell_links(args.server, result['id'], cromwell.port)
@@ -441,7 +444,7 @@ def call_cat_remote_file(args):
     if os.path.isfile(dest_file):
         with open(dest_file, 'r') as f:
             for line in f.readlines():
-                print(line)
+                print_obj(line.strip('\n'))
                 sys.stdout.flush()
     else:
         logger.warn("Not a file.")
@@ -490,6 +493,7 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
             sample['project_name'] = project_name
 
             inputs = render_app(app_dir, 'inputs', sample)
+            check_json(inputs)  # Json Syntax Checker
             write(sample_path, 'inputs', inputs)
             inputs_path = os.path.join(sample_path, 'inputs')
 
@@ -611,7 +615,7 @@ def call_list_files(args):
 
         if len(output) > 2:
             for i in output[0:-2]:
-                print("%s" % i)
+                print_obj("%s" % i)
                 sys.stdout.flush()
     except CalledProcessError:
         logger.critical("access_key/access_secret or oss_link is not valid.")
@@ -641,7 +645,7 @@ def run_copy_files(first_path, second_path, include=None, exclude=None, recursiv
             if output == '' and process.poll() is not None:
                 break
             if output and not silent:
-                print(output.strip())
+                print_obj(output.strip())
                 sys.stdout.flush()
             process.poll()
     except CalledProcessError as e:
@@ -720,16 +724,19 @@ def call_samples(args):
             
             if check_variables(app_dir, 'workflow.wdl', header_list=header_list):
                 logger.info("%s is valid." % checkfile)
-    elif output:
+
+    inputs_variables = get_vars_from_app(app_dir, 'inputs')
+    workflow_variables = get_vars_from_app(app_dir, 'workflow.wdl')
+    variables = list(set(list(inputs_variables) + list(workflow_variables) + ['sample_id', ]))
+    if 'project_name' in variables:
+        variables.remove('project_name')
+
+    if output:
         with open(output, 'w') as f:
-            inputs_variables = get_vars_from_app(app_dir, 'inputs')
-            workflow_variables = get_vars_from_app(app_dir, 'workflow.wdl')
-            variables = list(set(list(inputs_variables) + list(workflow_variables) + ['sample_id', ]))
-
-            if 'project_name' in variables:
-                variables.remove('project_name')
-
             f.write(','.join(variables))
+    else:
+        print_obj(variables)
+        sys.stdout.flush()
 
 
 def call_version(args):
@@ -740,7 +747,7 @@ def call_config(args):
     resource_dir = c.resource_dir
     choppy_conf = os.path.join(resource_dir, 'choppy.conf')
     with open(choppy_conf, 'r') as f:
-        print(f.read())
+        print_obj(f.read())
         sys.stdout.flush()
 
 
@@ -749,7 +756,7 @@ def call_readme(args):
     format = args.format
     app_name = args.app_name
     results = render_readme(c.app_dir, app_name, readme="README.md", format=format, output=output)
-    print(results)
+    print_obj(results)
     sys.stdout.flush()
 
 

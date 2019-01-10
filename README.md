@@ -19,12 +19,12 @@ Features include:
 
 ## Dependencies
 
-Choppy requires Python 2.7 and Java-1.8 to be loaded in your environment in order for full functionality to work.
+Choppy requires Python 3+ and Java-1.8 to be loaded in your environment in order for full functionality to work.
 
 ## Installation
 
 ```
-virtualenv -p python2.7 .env
+virtualenv .env
 source .env/bin/activate
 pip install choppy-0.2.0.tar.gz
 

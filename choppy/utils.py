@@ -14,6 +14,13 @@ from .cromwell import Cromwell
 logger = logging.getLogger('choppy')
 
 
+def print_obj(str):
+    try: # For Python2.7
+        print(unicode(str).encode('utf8'))
+    except NameError: # For Python3
+        print(str)
+
+
 def check_identifier(identifier):
     matchObj = re.match(r'([a-z0-9]*[-a-z0-9]*[a-z0-9])?.',
                         identifier, re.M | re.I)
