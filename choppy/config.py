@@ -85,6 +85,10 @@ access_key = config.get('oss', 'access_key')
 access_secret = config.get('oss', 'access_secret')
 endpoint = config.get('oss', 'endpoint')
 
+# repo
+base_url = config.get('repo', 'base_url')
+username = config.get('repo', 'username')
+password = config.get('repo', 'password')
 
 # Log
 if sys.platform == 'darwin':

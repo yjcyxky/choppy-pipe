@@ -18,9 +18,12 @@ import coloredlogs
 from argcomplete.completers import ChoicesCompleter
 from subprocess import CalledProcessError, check_output, PIPE, Popen, call as subprocess_call
 from . import config as c
-from .utils import (parse_samples, render_app, write, kv_list_to_dict, submit_workflow, \
-                    install_app, uninstall_app, check_identifier, parse_json, check_variables,\
-                    get_header, get_vars_from_app, listapps, render_readme, print_obj)
+from .app_utils import (parse_samples, render_app, write, kv_list_to_dict, submit_workflow,\
+                    install_app, uninstall_app, parse_json, get_header,\
+                    listapps, render_readme, print_obj, generate_dependencies_zip)
+from .check_utils import (is_valid_label, is_valid_project_name, is_valid_oss_link, check_dir,\
+                          is_valid_app, is_valid, is_valid_zip, check_identifier, check_variables,\
+                          get_vars_from_app, is_valid_app_name)
 from .json_checker import check_json
 from .version import get_version
 from .cromwell import Cromwell, print_log_exit
@@ -68,61 +71,6 @@ def set_ch_logger(ch_log_level):
 
     # add the handlers to the logger
     logger.addHandler(ch)
-
-
-def is_valid_label(label):
-    matchObj = re.match(r'([a-z0-9]*[-a-z0-9]*[a-z0-9])?.', label, re.M | re.I)
-    if matchObj:
-       return label
-    else:
-       raise argparse.ArgumentTypeError("Invalid label: %s did not match the regex ([a-z0-9]*[-a-z0-9]*[a-z0-9])?." % label) 
-
-
-def is_valid_oss_link(path):
-    matchObj = re.match(r'^oss://[a-zA-Z0-9\-_\./]+$', path, re.M|re.I)
-    if matchObj:
-        return path
-    else:
-        raise argparse.ArgumentTypeError("%s is not a valid oss link.\n" % path)
-
-
-def check_dir(path, skip=None):
-    if not os.path.isdir(path):
-        os.makedirs(path)
-    elif not skip:
-        raise Exception("%s is not empty" % path)
-
-
-def is_valid_app(path):
-    if not os.path.exists(path):
-        raise Exception("%s is not a valid app.\n" % os.path.basename(path))
-
-
-def is_valid(path):
-    """
-    Integrates with ArgParse to validate a file path.
-    :param path: Path to a file.
-    :return: The path if it exists, otherwise raises an error.
-    """
-    if not os.path.exists(path):
-        raise argparse.ArgumentTypeError(("{} is not a valid file path.\n".format(path)))
-    else:
-        return path
-
-
-def is_valid_zip(path):
-    """
-    Integrates with argparse to validate a file path and verify that the file is a zip file.
-    :param path: Path to a file.
-    :return: The path if it exists and is a zip file, otherwise raises an error.
-    """
-    is_valid(path)
-    if not zipfile.is_zipfile(path):
-        e = "{} is not a valid zip file.\n".format(path)
-        logger.error(e)
-        raise argparse.ArgumentTypeError(e)
-    else:
-        return path
 
 
 def call_submit(args):
@@ -472,11 +420,11 @@ def call_list_apps(args):
 
 
 def run_batch(project_name, app_dir, samples, label, server='localhost', 
-              username=None, dry_run=False):
+              username=None, dry_run=False, force=False):
     is_valid_app(app_dir)
     working_dir = os.getcwd()
     project_path = os.path.join(working_dir, project_name)
-    check_dir(project_path)
+    check_dir(project_path, skip=force)
 
     samples_data = parse_samples(samples)
     successed_samples = []
@@ -488,7 +436,7 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
         else:
             # make project_name/sample_id directory
             sample_path = os.path.join(project_path, sample.get('sample_id'))
-            check_dir(sample_path)
+            check_dir(sample_path, skip=force)
 
             sample['project_name'] = project_name
 
@@ -501,9 +449,9 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
             write(sample_path, 'workflow.wdl', wdl)
             wdl_path = os.path.join(sample_path, 'workflow.wdl')
 
-            src_dependencies = os.path.join(app_dir, 'tasks.zip')
-            dest_dependencies = os.path.join(sample_path, 'tasks.zip')
-            shutil.copyfile(src_dependencies, dest_dependencies)
+            src_dependencies = os.path.join(app_dir, 'tasks')            
+            dest_dependencies = os.path.join(sample_path, 'tasks')
+            shutil.copytree(src_dependencies, dest_dependencies)
             
             if label is None:
                 label = []
@@ -513,13 +461,12 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
 
             if not dry_run:
                 try:
-                    result = submit_workflow(wdl_path, inputs_path, dest_dependencies, label, 
+                    dependencies_zip_file = generate_dependencies_zip(app_dir)
+                    result = submit_workflow(wdl_path, inputs_path, dependencies_zip_file, label, 
                                              username=username, server=server)
 
                     links = get_cromwell_links(server, result['id'], result.get('port'))
-
-                    sample['metadata_link'] = links['metadata']
-                    sample['timing_link'] = links['timing']
+                    logger.info("Debug Links: %s" % links)
                     sample['workflow_id'] = result['id']
                     logger.info("Sample ID: %s, Workflow ID: %s" % (sample.get('sample_id'), result['id']))
                 except Exception as e:
@@ -558,35 +505,31 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
 def call_batch(args):
     app_dir = os.path.join(c.app_dir, args.app_name)
     project_name = args.project_name
-    if not check_identifier(project_name):
-        raise Exception("Not valid project_name.")
-
     samples = args.samples
     label = args.label
     server = args.server
     dry_run = args.dry_run
     username = args.username.lower()
-    run_batch(project_name, app_dir, samples, label, server, username, dry_run)
+    force = args.force
+    run_batch(project_name, app_dir, samples, label, server, username, dry_run, force)
 
 
 def call_testapp(args):
     # app_dir is not same with call_batch.
     app_dir = args.app_dir
     project_name = args.project_name
-    if not check_identifier(project_name):
-        raise Exception("Not valid project_name.")
-
     samples = args.samples
     label = args.label
     server = args.server
     dry_run = args.dry_run
     username = args.username.lower()
-    run_batch(project_name, app_dir, samples, label, server, username, dry_run)
+    force = args.force
+    run_batch(project_name, app_dir, samples, label, server, username, dry_run, force=force)
 
 
 def call_installapp(args):
-    app_zip_file = args.zip_file
-    install_app(c.app_dir, app_zip_file)
+    choppy_app = args.choppy_app
+    install_app(c.app_dir, choppy_app)
 
 
 def call_uninstallapp(args):
@@ -958,11 +901,12 @@ batch = sub.add_parser(name="batch",
 batch.add_argument('app_name', action='store', choices=listapps(), metavar="app_name",
                    help='The app name for your project.')
 batch.add_argument('samples', action='store', type=is_valid, help='Path the samples file to validate.')
-batch.add_argument('--project-name', action='store', required=True, help='Your project name.')
+batch.add_argument('--project-name', action='store', type=is_valid_project_name, required=True, help='Your project name.')
 batch.add_argument('--dry-run', action='store_true', default=False, help='Generate all workflow but skipping running.')
 batch.add_argument('-l', '--label', action='append', help='A key:value pair to assign. May be used multiple times.')
 batch.add_argument('-S', '--server', action='store', default='localhost', type=str, 
                    help='Choose a cromwell server.', choices=c.servers)
+batch.add_argument('-f', '--force', action='store_true', default=False, help='Force to overwrite files.')
 batch.add_argument('-u', '--username', action='store', default=c.getuser(), type=is_valid_label,
                    help=argparse.SUPPRESS)
 batch.set_defaults(func=call_batch)
@@ -973,22 +917,25 @@ testapp = sub.add_parser(name="testapp",
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 testapp.add_argument('app_dir', action='store', type=is_valid, help='The app path for your project.')
 testapp.add_argument('samples', action='store', type=is_valid, help='Path the samples file to validate.')
-testapp.add_argument('--project-name', action='store', required=True, help='Your project name.')
+testapp.add_argument('--project-name', action='store', type=is_valid_project_name, required=True, help='Your project name.')
 testapp.add_argument('--dry-run', action='store_true', default=False,
                    help='Generate all workflow but skipping running.')
 testapp.add_argument('-l', '--label', action='append',
                      help='A key:value pair to assign. May be used multiple times.')
 testapp.add_argument('-S', '--server', action='store', choices=c.servers,
                      default='localhost', type=str, help='Choose a cromwell server.')
+testapp.add_argument('-f', '--force', action='store_true',
+                     default=False, help='Force to overwrite files.')
 testapp.add_argument('-u', '--username', action='store', default=c.getuser(), type=is_valid_label,
                      help=argparse.SUPPRESS)
 testapp.set_defaults(func=call_testapp)
 
 installapp = sub.add_parser(name="install",
-                            description="Install an app.",
-                            usage="choppy install <zip_file>",
+                            description="Install an app from a zip file or choppy store.",
+                            usage="choppy install <choppy_app>",
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-installapp.add_argument('zip_file', action='store', type=is_valid_zip, help='The app zip file.')
+installapp.add_argument('choppy_app', action='store', type=is_valid_app_name,
+                        help="App name or app zip file, the default version is latest. eg. choppy/dna_seq:v0.1.0")
 installapp.set_defaults(func=call_installapp)
 
 uninstallapp = sub.add_parser(name="uninstall",

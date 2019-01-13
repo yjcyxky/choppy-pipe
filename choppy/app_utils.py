@@ -1,55 +1,129 @@
+from subprocess import Popen, PIPE
 import json
 import os
 import re
 import csv
+import uuid
 import getpass
 import shutil
 import zipfile
 import logging
+import argparse
 from . import config as c
 from markdown2 import Markdown
+from subprocess import Popen, PIPE
 from jinja2 import Environment, FileSystemLoader, meta
 from .cromwell import Cromwell
 
 logger = logging.getLogger('choppy')
 
 
-def print_obj(str):
-    try: # For Python2.7
-        print(unicode(str).encode('utf8'))
-    except NameError: # For Python3
-        print(str)
+def parse_app_name(app_name):
+    pattern = r'^([-\w]+)/([-\w]+)(:[-.\w]+)?$'
+    match = re.search(pattern, app_name)
+    if match:
+        namespace, app_name, version = match.groups()
+        if version:
+            version = version.strip(':')
+        else:
+            version = ''
 
-
-def check_identifier(identifier):
-    matchObj = re.match(r'([a-z0-9]*[-a-z0-9]*[a-z0-9])?.',
-                        identifier, re.M | re.I)
-    if matchObj:
-        return True
+        return {
+            "namespace": namespace,
+            "app_name": app_name,
+            "version": version
+        }
     else:
         return False
 
 
-def install_app(app_dir, app_file):
-    app_name = os.path.splitext(os.path.basename(app_file))[0]
-    dest_namelist = [os.path.join(app_name, 'inputs'),
-                     os.path.join(app_name, 'workflow.wdl'),
-                     os.path.join(app_name, 'tasks.zip')]
+def print_obj(str):
+    try:  # For Python2.7
+        print(unicode(str).encode('utf8'))
+    except NameError:  # For Python3
+        print(str)
 
-    app_file_handler = zipfile.ZipFile(app_file)
 
-    def check_app(app_file_handler):
-        namelist = app_file_handler.namelist()
-        if len([path for path in dest_namelist if path in namelist]) == 3:
-            return True
+def dfs_get_zip_file(input_path, result):
+    files = os.listdir(input_path)
+    for file in files:
+        filepath = os.path.join(input_path, file)
+        if os.path.isdir(filepath):
+            dfs_get_zip_file(filepath, result)
         else:
-            return False
+            result.append(filepath)
 
-    if check_app(app_file_handler):
-        app_file_handler.extractall(app_dir, dest_namelist)
-        print("Install %s successfully." % app_name)
+
+def zip_path(input_path, output_path):
+    f = zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED)
+    filelists = []
+    dfs_get_zip_file(input_path, filelists)
+    for file in filelists:
+        f.write(file)
+    f.close()
+    return output_path
+
+
+def generate_dependencies_zip(app_path):
+    previous_workdir = os.getcwd()
+    par_dir = str(uuid.uuid1())
+    workdir = os.path.join('/', 'tmp', par_dir)
+    os.mkdir(workdir)
+    src_path = os.path.join(app_path, 'tasks')
+    zip_output = os.path.join('/', 'tmp', par_dir, 'tasks.zip')
+
+    os.chdir(workdir)
+    dest_path = os.path.join('tasks', 'tasks')
+    shutil.copytree(src_path, dest_path)
+    zip_path(dest_path, zip_output)
+    os.chdir(previous_workdir)
+    return zip_output
+
+
+def install_app_by_git(base_url, namespace, app_name, dest_dir='./',
+                       version='', username=None, password=None):
+    repo_url = "%s/%s/%s.git" % (base_url.strip('http://'),
+                                 namespace, app_name)
+    auth_repo_url = "http://%s@%s" % (username, repo_url)
+    cmd = ['git', 'clone', '-b', version, '--single-branch',
+           '--depth', '1', auth_repo_url, dest_dir]
+    logger.debug('Git Repo Cmd: %s' % ''.join(cmd))
+    proc = Popen(cmd, stdin=PIPE)
+    proc.communicate(password)
+    print("Install %s successfully." % app_name)
+
+
+def install_app(app_dir, choppy_app):
+    parsed_dict = parse_app_name(choppy_app)
+    if parsed_dict:
+        base_url = c.base_url
+        namespace = parsed_dict.get('namespace')
+        app_name = parsed_dict.get('app_name')
+        version = parsed_dict.get('version')
+        url = os.path.join(base_url, namespace, app_name)
+        app_dir_version = os.path.join(app_dir, "%s-%s" % (app_name, version))
+        install_app_by_git(url, namespace, app_name, dest_dir=app_dir_version,
+                           version=version, username=c.username, password=c.password)
     else:
-        raise Exception("Not a valid app.")
+        app_name = os.path.splitext(os.path.basename(choppy_app))[0]
+        dest_namelist = [os.path.join(app_name, 'inputs'),
+                         os.path.join(app_name, 'workflow.wdl'),
+                         os.path.join(app_name, 'tasks')]
+
+        choppy_app_handler = zipfile.ZipFile(choppy_app)
+
+        def check_app(choppy_app_handler):
+            namelist = choppy_app_handler.namelist()
+            if len([path for path in dest_namelist if path in namelist]) == 3:
+                return True
+            else:
+                return False
+
+        if check_app(choppy_app_handler):
+            choppy_app_handler.extractall(app_dir, dest_namelist)
+            print("Install %s successfully." % app_name)
+        else:
+            raise Exception("Not a valid app.")
 
 
 def uninstall_app(app_dir):
@@ -118,39 +192,12 @@ def render_readme(app_path, app_name, readme="README.md", format="html", output=
         return 'No manual entry for %s' % app_name
 
 
-def get_vars_from_app(app_path, template_file):
-    env = Environment()
-    template = os.path.join(app_path, template_file)
-    with open(template) as f:
-        templ_str = f.read()
-        ast = env.parse(templ_str)
-        variables = meta.find_undeclared_variables(ast)
-
-    return variables
-
-
 def listapps():
     if os.path.isdir(c.app_dir):
         files = os.listdir(c.app_dir)
         return files
     else:
         return []
-
-
-def check_variables(app_path, template_file, line_dict=None, header_list=None):
-    variables = get_vars_from_app(app_path, template_file)
-    variables = list(variables) + ['sample_id', ]
-    for var in variables:
-        if line_dict:
-            if var not in line_dict.keys() and var != 'project_name':
-                logger.warn('%s not in samples header.' % var)
-                return False
-        elif header_list:
-            if var not in header_list and var != 'project_name':
-                logger.warn('%s not in samples header.' % var)
-                return False
-
-    return True
 
 
 def get_header(file):
