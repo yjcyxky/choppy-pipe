@@ -79,5 +79,6 @@ setup(
         'coloredlogs==10.0',
         'argcomplete==1.9.4',
         'markdown2==2.3.7',
+        'GitPython==2.1.11'
     ]
 )

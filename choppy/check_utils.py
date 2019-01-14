@@ -90,9 +90,12 @@ def is_valid_oss_link(path):
             "%s is not a valid oss link.\n" % path)
 
 
-def check_dir(path, skip=None):
+def check_dir(path, skip=None, force=True):
     if not os.path.isdir(path):
-        os.makedirs(path)
+        if force:
+            os.makedirs(path)
+        else:
+            raise Exception("%s doesn't exist." % path)
     elif not skip:
         raise Exception("%s exists" % path)
 

@@ -25,6 +25,7 @@ from .check_utils import (is_valid_label, is_valid_project_name, is_valid_oss_li
                           is_valid_app, is_valid, is_valid_zip, check_identifier, check_variables,\
                           get_vars_from_app, is_valid_app_name)
 from .json_checker import check_json
+from .project_revision import Git
 from .version import get_version
 from .cromwell import Cromwell, print_log_exit
 from .monitor import Monitor
@@ -703,6 +704,57 @@ def call_readme(args):
     sys.stdout.flush()
 
 
+def call_save(args):
+    project_path = args.project_path
+    url = args.url # remote git repo
+    username = args.username
+    msg = args.message
+
+    check_dir(project_path, skip=True)
+    git = Git()
+    git.init_repo(project_path)
+
+    # Local Commit
+    if msg is None:
+        msg = 'Add new files.'
+
+    git.commit(msg)
+
+    # Remote Push
+    project_name = os.path.basename(project_path)
+    git.add_remote(url, name=project_name, username=username)
+    git.push()
+
+
+def call_clone(args):
+    username = args.username
+    url = args.url
+    dest_path = args.dest_path
+    branch = args.branch
+
+    check_dir(dest_path, skip=True)
+    git = Git()
+
+    git.clone_from(url, dest_path, branch, username)
+    print("Clone all files successfully. %s" % dest_path)
+
+def call_archive(args):
+    # TODO: 保存所有workflow相关metadata
+    pass
+
+
+def call_status(args):
+    project_path = args.project_path
+
+    check_dir(project_path, skip=True)
+    git = Git()
+    git.init_repo(project_path)
+    if git.is_dirty():
+        print("Warning: Changes not staged for commit")
+    else:
+        print("Nothing to commit, working tree clean")
+
+
 description = """Global Management:
     config      Generate config template.
     version     Show the version.
@@ -734,7 +786,14 @@ OSS Management:
     upload      Upload file/directory to the specified bucket.
     download    Download file/directory to the specified bucket.
     copy        Copy file/directory from an oss path to another.
-    catlog      Cat log file."""
+    catlog      Cat log file.
+    
+Project Management:
+    save        Save all project files to Choppy Version Storage.
+    clone       Clone all project files from Choppy Version Storage.
+    archive     Generate all metadata files related with the project and save to Choppy Version Storage.
+    status      Dirty or clean.
+"""
 
 
 parser = argparse.ArgumentParser(
@@ -747,7 +806,7 @@ parser.add_argument('--debug', action='store_true', default=False, help="Debug m
 sub = parser.add_subparsers(title='commands', description=description)
 restart = sub.add_parser(name='restart',
                          description='Restart a submitted workflow.',
-                         usage='choppy restart <workflow id>',
+                         usage='choppy restart <workflow id> [<args>]',
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 restart.add_argument('workflow_id', action='store', help='workflow id of workflow to restart.')
 restart.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
@@ -758,7 +817,7 @@ restart.set_defaults(func=call_restart)
 
 explain = sub.add_parser(name='explain',
                          description='Explain the status of a workflow.',
-                         usage='choppy explain <workflowid>',
+                         usage='choppy explain <workflowid> [<args>]',
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 explain.add_argument('workflow_id', action='store', help='workflow id of workflow to abort.')
 explain.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
@@ -769,7 +828,7 @@ explain.set_defaults(func=call_explain)
 
 log = sub.add_parser(name='log',
                      description='Print the log of a workflow or a project.',
-                     usage='choppy log <workflow_id>/<project_name>',
+                     usage='choppy log <workflow_id>/<project_name> [<args>]',
                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 log.add_argument('workflow_id', action='store', help='workflow_id or project_name')
 log.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
@@ -779,7 +838,7 @@ log.set_defaults(func=call_log)
 
 abort = sub.add_parser(name='abort',
                        description='Abort a submitted workflow.',
-                       usage='choppy abort <workflow id>',
+                       usage='choppy abort <workflow id> [<args>]',
                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 abort.add_argument('workflow_id', action='store', help='workflow id of workflow to abort.')
 abort.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
@@ -862,7 +921,7 @@ submit.set_defaults(func=call_submit)
 
 validate = sub.add_parser(name='validate',
                           description='Validate (but do not run) a json for a specific WDL file.',
-                          usage='choppy validate <wdl_file> <json_file>',
+                          usage='choppy validate <wdl_file> <json_file> [<args>]',
                           formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 validate.add_argument('wdl', action='store', type=is_valid, help='Path to the WDL associated with the json file.')
 validate.add_argument('json', action='store', type=is_valid, help='Path the json inputs file to validate.')
@@ -896,7 +955,7 @@ email.set_defaults(func=call_email)
 
 batch = sub.add_parser(name="batch",
                        description="Submit batch jobs for execution on a Cromwell VM.",
-                       usage="choppy batch <app_name> <samples>",
+                       usage="choppy batch <app_name> <samples> [<args>]",
                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 batch.add_argument('app_name', action='store', choices=listapps(), metavar="app_name",
                    help='The app name for your project.')
@@ -913,7 +972,7 @@ batch.set_defaults(func=call_batch)
 
 testapp = sub.add_parser(name="testapp",
                          description="Test an app.",
-                         usage="choppy testapp <app_dir> <samples>",
+                         usage="choppy testapp <app_dir> <samples> [<args>]",
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 testapp.add_argument('app_dir', action='store', type=is_valid, help='The app path for your project.')
 testapp.add_argument('samples', action='store', type=is_valid, help='Path the samples file to validate.')
@@ -954,7 +1013,7 @@ wdllist.set_defaults(func=call_list_apps)
 
 listfiles = sub.add_parser(name="listfiles",
                            description="List all files where are in the specified bucket.",
-                           usage="choppy listfiles <oss_link>",
+                           usage="choppy listfiles <oss_link> [<args>]",
                            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 listfiles.add_argument('oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
 listfiles.add_argument('-l', '--long-format', action="store_true", default=False,
@@ -965,7 +1024,7 @@ listfiles.set_defaults(func=call_list_files)
 
 upload_files = sub.add_parser(name="upload",
                               description="Upload file/directory to the specified bucket.",
-                              usage="choppy upload <local_path> <oss_link>",
+                              usage="choppy upload <local_path> <oss_link> [<args>]",
                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 upload_files.add_argument('local_path', action='store', type=is_valid, help='local_path.')
 upload_files.add_argument('oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
@@ -975,7 +1034,7 @@ upload_files.set_defaults(func=call_upload_files)
 
 download_files = sub.add_parser(name="download",
                                 description="Download file/directory to the specified bucket.",
-                                usage="choppy download <oss_link> <local_path>",
+                                usage="choppy download <oss_link> <local_path> [<args>]",
                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 download_files.add_argument('oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
 download_files.add_argument('local_path', action='store', type=is_valid, help='local_path.')
@@ -985,7 +1044,7 @@ download_files.set_defaults(func=call_download_files)
 
 copy_files = sub.add_parser(name="copy",
                             description="Copy file/directory from an oss path to another.",
-                            usage="choppy copy <src_oss_link> <dest_oss_link>",
+                            usage="choppy copy <src_oss_link> <dest_oss_link> [<args>]",
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 copy_files.add_argument('src_oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
 copy_files.add_argument('dest_oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
@@ -995,7 +1054,7 @@ copy_files.set_defaults(func=call_cp_remote_files)
 
 cat_file = sub.add_parser(name="catlog",
                           description="Cat log file.",
-                          usage="choppy cat <oss_link>",
+                          usage="choppy catlog <oss_link>",
                           formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 cat_file.add_argument('oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
 cat_file.set_defaults(func=call_cat_remote_file)
@@ -1008,7 +1067,7 @@ config.set_defaults(func=call_config)
 
 samples = sub.add_parser(name="samples",
                          description="samples file.",
-                         usage="choppy samples <app_name>",
+                         usage="choppy samples <app_name> [<args>]",
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 samples.add_argument('app_name', action='store', choices=listapps(),
                      help='The app name for your project.', metavar="app_name")
@@ -1047,6 +1106,36 @@ manual.add_argument('-o', '--output', action='store', help='output file name.')
 manual.add_argument('-f', '--format', action='store', help='output format.', default='html',
                     choices=('html', 'markdown'))
 manual.set_defaults(func=call_readme)
+
+save = sub.add_parser(name="save",
+                      description="Save all project files to Choppy Version Storage.",
+                      usage="choppy save <project_path> <url> [<args>]",
+                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+save.add_argument('project_path', action='store', help='Your project path.')
+save.add_argument('url', action='store', help='Git Remote Repo.')
+save.add_argument('-u', '--username', action='store', type=is_valid_label,
+                  help='Owner of remote git repo.')
+save.add_argument('-m', '--message', action='store', help='The comment of your project.')
+save.set_defaults(func=call_save)
+
+clone = sub.add_parser(name="clone",
+                      description="Clone all project files from Choppy Version Storage.",
+                       usage="choppy clone <url> <dest_path> [<args>]",
+                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+clone.add_argument('url', action='store', help='Git Remote Repo.')
+clone.add_argument('dest_path', action='store', help='Your destination path.')
+clone.add_argument('-u', '--username', action='store', type=is_valid_label,
+                   help='Owner of remote git repo.')
+clone.add_argument('-b', '--branch', action='store',
+                  help='The branch of your project.')
+clone.set_defaults(func=call_clone)
+
+status = sub.add_parser(name="status",
+                        description="Dirty or clean.",
+                        usage="choppy status <project_path>",
+                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+status.add_argument('project_path', action='store', help='Your project path.')
+status.set_defaults(func=call_status)
 
 
 def main():
