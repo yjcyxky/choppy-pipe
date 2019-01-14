@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding:utf-8 -*-
 import os
 import re
 from setuptools import setup, find_packages
@@ -9,7 +10,7 @@ from subprocess import check_output
 auto_complete_cmd = """
 # Bash Auto Complete for Choppy
 if command -v activate-global-python-argcomplete > /dev/null 2>&1; then 
-    activate-global-python-argcomplete > /dev/null
+    activate-global-python-argcomplete --user > /dev/null
     eval "$(register-python-argcomplete choppy)"
 else 
     echo '' 
@@ -32,7 +33,8 @@ class PostInstallCommand(install):
         matched_str_lst = self.search_pattern(r'Bash Auto Complete for Choppy')
         if len(matched_str_lst) == 0:
             path = os.path.expanduser('~/.bashrc')
-            with open(path, 'w+') as f:
+            # w+ 以读写模式打开; a 以追加模式打开 (从 EOF 开始, 必要时创建新文件)
+            with open(path, 'a') as f:
                 f.write(auto_complete_cmd)
 
 

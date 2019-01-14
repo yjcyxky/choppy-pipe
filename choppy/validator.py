@@ -1,4 +1,7 @@
-__author__= 'Amr Abouelleil'
+# -*- coding:utf-8 -*-
+__author__ = 'Amr Abouelleil'
+# import SingleBucket
+
 import logging
 import json
 from . import config as c
@@ -6,8 +9,6 @@ import os
 import subprocess
 import csv
 import sys
-# import SingleBucket
-
 module_logger = logging.getLogger('choppy.Validator')
 
 
@@ -15,6 +16,7 @@ class Validator:
     """
     Module to validate JSON inputs.
     """
+
     def __init__(self, wdl, json):
         self.wdl = os.path.abspath(wdl)
         self.json = os.path.abspath(json)
@@ -53,7 +55,8 @@ class Validator:
                 return json.loads(run)
             else:
                 d = json.loads(run)
-                ds = json.dumps({k: v for k, v in d.iteritems() if "optional" not in v})
+                ds = json.dumps(
+                    {k: v for k, v in d.iteritems() if "optional" not in v})
                 return json.loads(ds)
         except ValueError:
             print("Something went wrong with getting args. Note that if using validation, unzipped WDL dependencies "
@@ -79,28 +82,36 @@ class Validator:
                     if isinstance(val, list):
                         for f in val:
                             if not self.validate_file(f):
-                                errors.append('{}: {} is not a valid file path.'.format(param, f))
+                                errors.append(
+                                    '{}: {} is not a valid file path.'.format(param, f))
                     else:
                         if not self.validate_file(val):
-                            errors.append('{}: {} is not a valid file path.'.format(param, val))
+                            errors.append(
+                                '{}: {} is not a valid file path.'.format(param, val))
                 elif 'Array' in wdict[param]:
                     if not self.validate_array(val):
-                        errors.append('{}: {} is not a valid array/list.'.format(param, val))
+                        errors.append(
+                            '{}: {} is not a valid array/list.'.format(param, val))
                 elif 'String' in wdict[param]:
                     if not self.validate_string(val):
-                        errors.append('{}: {} is not a valid String.'.format(param, val))
+                        errors.append(
+                            '{}: {} is not a valid String.'.format(param, val))
                 elif 'Int' in wdict[param]:
                     if not self.validate_int(val):
-                        errors.append('{}: {} is not a valid Int.'.format(param, val))
+                        errors.append(
+                            '{}: {} is not a valid Int.'.format(param, val))
                 elif 'Float' in wdict[param]:
                     if not self.validate_float(val):
-                        errors.append('{}: {} is not a valid Float.'.format(param, val))
+                        errors.append(
+                            '{}: {} is not a valid Float.'.format(param, val))
                 elif 'Boolean' in wdict[param]:
                     if not self.validate_boolean(val):
                         msg = "Note that JSON boolean values must not be quoted."
-                        errors.append('{}: {} is not a valid Boolean. {}'.format(param, val, msg))
+                        errors.append(
+                            '{}: {} is not a valid Boolean. {}'.format(param, val, msg))
                 else:
-                    errors.append('{}: {} is not a recognized parameter value'.format(param, val))
+                    errors.append(
+                        '{}: {} is not a recognized parameter value'.format(param, val))
                 if 'samples_file' in param:
                     try:
                         fh = open(val, 'r')
@@ -116,7 +127,8 @@ class Validator:
         # make sure that no required parameters are missing from input json.
         for k, v in wdict.items():
             if 'optional' not in v:
-                errors.append('Required parameter {} is missing from input json.'.format(k))
+                errors.append(
+                    'Required parameter {} is missing from input json.'.format(k))
         return errors
 
     def validate_samples_array(self, samples_array):
@@ -129,7 +141,8 @@ class Validator:
         errors = []
         for row in samples_array:
             if not self.validate_file(row[-1]):
-                errors.append('File path {} found in samples file does not exist.'.format(row[-1]))
+                errors.append(
+                    'File path {} found in samples file does not exist.'.format(row[-1]))
         return errors
 
     @staticmethod

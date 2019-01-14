@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 """
 A module that handles messaging of workflow results.
 """

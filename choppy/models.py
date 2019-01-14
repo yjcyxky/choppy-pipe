@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 __author__ = 'paulcao'
 
 from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Boolean
@@ -10,6 +11,7 @@ import datetime
 import json
 
 Base = declarative_base()
+
 
 class Workflow(Base):
     __tablename__ = 'workflow'
@@ -53,13 +55,14 @@ class Workflow(Base):
         self.person_id = self.get_person_id(metadata)
         self.cached_metadata = metadata
 
-        #super(Workflow, self).__init__(id=metadata["id"], name=self.get_or_none("workflowName", metadata),
+        # super(Workflow, self).__init__(id=metadata["id"], name=self.get_or_none("workflowName", metadata),
         #                        status=metadata["status"], start=self.parse_time(self.get_or_none("start")),
         #                        notified=False, person_id=self.get_person_id(metadata))
 
     def update_status(self, status):
         self.status = status
         self.notified = True
+
 
 # Create an engine that stores data in the local directory's
 # sqlalchemy_example.db file.

@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 import logging
 import json
 import requests
@@ -29,8 +30,10 @@ class Cromwell:
         self.port = port
         self.auth = auth
 
-        self.url = 'http://' + host + ':' + str(self.port) + '/api/workflows/v1'
-        self.url2 = 'http://' + host + ':' + str(self.port) + '/api/workflows/v2'
+        self.url = 'http://' + host + ':' + \
+            str(self.port) + '/api/workflows/v1'
+        self.url2 = 'http://' + host + ':' + \
+            str(self.port) + '/api/workflows/v2'
         self.logger = logging.getLogger('choppy.cromwell.Cromwell')
         self.logger.debug('URL:{}'.format(self.url))
 
@@ -42,9 +45,9 @@ class Cromwell:
                        .get(v_url, auth=self.auth)
                        .content)['cromwell']
         except (requests.ConnectionError, ValueError) as e:
-            msg = "Unable to connect to {}:{}:\n{}".format(self.host, self.port, str(e))
+            msg = "Unable to connect to {}:{}:\n{}".format(
+                self.host, self.port, str(e))
             print_log_exit(msg)
-
 
         self.short_version = int(self.long_version.split('-')[0])
         self.cached_metadata = {}
@@ -97,12 +100,14 @@ class Cromwell:
         self.logger.debug("POST REQUEST:{}".format(workflow_url))
         tries = 4
         while tries != 0:
-            r = requests.patch(url=workflow_url, data=payload, headers=headers, auth=self.auth)
+            r = requests.patch(url=workflow_url, data=payload,
+                               headers=headers, auth=self.auth)
             if r.status_code == 200:
                 logging.info('{} request succeeded.'.format(rtype))
                 tries = 0
             else:
-                logging.warning("{} failed. Error {}: {}".format(rtype, r.status_code, json.loads(r.text)['message']))
+                logging.warning("{} failed. Error {}: {}".format(
+                    rtype, r.status_code, json.loads(r.text)['message']))
                 logging.info("Retrying...")
                 tries -= tries
         # Should return none only if patch request fails.
@@ -121,7 +126,8 @@ class Cromwell:
         try:
             workflow_input = metadata['submittedFiles']['inputs']
             wdl = metadata['submittedFiles']['workflow']
-            self.logger.info('Workflow restarting with inputs: {}'.format(workflow_input))
+            self.logger.info(
+                'Workflow restarting with inputs: {}'.format(workflow_input))
             restarted_wf = self.jstart_workflow(wdl, workflow_input, wdl_string=True, disable_caching=disable_caching,
                                                 custom_labels=processed_labels, v2=True)
             return restarted_wf
@@ -131,8 +137,9 @@ class Cromwell:
     @staticmethod
     def getCalls(status, call_arr, full_logs=False, limit_n=3):
 
-        filteredCalls = list(filter(lambda c:c[1][0]['executionStatus'] == status, call_arr.items()))
-        filteredCalls = map(lambda c:(c[0], c[1][0]), filteredCalls)
+        filteredCalls = list(
+            filter(lambda c: c[1][0]['executionStatus'] == status, call_arr.items()))
+        filteredCalls = map(lambda c: (c[0], c[1][0]), filteredCalls)
 
         def parse_logs(call_tuple):
             call = call_tuple[1]
@@ -140,11 +147,13 @@ class Cromwell:
 
             log = {}
             try:
-                log['stdout'] = {'name': call['stdout'], 'label': task + "." + str(call["shardIndex"]) + ".stdout"}
+                log['stdout'] = {
+                    'name': call['stdout'], 'label': task + "." + str(call["shardIndex"]) + ".stdout"}
             except KeyError as e:
                 log['stddout'] = e
             try:
-                log['stderr'] = {'name': call['stderr'], 'label': task + "." + str(call["shardIndex"]) + ".stderr"}
+                log['stderr'] = {
+                    'name': call['stderr'], 'label': task + "." + str(call["shardIndex"]) + ".stderr"}
             except KeyError as e:
                 log['stderr'] = e
             if full_logs:
@@ -160,7 +169,7 @@ class Cromwell:
                     log["stderr"]['log'] = e
             return log
 
-        return map(lambda c:parse_logs(c), filteredCalls[:limit_n])
+        return map(lambda c: parse_logs(c), filteredCalls[:limit_n])
 
     def explain_workflow(self, workflow_id, include_inputs=True):
 
@@ -171,7 +180,7 @@ class Cromwell:
                 ddict[key] = e
         result = self.query_metadata(workflow_id)
         explain_res = {}
-        additional_res= {}
+        additional_res = {}
         stdout_res = {}
 
         if result != None:
@@ -183,7 +192,8 @@ class Cromwell:
                                                               full_logs=True)
 
             elif explain_res["status"] == "Running":
-                explain_res["running_jobs"] = Cromwell.getCalls('Running', result['calls'])
+                explain_res["running_jobs"] = Cromwell.getCalls(
+                    'Running', result['calls'])
 
             if include_inputs:
                 additional_res["inputs"] = result["inputs"]
@@ -215,7 +225,8 @@ class Cromwell:
 
         if dependencies:
             # add dependency as zip file
-            files['wdlDependencies'] = (dependencies, open(dependencies, 'rb'), 'application/zip')
+            files['wdlDependencies'] = (dependencies, open(
+                dependencies, 'rb'), 'application/zip')
         r = requests.post(self.url, files=files, auth=self.auth)
         return json.loads(r.text)
 
@@ -242,36 +253,40 @@ class Cromwell:
             args = json.loads(json_file)
             #j_args = json_file
 
-        #j_args needs to be a string at this point
+        # j_args needs to be a string at this point
         j_args = json.dumps(args)
 
         if not wdl_string:
             files = {'wdlSource': (wdl_file, open(wdl_file, 'rb'), 'application/octet-stream'),
-                 'workflowInputs': ('report.csv', j_args, 'application/json')}
+                     'workflowInputs': ('report.csv', j_args, 'application/json')}
         else:
             files = {'wdlSource': ('workflow.wdl', wdl_file, 'application/text-plain'),
-                  'workflowInputs': ('report.csv', j_args, 'application/json')}
+                     'workflowInputs': ('report.csv', j_args, 'application/json')}
         if custom_labels:
             if self.short_version >= 30:
                 label_key = "labels"
             else:
                 label_key = "customLabels"
-            files[label_key] = ('labels.json', json.dumps(custom_labels), 'application/json')
+            files[label_key] = ('labels.json', json.dumps(
+                custom_labels), 'application/json')
         if dependencies:
             # add dependency as zip file
-            files['wdlDependencies'] = (dependencies, open(dependencies, 'rb'), 'application/zip')
+            files['wdlDependencies'] = (dependencies, open(
+                dependencies, 'rb'), 'application/zip')
         workflow_options = {}
         if disable_caching:
             workflow_options.update({"read_from_cache": False})
         if extra_options:
             workflow_options.update(extra_options)
         if disable_caching or extra_options:
-            files['workflowOptions'] = ('options.json', json.dumps(workflow_options), 'application/json')
+            files['workflowOptions'] = ('options.json', json.dumps(
+                workflow_options), 'application/json')
             print('Enabling the following additional workflow options:')
             for k, v in workflow_options.items():
                 print("{}:{}".format(k, v))
 
-        r = requests.post(self.url, files=files, auth=self.auth) if not v2 else requests.post(self.url2, files=files, auth=self.auth)
+        r = requests.post(self.url, files=files, auth=self.auth) if not v2 else requests.post(
+            self.url2, files=files, auth=self.auth)
         if r.status_code not in [200, 201]:
             print_log_exit("Request Failed: {}".format(r.content))
         return json.loads(r.text)
@@ -308,7 +323,8 @@ class Cromwell:
         :param workflow_id: The workflow identifier.
         :return: Request Response json.
         """
-        self.logger.info('Querying metadata for workflow {}'.format(workflow_id))
+        self.logger.info(
+            'Querying metadata for workflow {}'.format(workflow_id))
         return self.get('metadata', workflow_id, {'Accept': 'application/json', 'Accept-Encoding': 'identity'}, v2=v2)
 
     def process_metadata_label(self, metadata):
@@ -325,7 +341,8 @@ class Cromwell:
             del processed_labels['username']
             processed_labels['username'] = c.getuser()
         except KeyError as e:
-            logging.debug("{}. No cromwell-workflow-id in old labels.".format(str(e.message)))
+            logging.debug(
+                "{}. No cromwell-workflow-id in old labels.".format(str(e.message)))
 
         return processed_labels
 
@@ -339,7 +356,8 @@ class Cromwell:
         if not workflow_id:
             raise TypeError("Workflow ID can not be {}".format(workflow_id))
         labels_json = json.dumps(labels)
-        headers = {'Content-type': 'application/json', 'Accept': 'application/json'}
+        headers = {'Content-type': 'application/json',
+                   'Accept': 'application/json'}
         return self.patch('labels', workflow_id, labels_json, headers)
 
     def query_labels(self, labels, start_time=None, status_filter=None, running_jobs=False):
@@ -357,7 +375,8 @@ class Cromwell:
             for status in status_filter:
                 status_query += "status={}&".format(status)
 
-        url = self.build_query_url(self.url + '/query?' + "&".join([time_query, status_query]).lstrip("&"), label_dict, "%3A")
+        url = self.build_query_url(
+            self.url + '/query?' + "&".join([time_query, status_query]).lstrip("&"), label_dict, "%3A")
         url = url + 'status=Running' if running_jobs else url
 
         # In some cases we can get a dangling & so this removed that.

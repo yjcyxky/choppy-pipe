@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding:utf-8 -*-
 """Module for persistent monitoring of workflows."""
 import logging
 import time
