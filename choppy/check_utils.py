@@ -17,11 +17,12 @@ def is_valid_app_name(app_name):
     """
     try:
         is_valid_zip(app_name)
+        return app_name
     except argparse.ArgumentTypeError:
         pattern = r'^([-\w]+)/([-\w]+)(:[-.\w]+)?$'
         match = re.search(pattern, app_name)
         if match:
-            return True
+            return app_name
         else:
             raise argparse.ArgumentTypeError(
                 "Invalid app_name: %s did not match the regex '^([-\\w]+)/([-\\w]+)(:[-.\\w]+)?$'" % app_name)

@@ -19,8 +19,8 @@ from argcomplete.completers import ChoicesCompleter
 from subprocess import CalledProcessError, check_output, PIPE, Popen, call as subprocess_call
 from . import config as c
 from .app_utils import (parse_samples, render_app, write, kv_list_to_dict, submit_workflow,\
-                    install_app, uninstall_app, parse_json, get_header,\
-                    listapps, render_readme, print_obj, generate_dependencies_zip)
+                        install_app, uninstall_app, parse_json, get_header,\
+                        listapps, render_readme, print_obj, generate_dependencies_zip)
 from .check_utils import (is_valid_label, is_valid_project_name, is_valid_oss_link, check_dir,\
                           is_valid_app, is_valid, is_valid_zip, check_identifier, check_variables,\
                           get_vars_from_app, is_valid_app_name)
@@ -530,6 +530,18 @@ def call_testapp(args):
 
 def call_installapp(args):
     choppy_app = args.choppy_app
+    force = args.force
+    app_name = os.path.splitext(os.path.basename(choppy_app))[0]
+    app_path = os.path.join(c.app_dir, app_name)
+
+    # Overwrite If an app is installed.
+    if os.path.exists(app_path):
+        if force:
+            shutil.rmtree(app_path, ignore_errors=True)
+        else:
+            print("%s is installed. If you want to reinstall, you can specify a --force flag." % app_name)
+            sys.exit(2)
+
     install_app(c.app_dir, choppy_app)
 
 
@@ -995,6 +1007,8 @@ installapp = sub.add_parser(name="install",
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 installapp.add_argument('choppy_app', action='store', type=is_valid_app_name,
                         help="App name or app zip file, the default version is latest. eg. choppy/dna_seq:v0.1.0")
+installapp.add_argument('-f', '--force', action='store_true',
+                        default=False, help='Force to overwrite app.')
 installapp.set_defaults(func=call_installapp)
 
 uninstallapp = sub.add_parser(name="uninstall",

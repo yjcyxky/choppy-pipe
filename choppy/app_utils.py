@@ -108,19 +108,26 @@ def install_app(app_dir, choppy_app):
     else:
         app_name = os.path.splitext(os.path.basename(choppy_app))[0]
         dest_namelist = [os.path.join(app_name, 'inputs'),
-                         os.path.join(app_name, 'workflow.wdl'),
-                         os.path.join(app_name, 'tasks')]
+                         os.path.join(app_name, 'workflow.wdl')]
 
+        tasks_dirpath = os.path.join(app_name, 'tasks')
         choppy_app_handler = zipfile.ZipFile(choppy_app)
+        namelist = choppy_app_handler.namelist()
 
-        def check_app(choppy_app_handler):
-            namelist = choppy_app_handler.namelist()
-            if len([path for path in dest_namelist if path in namelist]) == 3:
-                return True
-            else:
-                return False
+        # Only wdl files.
+        tasks_namelist = [name for name in namelist
+                          if re.match('%s/.*.wdl$' % tasks_dirpath, name)]
+        dest_namelist.extend(tasks_namelist)
 
-        if check_app(choppy_app_handler):
+        def check_app(dest_namelist, namelist):
+            for file in dest_namelist:
+                if file in namelist:
+                    continue
+                else:
+                    return False
+            return True
+
+        if check_app(dest_namelist, namelist):
             choppy_app_handler.extractall(app_dir, dest_namelist)
             print("Install %s successfully." % app_name)
         else:
