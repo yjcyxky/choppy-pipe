@@ -103,6 +103,11 @@ def check_dir(path, skip=None, force=True):
 
 
 def is_valid_app(path):
+    """
+    Validate a directory path and verify that the directory is an valid app directory.
+    :param path: Path to a directory.
+    :return: The path if it exists and is an app directory, otherwise raises an error.
+    """
     inputs_path = os.path.join(path, 'inputs')
     wdl_path = os.path.join(path, 'workflow.wdl')
     dependencies = os.path.join(path, 'tasks')
@@ -111,6 +116,7 @@ def is_valid_app(path):
         if not os.path.exists(fpath):
             raise Exception("%s is not a valid app.\n" %
                             os.path.basename(path))
+    return True
 
 
 def is_valid(path):
@@ -133,6 +139,22 @@ def is_valid_zip(path):
     :return: The path if it exists and is a zip file, otherwise raises an error.
     """
     is_valid(path)
+    if not zipfile.is_zipfile(path):
+        e = "{} is not a valid zip file.\n".format(path)
+        raise argparse.ArgumentTypeError(e)
+    else:
+        return path
+
+
+def is_valid_zip_or_dir(path):
+    """
+    Integrates with argparse to validate a file path and verify that the file is a zip file.
+    :param path: Path to a file.
+    :return: The path if it exists and is a zip file, otherwise raises an error.
+    """
+    if os.path.isdir(path):
+        return path
+
     if not zipfile.is_zipfile(path):
         e = "{} is not a valid zip file.\n".format(path)
         raise argparse.ArgumentTypeError(e)

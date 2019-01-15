@@ -9,6 +9,8 @@ import os
 import subprocess
 import csv
 import sys
+from . import exit_code
+
 module_logger = logging.getLogger('choppy.Validator')
 
 
@@ -48,7 +50,7 @@ class Validator:
             run = subprocess.check_output(cmd).decode("utf-8")
         except subprocess.CalledProcessError:
             print("Unable to execute womtool command. Make sure any subworkflow wdl files are present and try again.")
-            sys.exit(1)
+            sys.exit(exit_code.WOMTOOL_CAN_NOT_EXECUTE)
 
         try:
             if optional:
@@ -62,7 +64,7 @@ class Validator:
             print("Something went wrong with getting args. Note that if using validation, unzipped WDL dependencies "
                   "must be in same directory as main WDL.\n "
                   "Alternatively, turn off validation or use choppy.py validate")
-            sys.exit(-1)
+            sys.exit(exit_code.VALIDATE_ERROR)
 
     def validate_json(self):
         """

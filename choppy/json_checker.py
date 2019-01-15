@@ -17,6 +17,8 @@ Invalid JSON
 
 import re
 import sys
+from . import exit_code
+
 try:
     import json
 except:
@@ -93,4 +95,4 @@ def check_json(json_file=None, str=''):
                                           " " * (err.colno - 1),
                                           err.msg))
 
-        sys.exit(2)
+        sys.exit(exit_code.JSON_NOT_VALID)

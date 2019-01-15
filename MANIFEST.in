@@ -1,5 +1,5 @@
 include README.md
 include requirements.txt
-include choppy/conf/choppy.conf
+include choppy/conf/*
 include choppy/lib/*
 include choppy/resources/*

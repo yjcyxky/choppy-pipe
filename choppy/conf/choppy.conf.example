@@ -9,24 +9,24 @@ app_dir = ~/.choppy
 port = 8000
 
 [remote]
-port = 
-server = 
+port = 80
+server = 0.0.0.0
 
 [auth]
 username = 
 password = 
 
 [email]
-email_domain = 
-email_smtp_server = 
-email_notification_account = 
+email_domain = 163.com
+email_smtp_server = smtp.163.com
+email_notification_account = yjcyxky
 sender_user = 
 sender_password =
 
 [oss]
-access_key = 
-access_secret = 
-endpoint = 
+access_key = aliyun_access_key
+access_secret = aliyun_access_secret
+endpoint = oss-cn-shanghai-internal.aliyuncs.com
 
 [repo]
 base_url = http://choppy.3steps.cn/

@@ -18,12 +18,14 @@ import coloredlogs
 from argcomplete.completers import ChoicesCompleter
 from subprocess import CalledProcessError, check_output, PIPE, Popen, call as subprocess_call
 from . import config as c
+from . import exit_code
+from .bash_colors import BashColors
 from .app_utils import (parse_samples, render_app, write, kv_list_to_dict, submit_workflow,\
                         install_app, uninstall_app, parse_json, get_header,\
                         listapps, render_readme, print_obj, generate_dependencies_zip)
 from .check_utils import (is_valid_label, is_valid_project_name, is_valid_oss_link, check_dir,\
                           is_valid_app, is_valid, is_valid_zip, check_identifier, check_variables,\
-                          get_vars_from_app, is_valid_app_name)
+                          get_vars_from_app, is_valid_app_name, is_valid_zip_or_dir)
 from .json_checker import check_json
 from .project_revision import Git
 from .version import get_version
@@ -81,6 +83,10 @@ def call_submit(args):
     :param args: submit subparser arguments.
     :return: JSON response with Cromwell workflow ID.
     """
+    dependencies = args.dependencies
+    if os.path.isdir(dependencies):
+        dependencies = generate_dependencies_zip(dependencies)
+
     if args.validate:
         call_validate(args)
 
@@ -90,7 +96,7 @@ def call_submit(args):
     host, port, auth = c.get_conn_info(args.server)
     cromwell = Cromwell(host, port, auth)
     check_json(json_file=args.json)
-    result = cromwell.jstart_workflow(wdl_file=args.wdl, json_file=args.json, dependencies=args.dependencies,
+    result = cromwell.jstart_workflow(wdl_file=args.wdl, json_file=args.json, dependencies=dependencies,
                                       disable_caching=args.disable_caching,
                                       extra_options=kv_list_to_dict(args.extra_options),
                                       custom_labels=labels_dict)
@@ -165,7 +171,7 @@ def call_validate(args):
         e = "{} input file contains the following errors:\n{}".format(args.json, "\n".join(result))
         # This will also print to stdout so no need for a print statement
         logger.critical(e)
-        sys.exit(1)
+        sys.exit(exit_code.VALIDATE_ERROR)
     else:
         s = 'No errors found in {}'.format(args.wdl)
         logger.info(s)
@@ -442,7 +448,7 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
             sample['project_name'] = project_name
 
             inputs = render_app(app_dir, 'inputs', sample)
-            check_json(inputs)  # Json Syntax Checker
+            check_json(str=inputs)  # Json Syntax Checker
             write(sample_path, 'inputs', inputs)
             inputs_path = os.path.join(sample_path, 'inputs')
 
@@ -462,12 +468,13 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
 
             if not dry_run:
                 try:
-                    dependencies_zip_file = generate_dependencies_zip(app_dir)
+                    dependencies_path = os.path.join(app_dir, 'tasks')
+                    dependencies_zip_file = generate_dependencies_zip(dependencies_path)
                     result = submit_workflow(wdl_path, inputs_path, dependencies_zip_file, label, 
                                              username=username, server=server)
 
                     links = get_cromwell_links(server, result['id'], result.get('port'))
-                    logger.info("Debug Links: %s" % links)
+                    logger.debug("Debug Links: %s" % links)
                     sample['workflow_id'] = result['id']
                     logger.info("Sample ID: %s, Workflow ID: %s" % (sample.get('sample_id'), result['id']))
                 except Exception as e:
@@ -540,7 +547,7 @@ def call_installapp(args):
             shutil.rmtree(app_path, ignore_errors=True)
         else:
             print("%s is installed. If you want to reinstall, you can specify a --force flag." % app_name)
-            sys.exit(2)
+            sys.exit(exit_code.APP_IS_INSTALLED)
 
     install_app(c.app_dir, choppy_app)
 
@@ -675,24 +682,22 @@ def call_samples(args):
             raise argparse.ArgumentTypeError('%s: No such file.' % checkfile)
         else:
             header_list = get_header(checkfile)
-            if check_variables(app_dir, 'inputs', header_list=header_list):
+            if check_variables(app_dir, 'inputs', header_list=header_list) and \
+               check_variables(app_dir, 'workflow.wdl', header_list=header_list):
                 logger.info("%s is valid." % checkfile)
-            
-            if check_variables(app_dir, 'workflow.wdl', header_list=header_list):
-                logger.info("%s is valid." % checkfile)
-
-    inputs_variables = get_vars_from_app(app_dir, 'inputs')
-    workflow_variables = get_vars_from_app(app_dir, 'workflow.wdl')
-    variables = list(set(list(inputs_variables) + list(workflow_variables) + ['sample_id', ]))
-    if 'project_name' in variables:
-        variables.remove('project_name')
-
-    if output:
-        with open(output, 'w') as f:
-            f.write(','.join(variables))
     else:
-        print_obj(variables)
-        sys.stdout.flush()
+        inputs_variables = get_vars_from_app(app_dir, 'inputs')
+        workflow_variables = get_vars_from_app(app_dir, 'workflow.wdl')
+        variables = list(set(list(inputs_variables) + list(workflow_variables) + ['sample_id', ]))
+        if 'project_name' in variables:
+            variables.remove('project_name')
+
+        if output:
+            with open(output, 'w') as f:
+                f.write(','.join(variables))
+        else:
+            print_obj(variables)
+            sys.stdout.flush()
 
 
 def call_version(args):
@@ -700,11 +705,15 @@ def call_version(args):
 
 
 def call_config(args):
-    resource_dir = c.resource_dir
-    choppy_conf = os.path.join(resource_dir, 'choppy.conf')
-    with open(choppy_conf, 'r') as f:
-        print_obj(f.read())
-        sys.stdout.flush()
+    conf_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'conf'))
+    choppy_conf = os.path.join(conf_dir, 'choppy.conf.example')
+
+    if args.output:
+        shutil.copyfile(choppy_conf, args.output)
+    else:
+        with open(choppy_conf, 'r') as f:
+            print_obj(f.read())
+            sys.stdout.flush()
 
 
 def call_readme(args):
@@ -921,8 +930,8 @@ submit.add_argument('-V', '--verbose', action='store_true', default=False,
                     help='If selected, choppy will write the current status to STDOUT until completion while monitoring.')
 submit.add_argument('-n', '--no_notify', action='store_true', default=False,
                     help='When selected, disable choppy e-mail notification of workflow completion.')
-submit.add_argument('-d', '--dependencies', action='store', default=None, type=is_valid_zip,
-                    help='A zip file containing one or more WDL files that the main WDL imports.')
+submit.add_argument('-d', '--dependencies', action='store', default=None, type=is_valid_zip_or_dir,
+                    help='A zip file or a directory containing one or more WDL files that the main WDL imports.')
 submit.add_argument('-D', '--disable_caching', action='store_true', default=False, help="Don't used cached data.")
 submit.add_argument('-S', '--server', action='store', type=str, choices=c.servers, default='localhost',
                     help='Choose a cromwell server from {}'.format(c.servers))
@@ -1078,6 +1087,7 @@ config = sub.add_parser(name="config",
                           usage="choppy config",
                           formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 config.set_defaults(func=call_config)
+config.add_argument('--output', action='store', help='Choppy config file name.')
 
 samples = sub.add_parser(name="samples",
                          description="samples file.",
@@ -1155,6 +1165,15 @@ status.set_defaults(func=call_status)
 def main():
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
+
+    # Fix bug: user need to set choppy.conf before running choppy.
+    if args.func != call_config and c.conf_path == c.conf_file_example:
+        c.print_color(BashColors.FAIL, "Error: Not Found choppy.conf.\n\n"
+                      "You need to run `choppy config` to generate "
+                      "config template, modify it and copy to the one of directories %s.\n"
+                      % c.CONFIG_FILES)
+        sys.exit(exit_code.CONFIG_FILE_NOT_EXIST)
+
     user = c.getuser()
     # Get user's username so we can tag workflows and logs for them.
     if not args.debug:

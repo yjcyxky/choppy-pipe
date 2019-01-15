@@ -8,6 +8,7 @@ import os
 import re
 import sys
 from . import config as c
+from . import exit_code
 
 from requests.utils import quote
 from ratelimit import rate_limited
@@ -461,4 +462,4 @@ def print_log_exit(msg, sys_exit=True, ple_logger=module_logger):
     """
     ple_logger.critical(msg)
     if sys_exit:
-        sys.exit(1)
+        sys.exit(exit_code.GENERAL_ERROR)

@@ -1,5 +1,4 @@
 # -*- coding:utf-8 -*-
-from subprocess import Popen, PIPE
 import json
 import os
 import re
@@ -10,10 +9,10 @@ import shutil
 import zipfile
 import logging
 import argparse
-from . import config as c
 from markdown2 import Markdown
 from subprocess import Popen, PIPE
 from jinja2 import Environment, FileSystemLoader, meta
+from . import config as c
 from .cromwell import Cromwell
 
 logger = logging.getLogger('choppy')
@@ -65,18 +64,43 @@ def zip_path(input_path, output_path):
     return output_path
 
 
-def generate_dependencies_zip(app_path):
+def zip_path_by_ext_program(input_path, output_path):
+    cmd = ['zip', '-r', '-q', output_path, input_path]
+    logger.debug('ZIP: Working Directory %s, CMD: %s' % (os.getcwd(), cmd))
+    proc = Popen(cmd, stdin=PIPE)
+    proc.communicate()
+
+
+def check_cmd(command):
+    for cmdpath in os.environ['PATH'].split(':'):
+        if os.path.isdir(cmdpath) and command in os.listdir(cmdpath):
+            return True
+
+    return False
+
+
+def generate_dependencies_zip(dependencies_path):
+    # Fix Bug: When Changing Directory, you need a abs path.
+    dependencies_path = os.path.abspath(dependencies_path)
     previous_workdir = os.getcwd()
     par_dir = str(uuid.uuid1())
     workdir = os.path.join('/', 'tmp', par_dir)
     os.mkdir(workdir)
-    src_path = os.path.join(app_path, 'tasks')
     zip_output = os.path.join('/', 'tmp', par_dir, 'tasks.zip')
 
     os.chdir(workdir)
     dest_path = os.path.join('tasks', 'tasks')
-    shutil.copytree(src_path, dest_path)
-    zip_path(dest_path, zip_output)
+    shutil.copytree(dependencies_path, dest_path)
+
+    # 外部命令
+    if check_cmd('zip'):
+        zip_path_by_ext_program('tasks', zip_output)
+    else:
+        # TODO: Fix the Bug
+        # Python zipfile generate a zip that are version 2.0;
+        # But Cromwell need a zip that are version 1.0;
+        zip_path(dest_path, zip_output)
+
     os.chdir(previous_workdir)
     return zip_output
 
