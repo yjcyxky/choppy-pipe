@@ -1,12 +1,16 @@
 > Author: Jingcheng Yang
+>
 > Email: yjcyxky@163.com
+>
 > Date: 2018-12-13
 
 # Choppy - a command-line tool for executing WDL workflows on Cromwell servers
 
+[中文文档](http://docs.3steps.cn)
+
 ## Introduction
 
-Choppy is a command-line tool for executing WDL workflows on Cromwell servers.
+Choppy is a command-line tool for executing WDL workflows on Cromwell servers. (Based on widdler, but more.)
 Features include:
 
 - Workflow execution: Execute a workflow on a specified Cromwell server.
@@ -19,7 +23,7 @@ Features include:
 
 ## Dependencies
 
-Choppy requires Python 3+ and Java-1.8 to be loaded in your environment in order for full functionality to work.
+Choppy requires Python 2.7+ or Python 3+ and Java-1.8 to be loaded in your environment in order for full functionality to work.
 
 ## Installation
 
@@ -50,14 +54,14 @@ optional arguments:
   -h, --help            show this help message and exit
 ```
 
-### choppy run
+### choppy submit
 
-Below is choppy's run help text. It expects the user to provide a wdl file,
+Below is choppy's submit help text. It expects the user to provide a wdl file,
 json file, and to indicate one of the available servers for execution. The validate option
 validates both the WDL and the JSON file submitted and is on by default.
 
 ```
-usage: choppy run <wdl file> <json file> [<args>]
+usage: choppy submit <wdl file> <json file> [<args>]
 
 Submit a WDL & JSON for execution on a Cromwell VM.
 
@@ -91,15 +95,14 @@ optional arguments:
                         A zip file containing one or more WDL files that the
                         main WDL imports. (default: None)
   -D, --disable_caching
-                        Don't used cached data. (default: False)
-  -S {ale1,btl-cromwell,localhost,gscid-cromwell}, --server {ale1,btl-cromwell,localhost,gscid-cromwell}
-                        Choose a cromwell server from ['ale1', 'btl-cromwell',
-                        'localhost', 'gscid-cromwell'] (default: None)
+                        Don\'t used cached data. (default: False)
+  -S {localhost,remote}, --server {localhost,remote}
+                        Choose a cromwell server from ['localhost','remote'] (default: None)
 ```
 
 For example:
 
-`choppy run myworkflow.wdl myinput.json -S ale`
+`choppy submit myworkflow.wdl myinput.json -S remote`
 
 This will return a workflow ID and status if successfully submitted, for example:
 
@@ -107,7 +110,7 @@ This will return a workflow ID and status if successfully submitted, for example
 
 This will execute a workflow that uses subworkflows:
 
-`choppy run myworkflow.wdl myinput.json -S ale -d mydependencies.zip`
+`choppy submit myworkflow.wdl myinput.json -S remote -d mydependencies.zip`
 
 Users may also invoke Choppy's monitoring capabilities when initiating a workflow. See below for an
 explanation of monitoring options.
@@ -128,14 +131,15 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  -S {ale,btl-cromwell}, --server {ale,btl-cromwell}
-                        Choose a cromwell server from ['ale', 'btl-cromwell']
+  -S {localhost,remote}, --server {localhost,remote}
+                        Choose a cromwell server from ['localhost','remote']
                         (default: None)
 ```
 
 For example:
 
-```python choppy restart b931c639-e73d-4b59-9333-be5ede4ae2cb -S ale
+```
+choppy restart b931c639-e73d-4b59-9333-be5ede4ae2cb -S remote
 
 ```
 
@@ -153,36 +157,35 @@ Below is choppy's query help text. Aside from the workflow ID it expects one or 
 arguments to request basic status, metadata, and/or logs.
 
 ```
-    usage: choppy query <workflow id> [<args>]
+usage: choppy query <workflow id> [<args>]
 
-   Query cromwell for information on the submitted workflow.
+Query cromwell for information on the submitted workflow.
 
-   positional arguments:
-     workflow_id           workflow id for workflow execution of interest.
+positional arguments:
+  workflow_id           workflow id for workflow execution of interest.
                            (default: None)
 
-   optional arguments:
-     -h, --help            show this help message and exit
-     -s, --status          Print status for workflow to stdout (default: False)
-     -m, --metadata        Print metadata for workflow to stdout (default: False)
-     -l, --logs            Print logs for workflow to stdout (default: False)
-     -u USERNAME, --username USERNAME
-                           Owner of workflows to monitor. (default: amr)
-     -L LABEL, --label LABEL
-                           Query status of all workflows with specific label(s).
-                           (default: None)
-     -d DAYS, --days DAYS  Last n days to query. (default: 7)
-     -S {ale1,btl-cromwell,localhost,gscid-cromwell}, --server {ale1,btl-cromwell,localhost,gscid-cromwell}
-                           Choose a cromwell server from ['ale1', 'btl-cromwell',
-                           'localhost', 'gscid-cromwell'] (default: None)
-     -f {Running,Submitted,QueuedInCromwell,Failed,Aborted,Succeeded}, --filter {Running,Submitted,QueuedInCromwell,Failed,Aborted,Succeeded}
-                           Filter by a workflow status from those listed above.
-                           May be specified more than once. (default: None)
-     -a, --all             Query for all users. (default: False)
+optional arguments:
+  -h, --help            show this help message and exit
+  -s, --status          Print status for workflow to stdout (default: False)
+  -m, --metadata        Print metadata for workflow to stdout (default: False)
+  -l, --logs            Print logs for workflow to stdout (default: False)
+  -u USERNAME, --username USERNAME
+                       Owner of workflows to monitor. (default: amr)
+  -L LABEL, --label LABEL
+                       Query status of all workflows with specific label(s).
+                       (default: None)
+  -d DAYS, --days DAYS  Last n days to query. (default: 7)
+  -S {localhost,remote}, --server {localhost,remote}
+                       Choose a cromwell server from ['localhost','remote'] (default: None)
+  -f {Running,Submitted,QueuedInCromwell,Failed,Aborted,Succeeded}, --filter {Running,Submitted,QueuedInCromwell,Failed,Aborted,Succeeded}
+                       Filter by a workflow status from those listed above.
+                       May be specified more than once. (default: None)
+  -a, --all             Query for all users. (default: False)
 ```
 
 For example:
-`choppy 2f8bb5c6-8254-4d38-b010-620913dd325e query -s -S ale`
+`choppy 2f8bb5c6-8254-4d38-b010-620913dd325e query -s -S remote`
 
 will return something like this:
 
@@ -190,7 +193,7 @@ will return something like this:
 
 and:
 
-`choppy query 2f8bb5c6-8254-4d38-b010-620913dd325e -m -s ale`
+`choppy query 2f8bb5c6-8254-4d38-b010-620913dd325e -m -s -S remote`
 
 will return a ton of information like so (truncated for viewability):
 
@@ -202,7 +205,7 @@ ssion': '2017-07-14T11:26:05.931-04:00', 'workflowName': 'gatk', 'outputs': {}, 
 
 and:
 
-`choppy query 2f8bb5c6-8254-4d38-b010-620913dd325e -l -s ale`
+`choppy query 2f8bb5c6-8254-4d38-b010-620913dd325e -l -s -S remote`
 
 ```
 [{'id': '2f8bb5c6-8254-4d38-b010-620913dd325e', 'calls': {'gatk.MakeSampleDir': [{'shardIndex': 0, 'attempt': 1, 'stderr': '/cil/shed/apps/internal/cromwell_new/cromwell-executions/ga
@@ -214,22 +217,23 @@ and:
 
 Below is choppy's abort usage. Simply provide the
 
-```usage: choppy abort <workflow id> <server>
+```
+usage: choppy abort <workflow id> <server>
 
-   Abort a submitted workflow.
+Abort a submitted workflow.
 
-   positional arguments:
-     workflow_id           workflow id of workflow to abort.
+positional arguments:
+  workflow_id           workflow id of workflow to abort.
 
-   optional arguments:
-     -h, --help            show this help message and exit
-     -S {ale,btl-cromwell}, --server {ale,btl-cromwell}
-                           Choose a cromwell server from ['ale', 'btl-cromwell']
-                           (default: None)
+optional arguments:
+  -h, --help            show this help message and exit
+  -S {localhost,remote}, --server {localhost,remote}
+                       Choose a cromwell server from ['localhost','remote']
+                       (default: None)
 ```
 
 This example:
-`choppy abort 2f8bb5c6-8254-4d38-b010-620913dd325e -S ale`
+`choppy abort 2f8bb5c6-8254-4d38-b010-620913dd325e -S remote`
 
 will return:
 
@@ -252,20 +256,21 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  -S {ale,btl-cromwell}, --server {ale,btl-cromwell}
-                        Choose a cromwell server from ['ale', 'btl-cromwell']
+  -S {localhost,remote}, --server {localhost,remote}
+                        Choose a cromwell server from ['localhost','remote']
                         (default: None)
 ```
 
 This example:
 
 ```
-python choppy explain b931c639-e73d-4b59-9333-be5ede4ae2cb -S ale
+choppy explain b931c639-e73d-4b59-9333-be5ede4ae2cb -S remote
 ```
 
 will return:
 
-```-------------Workflow Status-------------
+```
+-------------Workflow Status-------------
 {'id': 'b931c639-e73d-4b59-9333-be5ede4ae2cb',
  'status': 'Failed',
  'workflowRoot': '/cil/shed/apps/internal/cromwell_gaag/cromwell-executions/gatk/b931c639-e73d-4b59-9333-be5ede4ae2cb'}
@@ -288,7 +293,7 @@ Note that in this case, there were no stdout or stderr for the step that failed 
 
 Choppy validation attempts to validate the inputs in the user's supplied json file against the WDL
 arguments in the supplied WDL file. Validation is OFF by default and so users must specify it using
-the -v flag if using choppy run. Validaton can also be performed using choppy validate if you
+the -v flag if using choppy submit. Validaton can also be performed using choppy validate if you
 wish to validate inputs without executing the workflow.
 
 It will validate the following:
@@ -347,7 +352,7 @@ Required parameter gatk.ref_file is missing from input json.
 Running 'choppy log' will print to screen the commands used by each task of a workflow. For example, running:
 
 ```
-choppy log becb307f-4718-4d8b-836f-5780d64c4a82 -S btl-cromwell
+choppy log becb307f-4718-4d8b-836f-5780d64c4a82 -S remote
 ```
 
 Results in the following:
@@ -405,8 +410,8 @@ optional arguments:
                         to STDOUT until completion. (default: False)
   -n, --no_notify       When selected, disable choppy e-mail notification of
                         workflow completion. (default: False)
-  -S {ale,btl-cromwell}, --server {ale,btl-cromwell}
-                        Choose a cromwell server from ['ale', 'btl-cromwell']
+  -S {localhost,remote}, --server {localhost,remote}
+                        Choose a cromwell server from ['localhost','remote']
                         (default: None)
 ```
 
@@ -416,7 +421,7 @@ Aside from monitoring of a single workflow with choppy's run command, you can al
 following example:
 
 ```
-choppy monitor 7ff17cb3-12f1-4bf0-8754-e3a0d39178ea -S btl-cromwell
+choppy monitor 7ff17cb3-12f1-4bf0-8754-e3a0d39178ea -S remote
 ```
 
 In this case, choppy will continue to silently monitor this workflow until it detects a terminal status. An
@@ -436,7 +441,7 @@ User's may also monitor all workflows for a given user name by omitting the work
 --user parameter like so:
 
 ```
-choppy monitor -u amr -n -S btl-cromwell
+choppy monitor -u amr -n -S remote
 ```
 
 Here, the user 'amr' is monitoring all workflows ever executed by him using choppy. Any workflows not executed by
@@ -452,19 +457,20 @@ results and can help users locate workflow IDs if they've been lost. Each execut
 is presented like so, with the user's username indicated in the start/stop separators for
 convenient identification.
 
-```-------------New Choppy Execution by amr-------------
-   2017-07-14 12:10:44,746 - choppy - INFO - Parameters chosen: {'logs': False, 'func': <function call_query at 0x00000000040B8378>, 'status': True, 'workflow_id': '7ff17cb3-12f1-4bf0-8754-e3a0d39178ea', 'server': 'btl-cromwell', 'metadata': False}
-   2017-07-14 12:10:44,746 - choppy.cromwell.Cromwell - INFO - URL:http://btl-cromwell:9000/api/workflows/v1
-   2017-07-14 12:10:44,746 - choppy.cromwell.Cromwell - INFO - Querying status for workflow 7ff17cb3-12f1-4bf0-8754-e3a0d39178ea
-   2017-07-14 12:10:44,747 - choppy.cromwell.Cromwell - INFO - GET REQUEST:http://btl-cromwell:9000/api/workflows/v1/7ff17cb3-12f1-4bf0-8754-e3a0d39178ea/status
-   2017-07-14 12:10:44,812 - choppy - INFO - Result: [{'id': '7ff17cb3-12f1-4bf0-8754-e3a0d39178ea', 'status': 'Running'}]
-   2017-07-14 12:10:44,813 - choppy - INFO -
-   -------------End Choppy Execution by amr-------------
+```
+-------------New Choppy Execution by amr-------------
+2017-07-14 12:10:44,746 - choppy - INFO - Parameters chosen: {'logs': False, 'func': <function call_query at 0x00000000040B8378>, 'status': True, 'workflow_id': '7ff17cb3-12f1-4bf0-8754-e3a0d39178ea', 'server': 'btl-cromwell', 'metadata': False}
+2017-07-14 12:10:44,746 - choppy.cromwell.Cromwell - INFO - URL:http://btl-cromwell:9000/api/workflows/v1
+2017-07-14 12:10:44,746 - choppy.cromwell.Cromwell - INFO - Querying status for workflow 7ff17cb3-12f1-4bf0-8754-e3a0d39178ea
+2017-07-14 12:10:44,747 - choppy.cromwell.Cromwell - INFO - GET REQUEST:http://btl-cromwell:9000/api/workflows/v1/7ff17cb3-12f1-4bf0-8754-e3a0d39178ea/status
+2017-07-14 12:10:44,812 - choppy - INFO - Result: [{'id': '7ff17cb3-12f1-4bf0-8754-e3a0d39178ea', 'status': 'Running'}]
+2017-07-14 12:10:44,813 - choppy - INFO -
+-------------End Choppy Execution by amr-------------
 ```
 
 ## Roadmap
 
 ### 2018-12-12
 
-[] Add batch mode for batch submmitting WDL workflow.
-[] Add app repo. The apps are used repeatedly on some similar projects
+- Add batch mode for batch submmitting WDL workflow.
+- Add app repo. The apps are used repeatedly on some similar projects

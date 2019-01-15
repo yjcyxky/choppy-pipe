@@ -9,7 +9,8 @@
 			"PYTHONDONTWRITEBYTECODE": "true"
 		},
 		"files.exclude": {
-			"**/.env": true
+			"**/.env": true,
+			"**/.vscode": true
 		},
 		"python.pythonPath": ".env/bin/python"
 	}
