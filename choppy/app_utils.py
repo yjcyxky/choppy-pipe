@@ -13,7 +13,10 @@ from markdown2 import Markdown
 from subprocess import Popen, PIPE
 from jinja2 import Environment, FileSystemLoader, meta
 from . import config as c
+from .config import print_color
+from .bash_colors import BashColors
 from .cromwell import Cromwell
+from . import exit_code
 
 logger = logging.getLogger('choppy')
 
@@ -110,12 +113,18 @@ def install_app_by_git(base_url, namespace, app_name, dest_dir='./',
     repo_url = "%s/%s/%s.git" % (base_url.strip('http://'),
                                  namespace, app_name)
     auth_repo_url = "http://%s@%s" % (username, repo_url)
-    cmd = ['git', 'clone', '-b', version, '--single-branch',
+    version = version if version is not 'latest' else 'master'
+    cmd = ['git', 'clone', '-b', version, '--single-branch', '-q', '--progress',
            '--depth', '1', auth_repo_url, dest_dir]
     logger.debug('Git Repo Cmd: %s' % ''.join(cmd))
     proc = Popen(cmd, stdin=PIPE)
     proc.communicate(password)
-    print("Install %s successfully." % app_name)
+    rc = proc.returncode
+    if rc == 0:
+        print_color(BashColors.OKGREEN, "Install %s successfully." % app_name)
+    else:
+        print_color(BashColors.FAIL, "Install %s unsuccessfully." % app_name)
+        sys.exit(exit_code.APP_INSTALL_FAILED)
 
 
 def install_app(app_dir, choppy_app):
@@ -125,9 +134,8 @@ def install_app(app_dir, choppy_app):
         namespace = parsed_dict.get('namespace')
         app_name = parsed_dict.get('app_name')
         version = parsed_dict.get('version')
-        url = os.path.join(base_url, namespace, app_name)
         app_dir_version = os.path.join(app_dir, "%s-%s" % (app_name, version))
-        install_app_by_git(url, namespace, app_name, dest_dir=app_dir_version,
+        install_app_by_git(base_url, namespace, app_name, dest_dir=app_dir_version,
                            version=version, username=c.username, password=c.password)
     else:
         app_name = os.path.splitext(os.path.basename(choppy_app))[0]
