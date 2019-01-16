@@ -26,7 +26,7 @@ def parse_app_name(app_name):
         if version:
             version = version.strip(':')
         else:
-            version = ''
+            version = 'latest'
 
         return {
             "namespace": namespace,

@@ -1012,7 +1012,7 @@ testapp.set_defaults(func=call_testapp)
 
 installapp = sub.add_parser(name="install",
                             description="Install an app from a zip file or choppy store.",
-                            usage="choppy install <choppy_app>",
+                            usage="choppy install <choppy_app> [<args>]",
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 installapp.add_argument('choppy_app', action='store', type=is_valid_app_name,
                         help="App name or app zip file, the default version is latest. eg. choppy/dna_seq:v0.1.0")

@@ -140,7 +140,6 @@ For example:
 
 ```
 choppy restart b931c639-e73d-4b59-9333-be5ede4ae2cb -S remote
-
 ```
 
 Will restart workflow b931xxx and return the new workflow id like so:
