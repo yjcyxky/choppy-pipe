@@ -49,12 +49,12 @@ def check_oss_config():
         sys.exit(exit_code.OSS_NOT_CONFIG)
 
 
-def check_server_config():
-    if local_port or (remote_host and remote_port):
+def check_server_config(host, port, username=None, password=None):
+    if host and port:
         return True
     else:
         print_color(BashColors.FAIL,
-                    "You need to config local/remote section in choppy.conf")
+                    "You need to config local/remote_* section in choppy.conf")
         sys.exit(exit_code.SERVER_NOT_CONFIG)
 
 
@@ -79,6 +79,23 @@ def get_app_dir(app_dir):
         return app_dir
 
 
+def get_remote_info(section_name):
+    try:
+        remote_host = config.get(section_name, 'server')
+        remote_port = config.get(section_name, 'port')
+        username = config.get(section_name, 'username')
+        password = config.get(section_name, 'password')
+        return (remote_host, remote_port, username, password)
+    except KeyError as err:
+        print_color(BashColors.WARNING, 'No such key in %s' % section_name)
+        sys.exit(exit_code.NO_SUCH_KEY_IN_SECTION)
+
+
+def get_server_name(section_name):
+    if re.match('remote_[\w]+', section_name):
+        return section_name.split('_')[1]
+
+
 config = configparser.ConfigParser()
 
 config_files = CONFIG_FILES + [conf_file_example, ]
@@ -88,7 +105,6 @@ if conf_path:
     config.read(conf_path, encoding="utf-8")
 
 # Global Config
-servers = ['localhost', 'remote']
 run_states = ['Running', 'Submitted', 'QueuedInCromwell']
 terminal_states = ['Failed', 'Aborted', 'Succeeded']
 status_list = run_states + terminal_states
@@ -112,25 +128,23 @@ sender_user = config.get('email', 'sender_user')
 sender_password = config.get('email', 'sender_password')
 
 # Server Config
-local_port = config.get('local', 'port')
-remote_host = config.get('remote', 'server')
-remote_port = config.get('remote', 'port')
-username = config.get('auth', 'username')
-password = config.get('auth', 'password')
-
-if username and password:
-    auth = (username, password)
-else:
-    auth = None
-
-check_server_config()
+remote_sections = [section_name for section_name in config.sections()
+                   if re.match('remote_[\w]+', section_name)]
+servers = ['localhost', ] + \
+          [get_server_name(section_name) for section_name in remote_sections]
 
 
 def get_conn_info(server):
     if server == 'localhost':
-        return 'localhost', local_port, auth
-    elif server == 'remote':
-        return remote_host, remote_port, auth
+        local_port = config.get('local', 'port')
+        username = config.get('local', 'username')
+        password = config.get('local', 'password')
+        check_server_config('localhost', local_port)
+        return 'localhost', local_port, (username, password)
+    else:
+        check_server_config(host, port)
+        host, port, username, password = get_remote_info('remote_%s' % server)
+        return host, port, (username, password)
 
 
 # oss access_key and access_secret

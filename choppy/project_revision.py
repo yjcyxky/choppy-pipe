@@ -12,6 +12,11 @@ class Git:
 
     def init_repo(self, path):
         self.path = path
+        # Add default git ignore files.
+        git_ignore = os.path.join(self.path, '.gitignore')
+        if not os.path.isfile(git_ignore):
+            with open(git_ignore, 'w') as f:
+                f.write('.git/*')
         self.repo = git.Repo.init(path=self.path)
 
     def _set_auth(self, username):
@@ -44,10 +49,18 @@ class Git:
         self.remote = self.repo.create_remote(name=name, url=url)
 
     def _get_all_files(self):
+        previous_dir = os.getcwd()
+        os.chdir(self.path)
+
         all_files = []
-        for root, _, filenames in os.walk(self.path):
+        for root, dirnames, filenames in os.walk(os.getcwd()):
+            if '.git' in dirnames:
+                dirnames.remove('.git')
+
             for filename in filenames:
                 all_files.append(os.path.join(root, filename))
+
+        os.chdir(previous_dir)
         return all_files
 
     def add(self):
@@ -60,8 +73,9 @@ class Git:
         self._check_repo(
             "Attempting to commit but the repo doesn't exist. "
             "You need to call init_repo firstly.")
-        self.repo.index.add(items=self._get_all_files())
-        self.repo.index.commit(msg)
+        if self.is_dirty():
+            self.repo.index.add(items=self._get_all_files())
+            self.repo.index.commit(msg)
 
     def push(self):
         self._check_remote("Attempting to push repo to remote but the remote repo doesn't exist."

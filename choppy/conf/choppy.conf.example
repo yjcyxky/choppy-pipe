@@ -7,12 +7,12 @@ app_dir = ~/.choppy
 [local]
 # localhost port
 port = 8000
+username = 
+password = 
 
-[remote]
-port = 80
-server = 0.0.0.0
-
-[auth]
+[remote_remote]
+port = 
+server = 
 username = 
 password = 
 

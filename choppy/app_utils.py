@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*-
 import json
 import os
+import sys
 import re
 import csv
 import uuid
@@ -181,7 +182,7 @@ def uninstall_app(app_dir):
 
 
 def parse_samples(file):
-    reader = csv.DictReader(open(file, 'rb'))
+    reader = csv.DictReader(open(file, 'rt'))
     dict_list = []
 
     for line in reader:
@@ -298,6 +299,12 @@ def parse_json(instance):
             instance[idx] = parse_json(value)
 
     return instance
+
+
+def copy_and_overwrite(from_path, to_path):
+    if os.path.exists(to_path):
+        shutil.rmtree(to_path)
+    shutil.copytree(from_path, to_path)
 
 
 if __name__ == "__main__":

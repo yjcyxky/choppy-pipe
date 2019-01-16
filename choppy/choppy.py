@@ -21,8 +21,9 @@ from . import config as c
 from . import exit_code
 from .bash_colors import BashColors
 from .app_utils import (parse_samples, render_app, write, kv_list_to_dict, submit_workflow,\
-                        install_app, uninstall_app, parse_json, get_header,\
-                        listapps, render_readme, print_obj, generate_dependencies_zip)
+                        install_app, uninstall_app, parse_json, get_header, parse_app_name,\
+                        listapps, render_readme, print_obj, generate_dependencies_zip,\
+                        copy_and_overwrite)
 from .check_utils import (is_valid_label, is_valid_project_name, is_valid_oss_link, check_dir,\
                           is_valid_app, is_valid, is_valid_zip, check_identifier, check_variables,\
                           get_vars_from_app, is_valid_app_name, is_valid_zip_or_dir)
@@ -458,7 +459,7 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
 
             src_dependencies = os.path.join(app_dir, 'tasks')            
             dest_dependencies = os.path.join(sample_path, 'tasks')
-            shutil.copytree(src_dependencies, dest_dependencies)
+            copy_and_overwrite(src_dependencies, dest_dependencies)
             
             if label is None:
                 label = []
@@ -488,14 +489,14 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
     failed_file_path = os.path.join(project_path, 'failed.csv')
     if len(successed_samples) > 0:
         keys = successed_samples[0].keys()
-        with open(submitted_file_path, 'wb') as fsuccess:
+        with open(submitted_file_path, 'wt') as fsuccess:
             dict_writer = csv.DictWriter(fsuccess, keys)
             dict_writer.writeheader()
             dict_writer.writerows(successed_samples)
     
     if len(failed_samples) > 0:
         keys = failed_samples[0].keys()
-        with open(failed_file_path, 'wb') as ffail:
+        with open(failed_file_path, 'wt') as ffail:
             dict_writer = csv.DictWriter(ffail, keys)
             dict_writer.writeheader()
             dict_writer.writerows(failed_samples)
@@ -538,16 +539,25 @@ def call_testapp(args):
 def call_installapp(args):
     choppy_app = args.choppy_app
     force = args.force
-    app_name = os.path.splitext(os.path.basename(choppy_app))[0]
-    app_path = os.path.join(c.app_dir, app_name)
 
-    # Overwrite If an app is installed.
-    if os.path.exists(app_path):
-        if force:
-            shutil.rmtree(app_path, ignore_errors=True)
-        else:
-            print("%s is installed. If you want to reinstall, you can specify a --force flag." % app_name)
-            sys.exit(exit_code.APP_IS_INSTALLED)
+    # Try Parse Choppy App Name with Zip Format
+    app_name_lst = [os.path.splitext(os.path.basename(choppy_app))[0], ]
+    # Try Parse Choppy App Name with Git Repo Format
+    parsed_dict = parse_app_name(choppy_app)
+    if parsed_dict:
+        app_name = parsed_dict.get('app_name')
+        version = parsed_dict.get('version')
+        app_name_lst.append('%s-%s' % (app_name, version))
+
+    for app_name in app_name_lst:
+        app_path = os.path.join(c.app_dir, app_name) 
+        # Overwrite If an app is installed.
+        if os.path.exists(app_path):
+            if force:
+                shutil.rmtree(app_path, ignore_errors=True)
+            else:
+                print("%s is installed. If you want to reinstall, you can specify a --force flag." % app_name)
+                sys.exit(exit_code.APP_IS_INSTALLED)
 
     install_app(c.app_dir, choppy_app)
 
@@ -740,12 +750,14 @@ def call_save(args):
         msg = 'Add new files.'
 
     git.commit(msg)
+    c.print_color(BashColors.OKGREEN, 'Save project files successfully.')
 
-    # Remote Push
-    project_name = os.path.basename(project_path)
-    git.add_remote(url, name=project_name, username=username)
-    git.push()
-
+    if url:
+        # Remote Push
+        project_name = os.path.basename(project_path)
+        git.add_remote(url, name=project_name, username=username)
+        git.push()
+        c.print_color(BashColors.OKGREEN, 'Sync project files successfully.')
 
 def call_clone(args):
     username = args.username
@@ -1136,7 +1148,7 @@ save = sub.add_parser(name="save",
                       usage="choppy save <project_path> <url> [<args>]",
                       formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 save.add_argument('project_path', action='store', help='Your project path.')
-save.add_argument('url', action='store', help='Git Remote Repo.')
+save.add_argument('--url', action='store', help='Git Remote Repo.')
 save.add_argument('-u', '--username', action='store', type=is_valid_label,
                   help='Owner of remote git repo.')
 save.add_argument('-m', '--message', action='store', help='The comment of your project.')
