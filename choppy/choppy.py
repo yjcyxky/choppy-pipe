@@ -4,7 +4,6 @@ import argparse
 import sys
 import os
 import re
-import csv
 import shutil
 import logging
 import json
@@ -20,19 +19,20 @@ from subprocess import CalledProcessError, check_output, PIPE, Popen, call as su
 from . import config as c
 from . import exit_code
 from .bash_colors import BashColors
-from .app_utils import (parse_samples, render_app, write, kv_list_to_dict, submit_workflow,\
-                        install_app, uninstall_app, parse_json, get_header, parse_app_name,\
-                        listapps, render_readme, print_obj, generate_dependencies_zip,\
-                        copy_and_overwrite)
+from .app_utils import (kv_list_to_dict, install_app, uninstall_app, parse_json,\
+                        get_header, parse_app_name, listapps, render_readme, print_obj,\
+                        generate_dependencies_zip,)
 from .check_utils import (is_valid_label, is_valid_project_name, is_valid_oss_link, check_dir,\
                           is_valid_app, is_valid, is_valid_zip, check_identifier, check_variables,\
                           get_vars_from_app, is_valid_app_name, is_valid_zip_or_dir)
 from .json_checker import check_json
+from .workflow import run_batch
 from .project_revision import Git
 from .version import get_version
 from .cromwell import Cromwell, print_log_exit
 from .monitor import Monitor
 from .validator import Validator
+from .server import run_server
 
 __author__ = "Jingcheng Yang"
 __copyright__ = "Copyright 2018, The Genius Medicine Consortium."
@@ -427,90 +427,6 @@ def call_list_apps(args):
         raise Exception("choppy.conf.general.app_dir is wrong.")
 
 
-def run_batch(project_name, app_dir, samples, label, server='localhost', 
-              username=None, dry_run=False, force=False):
-    is_valid_app(app_dir)
-    working_dir = os.getcwd()
-    project_path = os.path.join(working_dir, project_name)
-    check_dir(project_path, skip=force)
-
-    samples_data = parse_samples(samples)
-    successed_samples = []
-    failed_samples = []
-
-    for sample in samples_data:
-        if 'sample_id' not in sample.keys():
-            raise Exception("Your samples file must contain sample_id column.")
-        else:
-            # make project_name/sample_id directory
-            sample_path = os.path.join(project_path, sample.get('sample_id'))
-            check_dir(sample_path, skip=force)
-
-            sample['project_name'] = project_name
-
-            inputs = render_app(app_dir, 'inputs', sample)
-            check_json(str=inputs)  # Json Syntax Checker
-            write(sample_path, 'inputs', inputs)
-            inputs_path = os.path.join(sample_path, 'inputs')
-
-            wdl = render_app(app_dir, 'workflow.wdl', sample)
-            write(sample_path, 'workflow.wdl', wdl)
-            wdl_path = os.path.join(sample_path, 'workflow.wdl')
-
-            src_dependencies = os.path.join(app_dir, 'tasks')            
-            dest_dependencies = os.path.join(sample_path, 'tasks')
-            copy_and_overwrite(src_dependencies, dest_dependencies)
-            
-            if label is None:
-                label = []
-            
-            is_valid_label(sample["sample_id"])
-            label.append("sample-id:%s" % sample["sample_id"].lower())
-
-            if not dry_run:
-                try:
-                    dependencies_path = os.path.join(app_dir, 'tasks')
-                    dependencies_zip_file = generate_dependencies_zip(dependencies_path)
-                    result = submit_workflow(wdl_path, inputs_path, dependencies_zip_file, label, 
-                                             username=username, server=server)
-
-                    links = get_cromwell_links(server, result['id'], result.get('port'))
-                    logger.debug("Debug Links: %s" % links)
-                    sample['workflow_id'] = result['id']
-                    logger.info("Sample ID: %s, Workflow ID: %s" % (sample.get('sample_id'), result['id']))
-                except Exception as e:
-                    logger.error("Sample ID: %s, %s" % (sample.get('sample_id'), str(e)))
-                    failed_samples.append(sample)
-                    continue
-
-            successed_samples.append(sample)
-
-    submitted_file_path =  os.path.join(project_path, 'submitted.csv')
-    failed_file_path = os.path.join(project_path, 'failed.csv')
-    if len(successed_samples) > 0:
-        keys = successed_samples[0].keys()
-        with open(submitted_file_path, 'wt') as fsuccess:
-            dict_writer = csv.DictWriter(fsuccess, keys)
-            dict_writer.writeheader()
-            dict_writer.writerows(successed_samples)
-    
-    if len(failed_samples) > 0:
-        keys = failed_samples[0].keys()
-        with open(failed_file_path, 'wt') as ffail:
-            dict_writer = csv.DictWriter(ffail, keys)
-            dict_writer.writeheader()
-            dict_writer.writerows(failed_samples)
-    
-    if len(successed_samples) > 0:
-        if len(failed_samples) == 0:
-            logger.info("Successed: %s, %s" % (len(successed_samples), submitted_file_path))
-        else:
-            logger.info("Successed: %s, %s" % (len(successed_samples), submitted_file_path))
-            logger.error("Failed: %s, %s" % (len(failed_samples), failed_file_path))
-    else:
-        logger.error("Failed: %s, %s" % (len(failed_samples), failed_file_path))
-
-
 def call_batch(args):
     app_dir = os.path.join(c.app_dir, args.app_name)
     project_name = args.project_name
@@ -826,6 +742,9 @@ Project Management:
     clone       Clone all project files from Choppy Version Storage.
     archive     Generate all metadata files related with the project and save to Choppy Version Storage.
     status      Dirty or clean.
+
+Server Management:
+    server      Run server mode.
 """
 
 
@@ -1172,6 +1091,18 @@ status = sub.add_parser(name="status",
                         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 status.add_argument('project_path', action='store', help='Your project path.')
 status.set_defaults(func=call_status)
+
+server = sub.add_parser(name="server",
+                        description="Run server mode.",
+                        usage="choppy server [<args>]",
+                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+server.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
+                    help='Choose a cromwell server from {}'.format(c.servers))
+server.add_argument('-D', '--daemon', action='store_true', default=False,
+                    help='Run server with daemon mode')
+server.add_argument('-f', '--framework', action='store', default='BJOERN',
+                    choices=['BJOERN', 'GEVENT'], help='Run server with framework.')
+server.set_defaults(func=run_server)
 
 
 def main():

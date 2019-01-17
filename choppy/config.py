@@ -111,81 +111,90 @@ status_list = run_states + terminal_states
 resource_dir = os.path.abspath(os.path.join(
     os.path.dirname(__file__), 'resources'))
 
-workflow_db = os.path.expanduser(config.get('general', 'workflow_db'))
-workflow_db = get_workflow_db(workflow_db)
+try:
+    workflow_db = os.path.expanduser(config.get('general', 'workflow_db'))
+    workflow_db = get_workflow_db(workflow_db)
 
-# Get default value if app_dir is None
-app_dir = os.path.join(os.path.expanduser(
-    config.get('general', 'app_dir')), 'apps')
-app_dir = get_app_dir(app_dir)
-check_dir(app_dir)
+    # Get default value if app_dir is None
+    app_dir = os.path.join(os.path.expanduser(
+        config.get('general', 'app_dir')), 'apps')
+    app_dir = get_app_dir(app_dir)
+    check_dir(app_dir)
 
-# Email Config
-email_smtp_server = config.get('email', 'email_smtp_server')
-email_domain = config.get('email', 'email_domain')
-email_account = config.get('email', 'email_notification_account')
-sender_user = config.get('email', 'sender_user')
-sender_password = config.get('email', 'sender_password')
+    # Email Config
+    email_smtp_server = config.get('email', 'email_smtp_server')
+    email_domain = config.get('email', 'email_domain')
+    email_account = config.get('email', 'email_notification_account')
+    sender_user = config.get('email', 'sender_user')
+    sender_password = config.get('email', 'sender_password')
 
-# Server Config
-remote_sections = [section_name for section_name in config.sections()
-                   if re.match('remote_[\w]+', section_name)]
-servers = ['localhost', ] + \
-          [get_server_name(section_name) for section_name in remote_sections]
+    # Server Config
+    remote_sections = [section_name for section_name in config.sections()
+                       if re.match('remote_[\w]+', section_name)]
+    servers = ['localhost', ] + \
+        [get_server_name(section_name) for section_name in remote_sections]
 
+    def get_conn_info(server):
+        if server == 'localhost':
+            local_port = config.get('local', 'port')
+            username = config.get('local', 'username')
+            password = config.get('local', 'password')
+            check_server_config('localhost', local_port)
+            return 'localhost', local_port, (username, password)
+        else:
+            check_server_config(host, port)
+            host, port, username, password = get_remote_info(
+                'remote_%s' % server)
+            return host, port, (username, password)
 
-def get_conn_info(server):
-    if server == 'localhost':
-        local_port = config.get('local', 'port')
-        username = config.get('local', 'username')
-        password = config.get('local', 'password')
-        check_server_config('localhost', local_port)
-        return 'localhost', local_port, (username, password)
+    # oss access_key and access_secret
+    access_key = config.get('oss', 'access_key')
+    access_secret = config.get('oss', 'access_secret')
+    endpoint = config.get('oss', 'endpoint')
+    check_oss_config()
+
+    # repo
+    base_url = config.get('repo', 'base_url')
+    username = config.get('repo', 'username')
+    password = config.get('repo', 'password')
+
+    # Server
+    server_data_dir = config.get('server', 'data_dir')
+    server_host = config.get('server', 'host')
+    server_port = config.get('server', 'port')
+
+    # Log
+    if sys.platform == 'darwin':
+        log_dir = os.path.join(os.path.expanduser(
+            config.get('general', 'log_dir')), 'logs')
+        oss_bin = os.path.join(os.path.dirname(
+            __file__), "lib", 'ossutilmac64')
     else:
-        check_server_config(host, port)
-        host, port, username, password = get_remote_info('remote_%s' % server)
-        return host, port, (username, password)
+        oss_bin = os.path.join(os.path.dirname(__file__), "lib", 'ossutil64')
+        log_dir = os.path.join(os.path.expanduser(
+            config.get('general', 'log_dir')), 'logs')
 
+    log_dir = get_log_dir(log_dir)
+    check_dir(log_dir)
 
-# oss access_key and access_secret
-access_key = config.get('oss', 'access_key')
-access_secret = config.get('oss', 'access_secret')
-endpoint = config.get('oss', 'endpoint')
-check_oss_config()
+    log_level = config.get('general', 'log_level').upper()
 
-
-# repo
-base_url = config.get('repo', 'base_url')
-username = config.get('repo', 'username')
-password = config.get('repo', 'password')
-
-# Log
-if sys.platform == 'darwin':
-    log_dir = os.path.join(os.path.expanduser(
-        config.get('general', 'log_dir')), 'logs')
-    oss_bin = os.path.join(os.path.dirname(__file__), "lib", 'ossutilmac64')
-else:
-    oss_bin = os.path.join(os.path.dirname(__file__), "lib", 'ossutil64')
-    log_dir = os.path.join(os.path.expanduser(
-        config.get('general', 'log_dir')), 'logs')
-
-log_dir = get_log_dir(log_dir)
-check_dir(log_dir)
-
-log_level = config.get('general', 'log_level').upper()
-
-if log_level == 'DEBUG':
-    log_level = logging.DEBUG
-elif log_level == 'INFO':
-    log_level = logging.INFO
-elif log_level == 'WARNING':
-    log_level = logging.WARNING
-elif log_level == 'CRITICAL':
-    log_level == logging.CRITICAL
-elif log_level == 'FATAL':
-    log_level == logging.FATAL
-else:
-    log_level = logging.DEBUG
+    if log_level == 'DEBUG':
+        log_level = logging.DEBUG
+    elif log_level == 'INFO':
+        log_level = logging.INFO
+    elif log_level == 'WARNING':
+        log_level = logging.WARNING
+    elif log_level == 'CRITICAL':
+        log_level == logging.CRITICAL
+    elif log_level == 'FATAL':
+        log_level == logging.FATAL
+    else:
+        log_level = logging.DEBUG
+except (configparser.NoSectionError, KeyError) as err:
+    print_color(BashColors.FAIL, 'Parsing config file (%s) error.\n%s' %
+                (conf_path, str(err)))
+    sys.exit(exit_code.CONFIG_FILE_FAILED)
 
 
 def getuser():

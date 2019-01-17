@@ -32,3 +32,8 @@ endpoint = oss-cn-shanghai-internal.aliyuncs.com
 base_url = http://choppy.3steps.cn/
 username = 
 password = 
+
+[server]
+data_dir = 
+host = 
+port = 
