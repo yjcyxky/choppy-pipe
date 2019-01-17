@@ -9,8 +9,8 @@ import werkzeug
 import uuid
 import argparse
 from gevent.pywsgi import WSGIServer
-from flask import Flask, request, abort, g
-from flask_restful import Resource, Api, reqparse
+from flask import Flask, jsonify
+from flask_restplus import Resource, Api, reqparse
 from . import config as c
 from .app_utils import listapps
 from .check_utils import check_dir, is_valid_project_name
@@ -20,17 +20,32 @@ from .choppy_store import ChoppyStore
 
 
 cromwell_server = 'localhost'
+api_version = 'v1'
+api_prefix = '/api/%s' % api_version
 choppy_store = ChoppyStore(c.base_url, username=c.username,
                            password=c.password)
+flask_app = Flask(__name__)
+api = Api(flask_app, version=api_version, title="Choppy API",
+          description="Choppy for Reproducible Omics Pipeline", prefix=api_prefix)
+
+
+@flask_app.errorhandler(404)
+def page_not_found(e):
+    result = {
+        'message': '404 Page Not Found.'
+    }
+    return jsonify(result), 404
 
 
 def get_default_server(host=c.server_host, port=c.server_port):
     if host and port:
         return (host, port)
     elif host:
-        return (host, '8000')
+        return (host, 8000)
     elif port:
         return ('localhost', port)
+    else:
+        return ('0.0.0.0', 8000)
 
 
 def get_data_dir(data_dir=c.server_data_dir, subdir_name=None):
@@ -47,7 +62,9 @@ def get_data_dir(data_dir=c.server_data_dir, subdir_name=None):
     return data_dir
 
 
+@api.route('/installed-apps')
 class App(Resource):
+    @api.response(200, "Success.")
     def get(self):
         apps = listapps()
         resp = {
@@ -59,50 +76,83 @@ class App(Resource):
         return resp, 200
 
 
+repo_parser = reqparse.RequestParser()
+
+
+@api.route('/apps')
 class Repo(Resource):
+    @api.doc(responses={
+        200: "Success.",
+        400: "Bad request.",
+        500: "Internal Server Error."
+    })
+    @api.doc(params={
+        'q': 'keyword',
+        'page': 'page number of results to return (1-based).',
+        'limit': 'page size of results, maximum page size is 50.',
+        'mode': 'type of repository to search for. Supported values are "fork", "source", "mirror" and "collaborative".',
+        'sort': 'sort repos by attribute. Supported values are "alpha", "created", "updated", "size", and "id". Default is "alpha".',
+        'order': 'sort order, either “asc” (ascending) or “desc” (descending). Default is "asc", ignored if “sort” is not specified.'
+    })
     def get(self):
-        parse = reqparse.RequestParser()
-        parse.add_argument('q', default='')
-        parse.add_argument('page', type=int, help='Bad Type: {error_msg}',
-                           default=1)
-        parse.add_argument('limit', type=int, default=10)
-        parse.add_argument('mode', choices=("fork", "source", "mirror", "collaborative"),
-                           help='Bad choice: {error_msg}', default="source")
-        parse.add_argument('sort', choices=("alpha", "created", "updated", "size", "id"),
-                           help='Bad choice: {error_msg}', default="updated")
-        parse.add_argument('order', choices=('asc', 'desc'), default="asc",
-                           help='Bad choice: {error_msg}')
-        args = parse.parse_args()
+        repo_parser.add_argument('q', default='')
+        repo_parser.add_argument('page', type=int, help='Bad Type: {error_msg}',
+                                 default=1)
+        repo_parser.add_argument('limit', type=int, default=10)
+        repo_parser.add_argument('mode', choices=("fork", "source", "mirror", "collaborative"),
+                                 help='Bad choice: {error_msg}', default="source")
+        repo_parser.add_argument('sort', choices=("alpha", "created", "updated", "size", "id"),
+                                 help='Bad choice: {error_msg}', default="updated")
+        repo_parser.add_argument('order', choices=('asc', 'desc'), default="asc",
+                                 help='Bad choice: {error_msg}')
+        args = repo_parser.parse_args()
         return choppy_store.search(args.get('q'), page=args.get('page'), limit=args.get('limit'),
                                    mode=args.get('mode'), sort=args.get('sort'), order=args.get('order'))
 
 
+@api.route('/<owner>/<app_name>/releases')
 class RepoRelease(Resource):
+    @api.doc(params={'app_name': 'app name', 'owner': 'owner'})
+    @api.doc(responses={
+        200: "Success.",
+        400: "Bad request.",
+        500: "Internal Server Error."
+    })
     def get(self, owner, app_name):
         return choppy_store.list_releases(owner, app_name)
 
 
+@api.route('/workflow')
 class Workflow(Resource):
     pass
 
 
+batch_parser = reqparse.RequestParser()
+batch_parser.add_argument('samples', type=werkzeug.datastructures.FileStorage,
+                          location='files', required=True)
+
+
+@api.route('/batch/<app_name>')
 class Batch(Resource):
+    @api.doc(responses={
+        201: "Success.",
+        400: "Bad request.",
+    })
+    @api.doc(params={'app_name': 'app name'})
+    @api.expect(batch_parser)
     def post(self, app_name):
         try:
             project_name = uuid.uuid1()
             is_valid_project_name(project_name)
             projects_loc = get_data_dir(
                 subdir_name='projects/%s' % project_name)
-            parse = reqparse.RequestParser()
-            parse.add_argument('file', type=werkzeug.datastructures.FileStorage,
-                               location=samples_loc)
-            args = parse.parse_args()
+            args = batch_parser.parse_args()
             file_name = uuid.uuid1()
-            samples_file = args['file']
+            samples_file = args['samples']
             samples_file_name = '%s.samples' % file_name
-            samples_file.save(samples_file_name)
             samples_file_path = os.path.join(projects_loc,
                                              samples_file_name)
+            samples_file.save(samples_file_path)
             app_dir = os.path.join(c.app_dir, args.app_name)
             # TODO: support label
             results = run_batch(project_name, app_dir,
@@ -126,15 +176,11 @@ class Batch(Resource):
             return err_resp, 400
 
 
-def set_resources(api):
-    # Batch submit jobs to cromwell server
-    api.add_resource(Batch, '/batch/<app_name>')
-    # List all installed apps
-    api.add_resource(App, '/installed-apps')
-    # Show all apps from choppy app store
-    api.add_resource(Repo, '/apps')
-    # Show all releases of the app from choppy app store
-    api.add_resource(RepoRelease, '/<owner>/<app_name>/releases')
+@api.route('/sitemap')
+class SiteMap(Resource):
+    @api.response(200, 'Success.')
+    def get(self):
+        return ['%s' % rule for rule in flask_app.url_map.iter_rules()]
 
 
 def run_server(args):
@@ -142,17 +188,12 @@ def run_server(args):
     cromwell_server = args.server
     daemon = args.daemon
     framework = args.framework
-
-    app = Flask(__name__)
-    api = Api(app)
-    set_resources(api)
-
     if not daemon:
-        if c.log_level == 'DEBUG':
+        if c.log_level == logging.DEBUG:
             debug = True
         else:
             debug = False
-        app.run(debug=debug)
+        flask_app.run(debug=debug)
     else:
         #
         # TODO: this starts the built-in server, which isn't the most
@@ -160,11 +201,13 @@ def run_server(args):
         #
         if framework == "GEVENT":
             c.print_color(BashColors.OKGREEN, "Starting gevent based server")
-            c.print_color(BashColors.OKGREEN, '%s:%s' % get_default_server())
-            svc = WSGIServer(get_default_server(), app)
+            c.print_color(BashColors.OKGREEN,
+                          'Running Server: %s:%s' % get_default_server())
+            svc = WSGIServer(get_default_server(), flask_app)
             svc.serve_forever()
         else:
             c.print_color(BashColors.OKGREEN, "Starting bjoern based server")
             host, port = get_default_server()
-            c.print_color(BashColors.OKGREEN, '%s:%s' % host, port)
-            bjoern.run(app, host, port, reuse_port=True)
+            c.print_color(BashColors.OKGREEN,
+                          'Running Server: %s:%s' % (host, port))
+            bjoern.run(flask_app, host, port, reuse_port=True)

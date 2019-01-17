@@ -85,7 +85,6 @@ setup(
         'bjoern == 2.2.3',
         'flask == 1.0.2',
         'gevent == 1.4.0',
-        'flask-restful==0.3.7',
-        'flask-swagger==0.2.13',
+        'flask-restplus==0.12.1',
     ]
 )

@@ -1,3 +1,3 @@
 # -*- coding:utf-8 -*-
 def get_version():
-    return "v0.3.0"
+    return "v0.3.1"

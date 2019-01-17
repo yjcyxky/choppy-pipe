@@ -142,8 +142,8 @@ class ChoppyStore:
         :param q_str: query string.
         :param page: page number of results to return (1-based).
         :param limit: page size of results, maximum page size is 50.
-        :param mode: type of repository to search for. Supported values are "fork", "source", “mirror” and “collaborative”.
-        :param sort: sort repos by attribute. Supported values are "alpha", "created", "updated", "size", and "id". Default is “alpha”.
+        :param mode: type of repository to search for. Supported values are "fork", "source", "mirror" and "collaborative".
+        :param sort: sort repos by attribute. Supported values are "alpha", "created", "updated", "size", and "id". Default is "alpha".
         :param order: sort order, either “asc” (ascending) or “desc” (descending). Default is "asc", ignored if “sort” is not specified.
         :return: request result
         """

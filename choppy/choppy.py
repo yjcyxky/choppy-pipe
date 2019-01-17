@@ -1102,6 +1102,7 @@ server.add_argument('-D', '--daemon', action='store_true', default=False,
                     help='Run server with daemon mode')
 server.add_argument('-f', '--framework', action='store', default='BJOERN',
                     choices=['BJOERN', 'GEVENT'], help='Run server with framework.')
+server.add_argument('-s', '--swagger', action='store_true', default=False, help="Enable swagger documentation.")
 server.set_defaults(func=run_server)
 
 
