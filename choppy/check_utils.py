@@ -4,7 +4,7 @@ import argparse
 import os
 import zipfile
 import logging
-from jinja2 import Environment, FileSystemLoader, meta
+from jinja2 import Environment, meta
 
 
 logger = logging.getLogger('choppy')
@@ -25,7 +25,8 @@ def is_valid_app_name(app_name):
             return app_name
         else:
             raise argparse.ArgumentTypeError(
-                "Invalid app_name: %s did not match the regex '^([-\\w]+)/([-\\w]+)(:[-.\\w]+)?$'" % app_name)
+                "Invalid app_name: %s did not match the regex "
+                "'^([-\\w]+)/([-\\w]+)(:[-.\\w]+)?$'" % app_name)
 
 
 def get_vars_from_app(app_path, template_file):
@@ -70,7 +71,8 @@ def is_valid_label(label):
         return label
     else:
         raise argparse.ArgumentTypeError(
-            "Invalid label: %s did not match the regex ([a-z0-9]*[-a-z0-9]*[a-z0-9])?." % label)
+            "Invalid label: %s did not match the regex "
+            "([a-z0-9]*[-a-z0-9]*[a-z0-9])?." % label)
 
 
 def is_valid_project_name(project_name):
@@ -80,7 +82,8 @@ def is_valid_project_name(project_name):
         return project_name
     else:
         raise argparse.ArgumentTypeError(
-            "Invalid Project Name: %s did not match the regex ([a-z0-9]*[_a-z0-9]*[a-z0-9])?." % project_name)
+            "Invalid Project Name: %s did not match the regex "
+            "([a-z0-9]*[_a-z0-9]*[a-z0-9])?." % project_name)
 
 
 def is_valid_oss_link(path):
@@ -104,9 +107,9 @@ def check_dir(path, skip=None, force=True):
 
 def is_valid_app(path):
     """
-    Validate a directory path and verify that the directory is an valid app directory.
+    Validate a directory path and verify the directory is an valid app directory. # noqa
     :param path: Path to a directory.
-    :return: The path if it exists and is an app directory, otherwise raises an error.
+    :return: The path if it exists and is an app directory, otherwise raises an error. # noqa
     """
     inputs_path = os.path.join(path, 'inputs')
     wdl_path = os.path.join(path, 'workflow.wdl')
@@ -134,9 +137,9 @@ def is_valid(path):
 
 def is_valid_zip(path):
     """
-    Integrates with argparse to validate a file path and verify that the file is a zip file.
+    Integrates with argparse to validate a file path and verify that the file is a zip file. # noqa
     :param path: Path to a file.
-    :return: The path if it exists and is a zip file, otherwise raises an error.
+    :return: The path if it exists and is a zip file, otherwise raises an error. # noqa
     """
     is_valid(path)
     if not zipfile.is_zipfile(path):
@@ -148,9 +151,9 @@ def is_valid_zip(path):
 
 def is_valid_zip_or_dir(path):
     """
-    Integrates with argparse to validate a file path and verify that the file is a zip file.
+    Integrates with argparse to validate a file path and verify that the file is a zip file. # noqa
     :param path: Path to a file.
-    :return: The path if it exists and is a zip file, otherwise raises an error.
+    :return: The path if it exists and is a zip file, otherwise raises an error. # noqa
     """
     if os.path.isdir(path):
         return path

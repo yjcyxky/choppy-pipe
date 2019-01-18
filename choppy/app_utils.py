@@ -5,14 +5,12 @@ import sys
 import re
 import csv
 import uuid
-import getpass
 import shutil
 import zipfile
 import logging
-import argparse
 from markdown2 import Markdown
 from subprocess import Popen, PIPE
-from jinja2 import Environment, FileSystemLoader, meta
+from jinja2 import Environment, FileSystemLoader
 from . import config as c
 from .config import print_color
 from .bash_colors import BashColors
@@ -20,6 +18,11 @@ from .cromwell import Cromwell
 from . import exit_code
 
 logger = logging.getLogger('choppy')
+
+try:
+    str = basestring  # noqa: python2
+except Exception:
+    str = str  # noqa: python3
 
 
 def parse_app_name(app_name):
@@ -115,8 +118,8 @@ def install_app_by_git(base_url, namespace, app_name, dest_dir='./',
                                  namespace, app_name)
     auth_repo_url = "http://%s@%s" % (username, repo_url)
     version = version if version is not 'latest' else 'master'
-    cmd = ['git', 'clone', '-b', version, '--single-branch', '-q', '--progress',
-           '--depth', '1', auth_repo_url, dest_dir]
+    cmd = ['git', 'clone', '-b', version, '--single-branch', '-q',
+           '--progress', '--depth', '1', auth_repo_url, dest_dir]
     logger.debug('Git Repo Cmd: %s' % ''.join(cmd))
     proc = Popen(cmd, stdin=PIPE)
     proc.communicate(password)
@@ -136,8 +139,9 @@ def install_app(app_dir, choppy_app):
         app_name = parsed_dict.get('app_name')
         version = parsed_dict.get('version')
         app_dir_version = os.path.join(app_dir, "%s-%s" % (app_name, version))
-        install_app_by_git(base_url, namespace, app_name, dest_dir=app_dir_version,
-                           version=version, username=c.username, password=c.password)
+        install_app_by_git(base_url, namespace, app_name, version=version,
+                           dest_dir=app_dir_version, username=c.username,
+                           password=c.password)
     else:
         app_name = os.path.splitext(os.path.basename(choppy_app))[0]
         dest_namelist = [os.path.join(app_name, 'inputs'),
@@ -170,7 +174,11 @@ def install_app(app_dir, choppy_app):
 def uninstall_app(app_dir):
     answer = ''
     while answer.upper() not in ("YES", "NO", "Y", "N"):
-        answer = raw_input("Enter Yes/No: ")
+        try:
+            answer = raw_input("Enter Yes/No: ")  # noqa: python2
+        except Exception:
+            answer = input("Enter Yes/No: ")  # noqa: python3
+
         answer = answer.upper()
         if answer == "YES" or answer == "Y":
             shutil.rmtree(app_dir)
@@ -210,7 +218,8 @@ def write_string_as_file(filepath, string):
         f.write(string)
 
 
-def render_readme(app_path, app_name, readme="README.md", format="html", output=None):
+def render_readme(app_path, app_name, readme="README.md",
+                  format="html", output=None):
     readme_path = os.path.join(app_path, app_name, readme)
     if os.path.exists(readme_path):
         if format.lower() == 'html':
@@ -255,11 +264,12 @@ def write(path, filename, data):
 def submit_workflow(wdl, inputs, dependencies, label, username=c.getuser(),
                     server='localhost', extra_options=None, labels_dict=None):
     labels_dict = kv_list_to_dict(
-        label) if kv_list_to_dict(label) != None else {}
+        label) if kv_list_to_dict(label) is not None else {}
     labels_dict['username'] = username
     host, port, auth = c.get_conn_info(server)
     cromwell = Cromwell(host=host, port=port, auth=auth)
-    result = cromwell.jstart_workflow(wdl_file=wdl, json_file=inputs, dependencies=dependencies,
+    result = cromwell.jstart_workflow(wdl_file=wdl, json_file=inputs,
+                                      dependencies=dependencies,
                                       extra_options=kv_list_to_dict(
                                           extra_options),
                                       custom_labels=labels_dict)
@@ -287,7 +297,9 @@ def kv_list_to_dict(kv_list):
 def parse_json(instance):
     if isinstance(instance, dict):
         for key, value in instance.iteritems():
-            if isinstance(value, basestring):
+            # str is not supported by python2.7+
+            # basestring is not supported by python3+
+            if isinstance(value, str):
                 try:
                     instance[key] = json.loads(value)
                 except ValueError:
@@ -305,36 +317,3 @@ def copy_and_overwrite(from_path, to_path):
     if os.path.exists(to_path):
         shutil.rmtree(to_path)
     shutil.copytree(from_path, to_path)
-
-
-if __name__ == "__main__":
-    instance = {
-        "calls": {},
-        "end": "2018-12-27T11:42:09.787+08:00",
-        "failures": [
-            {
-                "causedBy": [
-                    {
-                        "causedBy": [],
-                        "message": "Failed to import workflow ./tasks/mapping.wdl.:\nFile not found /tasks/mapping.wdl\n.%2Ftasks%2Fmapping.wdl: Name or service not known"
-                    }
-                ],
-                "message": "Workflow input processing failed"
-            }
-        ],
-        "id": "7e1ad759-b538-474d-abd1-deaffdd7c2ce",
-        "inputs": {},
-        "outputs": {},
-        "start": "2018-12-27T11:42:09.766+08:00",
-        "status": "Failed",
-        "submission": "2018-12-27T11:41:50.580+08:00",
-        "submittedFiles": {
-            "inputs": "{\"Sentieon.fasta\":\"GRCh38.d1.vd1.fa\",\"Sentieon.ref_dir\":\"oss://pgx-reference-data/GRCh38.d1.vd1/\",\"Sentieon.dbsnp\":\"dbsnp_146.hg38.vcf\",\"Sentieon.fastq_1\":\"oss://pgx-storage-backend/Quartet_fastq/20170403_DNA_ILM_ARD/Quartet_DNA_ILM_ARD_LCL5_1_20170403_R1.fastq.gz\",\"Sentieon.SENTIEON_INSTALL_DIR\":\"/opt/sentieon-genomics\",\"Sentieon.dbmills_dir\":\"oss://pgx-reference-data/GRCh38.d1.vd1/\",\"Sentieon.db_mills\":\"Mills_and_1000G_gold_standard.indels.hg38.vcf\",\"Sentieon.nt\":\"30\",\"Sentieon.cluster_config\":\"OnDemand ecs.sn1ne.4xlarge img-ubuntu-vpc\",\"Sentieon.docker\":\"localhost:5000/sentieon-genomics:v2018.08.01 oss://pgx-docker-images/dockers\",\"Sentieon.dbsnp_dir\":\"oss://pgx-reference-data/GRCh38.d1.vd1/\",\"Sentieon.sample\":\"Quartet_DNA_ILM_ARD_LCL5_1_20170403\",\"Sentieon.fastq_2\":\"oss://pgx-storage-backend/Quartet_fastq/20170403_DNA_ILM_ARD/Quartet_DNA_ILM_ARD_LCL5_1_20170403_R2.fastq.gz\",\"user\":\"renluyao\"}",
-            "labels": "{\"username\": \"renluyao\"}",
-            "options": "{\n\n}",
-            "root": "None",
-                    "workflow": "import \"./tasks/mapping.wdl\" as mapping\r\nimport \"./tasks/Metrics.wdl\" as Metrics\r\nimport \"./tasks/Dedup.wdl\" as Dedup\r\nimport \"./tasks/deduped_Metrics.wdl\" as deduped_Metrics\r\nimport \"./tasks/Realigner.wdl\" as Realigner\r\nimport \"./tasks/BQSR.wdl\" as BQSR\r\nimport \"./tasks/Haplotyper.wdl\" as Haplotyper\r\n\r\n\r\nworkflow Sentieon {\r\n\r\n\tFile fastq_1\r\n\tFile fastq_2\r\n\r\n\tString SENTIEON_INSTALL_DIR\r\n\tString sample\r\n\tString nt\r\n\tString docker\r\n\t\r\n\tString fasta\r\n\tFile ref_dir\r\n\tFile dbmills_dir\r\n\tString db_mills\r\n\tFile dbsnp_dir\r\n\tString dbsnp\r\n\tString cluster_config\r\n\r\n\r\n\tcall mapping.mapping as mapping {\r\n\t\tinput: \r\n\t\tSENTIEON_INSTALL_DIR=SENTIEON_INSTALL_DIR,\r\n\t\tgroup=sample,\r\n\t\tsample=sample,\r\n\t\tpl=\"ILLUMINAL\",\r\n\t\tnt=nt,\r\n\t\tfasta=fasta,\r\n\t\tref_dir=ref_dir,\r\n\t\tfastq_1=fastq_1,\r\n\t\tfastq_2=fastq_2,\r\n\t\tdocker=docker,\r\n\t\tcluster_config=cluster_config\r\n\t}\r\n\r\n\tcall Metrics.Metrics as Metrics {\r\n\t\tinput:\r\n\t\tSENTIEON_INSTALL_DIR=SENTIEON_INSTALL_DIR,\r\n\t\tfasta=fasta,\r\n\t\tref_dir=ref_dir,\r\n\t\tnt=nt,\r\n\t\tsorted_bam=mapping.sorted_bam,\r\n\t\tsorted_bam_index=mapping.sorted_bam_index,\t\t\r\n\t\tsample=sample,\r\n\t\tdocker=docker,\r\n\t\tcluster_config=cluster_config\r\n\t}\r\n\r\n\tcall Dedup.Dedup as Dedup {\r\n\t\tinput:\r\n\t\tSENTIEON_INSTALL_DIR=SENTIEON_INSTALL_DIR,\r\n\t\tnt=nt,\r\n\t\tsorted_bam=mapping.sorted_bam,\r\n\t\tsorted_bam_index=mapping.sorted_bam_index,\r\n\t\tsample=sample,\r\n\t\tdocker=docker,\r\n\t\tcluster_config=cluster_config\r\n\t}\r\n\tcall deduped_Metrics.deduped_Metrics as deduped_Metrics {\r\n\t\tinput:\r\n\t\tSENTIEON_INSTALL_DIR=SENTIEON_INSTALL_DIR,\r\n\t\tfasta=fasta,\r\n\t\tref_dir=ref_dir,\r\n\t\tnt=nt,\r\n\t\tDedup_bam=Dedup.Dedup_bam,\r\n\t\tDedup_bam_index=Dedup.Dedup_bam_index,\r\n\t\tsample=sample,\r\n\t\tdocker=docker,\r\n\t\tcluster_config=cluster_config\r\n\t}\r\n\tcall Realigner.Realigner as Realigner {\r\n\t\tinput:\r\n\t\tSENTIEON_INSTALL_DIR=SENTIEON_INSTALL_DIR,\r\n\t\tfasta=fasta,\r\n\t\tref_dir=ref_dir,\r\n\t\tnt=nt,\r\n\t\tDedup_bam=Dedup.Dedup_bam,\r\n\t\tDedup_bam_index=Dedup.Dedup_bam_index,\r\n\t\tdb_mills=db_mills,\r\n\t\tdbmills_dir=dbmills_dir,\r\n\t\tsample=sample,\r\n\t\tdocker=docker,\r\n\t\tcluster_config=cluster_config\r\n\t}\r\n\r\n\tcall BQSR.BQSR as BQSR {\r\n\t\tinput:\r\n\t\tSENTIEON_INSTALL_DIR=SENTIEON_INSTALL_DIR,\r\n\t\tfasta=fasta,\r\n\t\tref_dir=ref_dir,\r\n\t\tnt=nt,\r\n\t\trealigned_bam=Realigner.realigner_bam,\r\n\t\trealigned_bam_index=Realigner.realigner_bam_index,\r\n\t\tdb_mills=db_mills,\r\n\t\tdbmills_dir=dbmills_dir,\r\n\t\tdbsnp=dbsnp,\r\n\t\tdbsnp_dir=dbsnp_dir,\r\n\t\tsample=sample,\r\n\t\tdocker=docker,\r\n\t\tcluster_config=cluster_config\r\n\t}\r\n\tcall Haplotyper.Haplotyper as Haplotyper {\r\n\t\tinput:\r\n\t\tSENTIEON_INSTALL_DIR=SENTIEON_INSTALL_DIR,\r\n\t\tfasta=fasta,\r\n\t\tref_dir=ref_dir,\r\n\t\tnt=nt,\r\n\t\trecaled_bam=BQSR.recaled_bam,\r\n\t\trecaled_bam_index=BQSR.recaled_bam_index,\r\n\t\tdbsnp=dbsnp,\r\n\t\tdbsnp_dir=dbsnp_dir,\r\n\t\tsample=sample,\r\n\t\tdocker=docker,\r\n\t\tcluster_config=cluster_config\r\n\t}\r\n}\r\n",
-                    "workflowType": "WDL"
-        }
-    }
-    print(json.dumps(parse_json(instance), indent=2, sort_keys=True))

@@ -19,7 +19,6 @@ from sqlalchemy.orm import sessionmaker
 from .email_notification import EmailNotification
 
 import traceback
-import calendar
 
 __author__ = "Amr Abouelleil"
 
@@ -28,7 +27,7 @@ module_logger = logging.getLogger('choppy.Monitor')
 
 def is_user_workflow(host, user, workflow_id):
     """
-    A top-level function that returns a workflow if it matches the user workflow. This can't be an instance method
+    A top-level function that returns a workflow if it matches the user workflow. This can't be an instance method # noqa
      of Monitor because we run into serializing issues otherwise. See:
      https://stackoverflow.com/questions/26249442/can-i-use-multiprocessing-pool-in-a-method-of-a-class
     :param host: cromwell server
@@ -54,11 +53,11 @@ def get_iso_datestr(dt):
 
 class Monitor:
     """
-    A class for monitoring a user's workflows, providing status reports at regular intervals
+    A class for monitoring a user's workflows, providing status reports at regular intervals # noqa
     as well as e-mail notification.
     """
 
-    def __init__(self, user, host, no_notify, verbose, interval, workflow_id=None):
+    def __init__(self, user, host, no_notify, verbose, interval, workflow_id=None):  # noqa
         self.host, self.port, self.auth = c.get_conn_info(host)
         self.user = user
         self.interval = interval
@@ -103,7 +102,7 @@ class Monitor:
                     user_workflows.append(result['id'])
         except Exception as e:
             logging.error(str(e))
-            print('No user workflows found with username {}.'.format(self.user))
+            print('No user workflows found with username {}.'.format(self.user))  # noqa
         return user_workflows
 
     def process_events(self, workflow):
@@ -121,18 +120,18 @@ class Monitor:
     def run(self):
         while True:
             try:
-                one_day_ago = datetime.datetime.now() - datetime.timedelta(days=int(1))
+                one_day_ago = datetime.datetime.now() - datetime.timedelta(days=int(1))  # noqa
                 db_workflows = dict((d.id, d) for d in self.session.query(
                     Workflow).filter(Workflow.start > one_day_ago))
-                cromwell_workflows = dict((c["id"], c) for c in self.get_user_workflows(
-                    raw=True, start_time=get_iso_datestr(one_day_ago), silent=True)['results'])
+                cromwell_workflows = dict((c["id"], c) for c in self.get_user_workflows(  # noqa
+                    raw=True, start_time=get_iso_datestr(one_day_ago), silent=True)['results'])  # noqa
 
-                new_workflows = map(lambda c: Workflow(self.cromwell, c["id"]), filter(
-                    lambda w: w["id"] not in db_workflows, cromwell_workflows.values()))
+                new_workflows = map(lambda c: Workflow(self.cromwell, c["id"]), filter(  # noqa
+                    lambda w: w["id"] not in db_workflows, cromwell_workflows.values()))  # noqa
                 [self.session.add(w) for w in new_workflows]
 
-                changed_workflows = filter(lambda d: d.id in cromwell_workflows and d.status !=
-                                           cromwell_workflows[d.id]["status"], db_workflows.values())
+                changed_workflows = filter(lambda d: d.id in cromwell_workflows and d.status !=  # noqa
+                                           cromwell_workflows[d.id]["status"], db_workflows.values())  # noqa
                 [w.update_status(cromwell_workflows[w.id]["status"])
                  for w in changed_workflows]
 
@@ -177,7 +176,7 @@ class Monitor:
                 if not self.no_notify:
                     filename = '{}.metadata.json'.format(query_status['id'])
                     filepath = os.path.join(
-                        c.log_dir, '{}.metadata.json'.format(query_status['id']))
+                        c.log_dir, '{}.metadata.json'.format(query_status['id']))  # noqa
                     metadata = open(filepath, 'w+')
                     json.dump(self.cromwell.query_metadata(
                         workflow_id), indent=4, fp=metadata)
@@ -227,7 +226,7 @@ class Monitor:
         """
         Create attachment from a file.
         :param filename: The name to assign to the attachment.
-        :param filepath: The absolute path of the file including the file itself.
+        :param filepath: The absolute path of the file including the file itself.  # noqa
         :return: An attachment object.
         """
         try:
@@ -239,12 +238,12 @@ class Monitor:
             return attachment
         except Exception as e:
             logging.warn(
-                'Unable to generate attachment for {}:\n{}'.format(filename, e))
+                'Unable to generate attachment for {}:\n{}'.format(filename, e))  # noqa
 
     def generate_attachments(self, file_dict):
         """
         Generates a list of attachments to be added to an e-mail
-        :param file_dict: A dictionary of filename:filepath pairs. Note the name is what the file will be called, and
+        :param file_dict: A dictionary of filename:filepath pairs. Note the name is what the file will be called, and  # noqa
         does not refer to the name of the file as it exists prior to attaching. That should be part of the filepath.
         :return: A list of attachments
         """
@@ -256,21 +255,21 @@ class Monitor:
         #             try:
         #                 zf.write(path, os.path.basename(file_name))
         #             except Exception as e:
-        #                 logging.warn('Unable to generate attachment for {}:\n{}'.format(file_name, e))
+        #                 logging.warn('Unable to generate attachment for {}:\n{}'.format(file_name, e))  # noqa
         #     zf.close()
         #     attachment.set_payload('workflow_logs.zip')
         #     encoders.encode_base64(attachment)
-        #     attachment.add_header('Content-Disposition', 'attachment', filename='workflow_logs.zip')
+        #     attachment.add_header('Content-Disposition', 'attachment', filename='workflow_logs.zip')  # noqa
         #     attachments.append(attachment)
         # else:
         for name, path in file_dict.items():
             attachments.append(self.generate_attachment(name, path))
         return attachments
 
-    def generate_content(self, query_status, workflow_id, metadata=None, user=None):
+    def generate_content(self, query_status, workflow_id, metadata=None, user=None):  # noqa
         """
         a method for generating the email content to be sent to user.
-        :param query_status: status of workflow (helps determine what content to include in email).
+        :param query_status: status of workflow (helps determine what content to include in email).  # noqa
         :param workflow_id: Workflow ID of the workflow to create e-mail for.
         :param metadata: The metadata of the workflow (optional).
         :return: a dictionary containing the email contents for the template.
@@ -288,7 +287,7 @@ class Monitor:
             duration = (end - start)
             hours, remainder = divmod(duration.seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
-            summary += '<br><b>Duration:</b> {} hours, {} minutes, {} seconds'.format(
+            summary += '<br><b>Duration:</b> {} hours, {} minutes, {} seconds'.format(  # noqa
                 hours, minutes, seconds)
         if 'Failed' in jdata['status']:
             fail_summary = "<br><b>Failures:</b> {}".format(
@@ -301,8 +300,8 @@ class Monitor:
         if 'workflowRoot' in jdata:
             summary += "<br><b>workflowRoot:</b> {}".format(
                 jdata['workflowRoot'])
-        summary += "<br><b>Timing graph:</b> http://{}:{}/api/workflows/v2/{}/timing".format(self.host, self.port,
-                                                                                             jdata['id'])
+        summary += "<br><b>Timing graph:</b> http://{}:{}/api/workflows/v2/{}/timing".format(self.host, self.port,  # noqa
+                                                                                             jdata['id'])  # noqa
         user = self.user if user is None else user
         email_content = {
             'user': user,

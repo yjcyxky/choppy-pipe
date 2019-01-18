@@ -5,7 +5,6 @@ A module that handles messaging of workflow results.
 import smtplib
 import os
 import logging
-import socket
 from email.mime.text import MIMEText
 from string import Template
 from email.mime.multipart import MIMEMultipart
@@ -30,14 +29,14 @@ class Messenger(object):
 
     def compose_email(self, content_dict):
         """
-        Composes an e-mail to be sent containing workflow ID, result of the workflow, and workflow metadata.
+        Composes an e-mail to be sent containing workflow ID, result of the workflow, and workflow metadata. # noqa
         :param content_dict: A dictionary of key/value pairs that fulfill the requirements of email.template. The keys
         are: workflow_id, user, status, and metadata.
         :return: A MIMEMultipart message object.
         """
         subject = "Workflow ({}) {}".format(
             content_dict['workflow_id'], content_dict['status'])
-        msg = MIMEMultipart(From=self.sender, To=self.user_email, Date=formatdate(localtime=True),
+        msg = MIMEMultipart(From=self.sender, To=self.user_email, Date=formatdate(localtime=True),  # noqa
                             Subject=subject)
         msg["Subject"] = subject
         template = open(os.path.join(c.resource_dir, 'email.template'), 'r')
@@ -52,7 +51,7 @@ class Messenger(object):
         """
         Sends an e-mail to recipients using the localhosts smtp server.
         :param msg: A MIMEMultipart message object.
-        :return: 
+        :return: None
         """
         if not user:
             user = self.user_email

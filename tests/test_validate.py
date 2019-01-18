@@ -9,14 +9,14 @@ from .single_bucket import SingleBucket
 
 class ValidatorUnitTests(unittest.TestCase):
     """
-    This test class tests good inputs only. A separate one for bad inputs is below.
+    This test class tests good inputs only. A separate one for bad inputs is below. # noqa
     """
     @classmethod
     def setUpClass(self):
         resources = c.resource_dir
         self.logger = logging.getLogger('test_validator')
-        hdlr = logging.FileHandler(os.path.join(c.log_dir, 'test_validator.log'))
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        hdlr = logging.FileHandler(os.path.join(c.log_dir, 'test_validator.log'))  # noqa
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')  # noqa
         hdlr.setFormatter(formatter)
         self.logger.addHandler(hdlr)
         self.logger.setLevel(logging.INFO)
@@ -33,7 +33,8 @@ class ValidatorUnitTests(unittest.TestCase):
         foo.write("test")
         foo.close()
         sb.upload_file("validation_test.txt", "validation_test.txt")
-        result = self.validator.validate_gs_url("gs://broad-cil-devel-bucket/broad-file-inputs/validation_test.txt")
+        result = self.validator.validate_gs_url(
+            "gs://broad-cil-devel-bucket/broad-file-inputs/validation_test.txt")  # noqa
         self.assertTrue(result)
 
     def test_get_wdl_args(self):
@@ -49,7 +50,8 @@ class ValidatorUnitTests(unittest.TestCase):
             if not self.validator.validate_param(k, self.wdl_args):
                 print(k, v)
 
-            self.assertIs(self.validator.validate_param(k, self.wdl_args), True)
+            self.assertIs(self.validator.validate_param(
+                k, self.wdl_args), True)
 
     def test_validate_string(self):
         self.logger.info("Testing validate_string...")
@@ -102,14 +104,16 @@ class ValidatorUnitTests(unittest.TestCase):
 
 class ValidatorUnitTestsBad(unittest.TestCase):
     """
-    This test class tests good inputs only. A separate one for bad inputs is below.
+    This test class tests good inputs only. A separate one for bad inputs is below. # noqa
     """
     @classmethod
     def setUpClass(self):
         resources = c.resource_dir
         self.logger = logging.getLogger('test_validator')
-        hdlr = logging.FileHandler(os.path.join(c.log_dir, 'test_validator.log'))
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        hdlr = logging.FileHandler(
+            os.path.join(c.log_dir, 'test_validator.log'))
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         hdlr.setFormatter(formatter)
         self.logger.addHandler(hdlr)
         self.logger.setLevel(logging.INFO)
@@ -122,7 +126,8 @@ class ValidatorUnitTestsBad(unittest.TestCase):
 
     def test_validate_param_json(self):
         self.logger.info("Testing validate_param_json...")
-        ref_dict = {"gatk.samples_file": "/cil/shed/sandboxes/amr/dev/gatk_pipeline/data/pfal_5.tsv"}
+        ref_dict = {
+            "gatk.samples_file": "/cil/shed/sandboxes/amr/dev/gatk_pipeline/data/pfal_5.tsv"}  # noqa
         for k, v in self.json_args.items():
             self.assertIs(self.validator.validate_param(k, ref_dict), False)
 

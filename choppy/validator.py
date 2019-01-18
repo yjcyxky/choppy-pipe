@@ -39,7 +39,7 @@ class Validator:
         """
         Uses wdl-tool to get the expected arguments from the WDL file.
         :param optional: Include optional arguments if true.
-        :return: Returns a dictionary of wdl arguments as keys and expected type as as value.
+        :return: Returns a dictionary of wdl arguments as keys and expected type as as value. # noqa
         """
         try:
             os.chdir(os.path.dirname(self.wdl))
@@ -49,7 +49,7 @@ class Validator:
         try:
             run = subprocess.check_output(cmd).decode("utf-8")
         except subprocess.CalledProcessError:
-            print("Unable to execute womtool command. Make sure any subworkflow wdl files are present and try again.")
+            print("Unable to execute womtool command. Make sure any subworkflow wdl files are present and try again.")  # noqa
             sys.exit(exit_code.WOMTOOL_CAN_NOT_EXECUTE)
 
         try:
@@ -61,14 +61,14 @@ class Validator:
                     {k: v for k, v in d.iteritems() if "optional" not in v})
                 return json.loads(ds)
         except ValueError:
-            print("Something went wrong with getting args. Note that if using validation, unzipped WDL dependencies "
+            print("Something went wrong with getting args. Note that if using validation, unzipped WDL dependencies "  # noqa
                   "must be in same directory as main WDL.\n "
-                  "Alternatively, turn off validation or use choppy.py validate")
+                  "Alternatively, turn off validation or use choppy.py validate")  # noqa
             sys.exit(exit_code.VALIDATE_ERROR)
 
     def validate_json(self):
         """
-        A function for validating a json file intended for WDL execution against the WDL file.
+        A function for validating a json file intended for WDL execution against the WDL file. # noqa
         :return: A list of errors found with the json file.
         """
         errors = list()
@@ -85,15 +85,15 @@ class Validator:
                         for f in val:
                             if not self.validate_file(f):
                                 errors.append(
-                                    '{}: {} is not a valid file path.'.format(param, f))
+                                    '{}: {} is not a valid file path.'.format(param, f))  # noqa
                     else:
                         if not self.validate_file(val):
                             errors.append(
-                                '{}: {} is not a valid file path.'.format(param, val))
+                                '{}: {} is not a valid file path.'.format(param, val))  # noqa
                 elif 'Array' in wdict[param]:
                     if not self.validate_array(val):
                         errors.append(
-                            '{}: {} is not a valid array/list.'.format(param, val))
+                            '{}: {} is not a valid array/list.'.format(param, val))  # noqa
                 elif 'String' in wdict[param]:
                     if not self.validate_string(val):
                         errors.append(
@@ -108,12 +108,12 @@ class Validator:
                             '{}: {} is not a valid Float.'.format(param, val))
                 elif 'Boolean' in wdict[param]:
                     if not self.validate_boolean(val):
-                        msg = "Note that JSON boolean values must not be quoted."
+                        msg = "Note that JSON boolean values must not be quoted."  # noqa
                         errors.append(
-                            '{}: {} is not a valid Boolean. {}'.format(param, val, msg))
+                            '{}: {} is not a valid Boolean. {}'.format(param, val, msg))  # noqa
                 else:
                     errors.append(
-                        '{}: {} is not a recognized parameter value'.format(param, val))
+                        '{}: {} is not a recognized parameter value'.format(param, val))  # noqa
                 if 'samples_file' in param:
                     try:
                         fh = open(val, 'r')
@@ -122,20 +122,20 @@ class Validator:
                         fh.close()
                     except IOError as e:
                         errors.append(str(e))
-                # Once a parameter is processed we delete it from wdict so we can see if any parameters were not
-                # checked. This indicates the user didn't specify the parameter. If the param is optional that's ok
+                # Once a parameter is processed we delete it from wdict so we can see if any parameters were not # noqa
+                # checked. This indicates the user didn't specify the parameter. If the param is optional that's ok # noqa
                 # but if it isn't, we should add it to errors.
                 del wdict[param]
         # make sure that no required parameters are missing from input json.
         for k, v in wdict.items():
             if 'optional' not in v:
                 errors.append(
-                    'Required parameter {} is missing from input json.'.format(k))
+                    'Required parameter {} is missing from input json.'.format(k))  # noqa
         return errors
 
     def validate_samples_array(self, samples_array):
         """
-        Validates a TSV sample file array (passed as an array) used in WDL inputs.
+        Validates a TSV sample file array (passed as an array) used in WDL inputs. # noqa
         Assumes that last column of each row contains an absolute path to a file.
         :param samples_array: an array with the last column of each row containing a file path.
         :return: A list of errors. If list is empty, there were no errors.
@@ -144,13 +144,13 @@ class Validator:
         for row in samples_array:
             if not self.validate_file(row[-1]):
                 errors.append(
-                    'File path {} found in samples file does not exist.'.format(row[-1]))
+                    'File path {} found in samples file does not exist.'.format(row[-1]))  # noqa
         return errors
 
     @staticmethod
     def validate_array(i):
         """
-        Returns true if the input value is of class list, false if not. Note that isinstance does not behave as
+        Returns true if the input value is of class list, false if not. Note that isinstance does not behave as # noqa
         expected here, hence why I use type instead.
         :param i: input parameter
         :return: Boolean
@@ -180,7 +180,12 @@ class Validator:
         :param i: input object
         :return: Boolean
         """
-        return isinstance(i, basestring)
+        try:
+            str = basestring  # noqa: python2+
+        except Exception:
+            str = str  # noqa: python3+
+
+        return isinstance(i, str)
 
     @staticmethod
     def validate_file(f):

@@ -39,7 +39,8 @@ class CromwellUnitTests(unittest.TestCase):
             'start': datetime.datetime.now() - datetime.timedelta(days=1),
             'end': datetime.datetime.now()
         }
-        query_url = self.cromwell.build_query_url('http://btl-cromwell:9000/api/workflows/v1/query?', url_dict)
+        query_url = self.cromwell.build_query_url(
+            'http://btl-cromwell:9000/api/workflows/v1/query?', url_dict)
         r = requests.get(query_url)
         self.assertEquals(r.status_code, 200)
         self.cromwell.stop_workflow(wfid)

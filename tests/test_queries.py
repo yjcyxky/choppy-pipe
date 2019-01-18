@@ -52,7 +52,8 @@ class QueryUnitTests(unittest.TestCase):
             'start': datetime.datetime.now() - datetime.timedelta(days=1),
             'end': datetime.datetime.now()
         }
-        query_url = self.cromwell.build_query_url('http://btl-cromwell:9000/api/workflows/v1/query?', url_dict)
+        query_url = self.cromwell.build_query_url(
+            'http://btl-cromwell:9000/api/workflows/v1/query?', url_dict)
         r = requests.get(query_url)
         self.assertEquals(r.status_code, 200)
         self.cromwell.stop_workflow(wfid)
@@ -82,10 +83,10 @@ class QueryUnitTests(unittest.TestCase):
         wfid = wf['id']
         labels = {'username': 'amr', 'foo': 'bar'}
         self.cromwell.label_workflow(wfid, self.labels)
-        # This sleep is needed to make sure the label workflow completes before we query for it.
+        # This sleep is needed to make sure the label workflow completes before we query for it. # noqa
         time.sleep(5)
         r = self.cromwell.query_labels(labels)
-        # Here, the most recent workflow that matches the query will be the last item so we can use that to check
+        # Here, the most recent workflow that matches the query will be the last item so we can use that to check # noqa
         # this assertion.
         self.assertTrue(wfid in r['results'][-1]['id'])
         self.cromwell.stop_workflow(wfid)
@@ -95,8 +96,8 @@ class QueryUnitTests(unittest.TestCase):
         from choppy import call_list
         wf = self._initiate_workflow()
         wfid = wf['id']
-        result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,
-                                     username="*", days=1, filter=['Succeeded', 'Failed']))
+        result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,  # noqa
+                                     username="*", days=1, filter=['Succeeded', 'Failed']))  # noqa
         statuses = set(d['status'] for d in result)
         self.assertEqual(len(statuses), 2)
         self.assertIn('Succeeded', statuses)
@@ -106,18 +107,18 @@ class QueryUnitTests(unittest.TestCase):
     def test_query_filter_by_name(self):
         from argparse import Namespace
         from choppy import call_list
-        user_result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,
+        user_result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,  # noqa
                                           username="amr", days=1, filter=None))
         user_wfids = set(d['id'] for d in user_result)
-        all_result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,
-                               username="*", days=1, filter=None))
+        all_result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,  # noqa
+                                         username="*", days=1, filter=None))
         all_wfids = set(d['id'] for d in all_result)
         self.assertGreater(len(all_wfids), len(user_wfids))
 
     def test_query_filter_by_days(self):
         from argparse import Namespace
         from choppy import call_list
-        result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,
+        result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,  # noqa
                                      username="*", days=1, filter=None))
         all_dates = set(d['start'].split('T')[0] for d in result)
         self.assertEqual(len(all_dates), 1)

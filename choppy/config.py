@@ -5,7 +5,6 @@ import re
 import logging
 import getpass
 import configparser
-import subprocess
 from . import exit_code
 from .bash_colors import BashColors
 
@@ -86,13 +85,13 @@ def get_remote_info(section_name):
         username = config.get(section_name, 'username')
         password = config.get(section_name, 'password')
         return (remote_host, remote_port, username, password)
-    except KeyError as err:
+    except KeyError:
         print_color(BashColors.WARNING, 'No such key in %s' % section_name)
         sys.exit(exit_code.NO_SUCH_KEY_IN_SECTION)
 
 
 def get_server_name(section_name):
-    if re.match('remote_[\w]+', section_name):
+    if re.match(r'remote_[\w]+', section_name):
         return section_name.split('_')[1]
 
 
@@ -130,7 +129,7 @@ try:
 
     # Server Config
     remote_sections = [section_name for section_name in config.sections()
-                       if re.match('remote_[\w]+', section_name)]
+                       if re.match(r'remote_[\w]+', section_name)]
     servers = ['localhost', ] + \
         [get_server_name(section_name) for section_name in remote_sections]
 
@@ -142,9 +141,9 @@ try:
             check_server_config('localhost', local_port)
             return 'localhost', local_port, (username, password)
         else:
-            check_server_config(host, port)
             host, port, username, password = get_remote_info(
                 'remote_%s' % server)
+            check_server_config(host, port)
             return host, port, (username, password)
 
     # oss access_key and access_secret
@@ -204,5 +203,6 @@ def getuser():
         return user
     else:
         print_color(BashColors.FAIL,
-                    "Your account name is not valid. Did not match the regex ^[a-zA-Z0-9_]+$")
+                    "Your account name is not valid. "
+                    "Did not match the regex ^[a-zA-Z0-9_]+$")
         sys.exit(exit_code.USERNAME_NOT_VALID)

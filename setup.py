@@ -5,15 +5,14 @@ import re
 from setuptools import setup, find_packages
 from choppy.version import get_version
 from setuptools.command.install import install
-from subprocess import check_output
 
 auto_complete_cmd = """
 # Bash Auto Complete for Choppy
-if command -v activate-global-python-argcomplete > /dev/null 2>&1; then 
+if command -v activate-global-python-argcomplete > /dev/null 2>&1; then
     activate-global-python-argcomplete --user > /dev/null
     eval "$(register-python-argcomplete choppy)"
-else 
-    echo '' 
+else
+    echo ''
 fi
 """
 
@@ -41,7 +40,7 @@ class PostInstallCommand(install):
 setup(
     name='choppy',
     version=get_version(),
-    description='A command-line tool for executing WDL workflows on Cromwell servers.',
+    description='A command-line tool for executing WDL workflows on Cromwell servers.',  # noqa
     long_description=open('README.md').read(),
     author='Jingcheng Yang',
     author_email='yjcyxky@163.com',

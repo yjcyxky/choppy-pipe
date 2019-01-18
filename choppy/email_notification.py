@@ -16,8 +16,8 @@ class EmailNotification(object):
         self.messenger = Messenger("")
 
     def on_changed_workflow_status(self, workflow, metadata, host, port):
-        if (workflow.status == "Aborted" or workflow.status == "Failed" or workflow.status == "Succeeded") and \
-                (workflow.person_id != "" and workflow.person_id != None):
+        if (workflow.status == "Aborted" or workflow.status == "Failed" or workflow.status == "Succeeded") and \  # noqa
+        (workflow.person_id != "" and workflow.person_id is not None):
             if c.sender_user:
                 user = c.sender_user
             else:
@@ -39,18 +39,18 @@ class EmailNotification(object):
         for log in failed_jobs:
             stdout_attachment = MIMEText(str(log["stdout"]['log']))
             stdout_attachment.add_header(
-                'Content-Disposition', 'attachment', filename=log["stdout"]["label"])
+                'Content-Disposition', 'attachment', filename=log["stdout"]["label"])  # noqa
             msg.attach(stdout_attachment)
 
             stderr_attachment = MIMEText(str(log["stderr"]['log']))
             stderr_attachment.add_header(
-                'Content-Disposition', 'attachment', filename=log["stderr"]["label"])
+                'Content-Disposition', 'attachment', filename=log["stderr"]["label"])  # noqa
             msg.attach(stderr_attachment)
 
         metadata_attachment = MIMEText(
-            str(json.dumps(metadata, indent=4, default=EmailNotification.json_serializer)))
+            str(json.dumps(metadata, indent=4, default=EmailNotification.json_serializer)))  # noqa
         metadata_attachment.add_header(
-            'Content-Disposition', 'attachment', filename=metadata["id"] + ".metadata")
+            'Content-Disposition', 'attachment', filename=metadata["id"] + ".metadata")  # noqa
         msg.attach(metadata_attachment)
 
     @staticmethod
@@ -59,7 +59,7 @@ class EmailNotification(object):
         if isinstance(obj, datetime.datetime):
             if obj.utcoffset() is not None:
                 obj = obj - obj.utcoffset()
-                return int(calendar.timegm(obj.timetuple()) * 1000 + obj.microsecond / 1000)
+                return int(calendar.timegm(obj.timetuple()) * 1000 + obj.microsecond / 1000)  # noqa
         raise TypeError('Not sure how to serialize %s' % (obj,))
 
     def generate_content(self, metadata, user, host, port):
@@ -80,7 +80,7 @@ class EmailNotification(object):
             duration = (end - start)
             hours, remainder = divmod(duration.seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
-            summary += '<br><b>Duration:</b> {} hours, {} minutes, {} seconds'.format(
+            summary += '<br><b>Duration:</b> {} hours, {} minutes, {} seconds'.format(  # noqa
                 hours, minutes, seconds)
         if 'Failed' in jdata['status']:
             fail_summary = "<br><b>Failures:</b> {}".format(
@@ -94,7 +94,7 @@ class EmailNotification(object):
             summary += "<br><b>workflowRoot:</b> {}".format(
                 jdata['workflowRoot'])
 
-        summary += "<br><b>Timing graph:</b> http://{}:{}/api/workflows/v2/{}/timing".format(
+        summary += "<br><b>Timing graph:</b> http://{}:{}/api/workflows/v2/{}/timing".format(  # noqa
             host, port, jdata['id'])
         email_content = {
             'user': user,

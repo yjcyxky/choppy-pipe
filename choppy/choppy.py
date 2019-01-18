@@ -23,7 +23,7 @@ from .app_utils import (kv_list_to_dict, install_app, uninstall_app, parse_json,
                         get_header, parse_app_name, listapps, render_readme, print_obj,\
                         generate_dependencies_zip,)
 from .check_utils import (is_valid_label, is_valid_project_name, is_valid_oss_link, check_dir,\
-                          is_valid_app, is_valid, is_valid_zip, check_identifier, check_variables,\
+                          is_valid, is_valid_zip, check_identifier, check_variables,\
                           get_vars_from_app, is_valid_app_name, is_valid_zip_or_dir)
 from .json_checker import check_json
 from .workflow import run_batch

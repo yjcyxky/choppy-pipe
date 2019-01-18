@@ -78,7 +78,7 @@ class Git:
             self.repo.index.commit(msg)
 
     def push(self):
-        self._check_remote("Attempting to push repo to remote but the remote repo doesn't exist."
+        self._check_remote("Attempting to push repo to remote but the remote repo doesn't exist."  # noqa
                            " You need to call add_remote firstly.")
         self.remote.push()
 

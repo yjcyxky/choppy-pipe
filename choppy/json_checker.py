@@ -21,17 +21,17 @@ from . import exit_code
 
 try:
     import json
-except:
+except Exception:
     import simplejson as json
 
 try:  # For Python2.7
     from cStringIO import StringIO
-except:  # For Python3
+except Exception:  # For Python3
     from io import StringIO
 
 try:  # For Python3
     from json.decoder import JSONDecodeError
-except:  # For Python2.7
+except Exception:  # For Python2.7
     JSONDecodeError = ValueError
 
 
@@ -86,7 +86,7 @@ def check_json(json_file=None, str=''):
             print("%s\n%s\n%s^-- %s\n" % (msg, line.replace("\n", ""),
                                           " " * (err["colno"] - 1),
                                           err["msg"]))
-        except:  # For Python3
+        except Exception:  # For Python3
             for ii, line in enumerate(str.readlines()):
                 if ii == err.lineno - 1:
                     break

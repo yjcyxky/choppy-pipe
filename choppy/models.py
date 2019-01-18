@@ -1,9 +1,8 @@
 # -*- coding:utf-8 -*-
 __author__ = 'paulcao'
 
-from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Boolean
+from sqlalchemy import Column, String, DateTime, Boolean
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
 from sqlalchemy import create_engine
 
 from . import config
@@ -28,7 +27,7 @@ class Workflow(Base):
         if dt_str.endswith("Z"):
             dt_str = dt_str[:-1]
 
-        return datetime.datetime.strptime(dt_str.split(".")[0], "%Y-%m-%dT%H:%M:%S") if dt_str else None
+        return datetime.datetime.strptime(dt_str.split(".")[0], "%Y-%m-%dT%H:%M:%S") if dt_str else None  # noqa
 
     @staticmethod
     def get_or_none(field, dict):
@@ -39,9 +38,9 @@ class Workflow(Base):
         if 'labels' in metadata and 'username' in metadata['labels']:
             return metadata['labels']['username']
         else:
-            if 'submittedFiles' in metadata and 'labels' in metadata['submittedFiles']:
-                if 'username' in json.loads(metadata['submittedFiles']['labels']):
-                    return json.loads(metadata['submittedFiles']['labels'])['username']
+            if 'submittedFiles' in metadata and 'labels' in metadata['submittedFiles']:  # noqa
+                if 'username' in json.loads(metadata['submittedFiles']['labels']):  # noqa
+                    return json.loads(metadata['submittedFiles']['labels'])['username']  # noqa
 
         return None
 
@@ -55,9 +54,9 @@ class Workflow(Base):
         self.person_id = self.get_person_id(metadata)
         self.cached_metadata = metadata
 
-        # super(Workflow, self).__init__(id=metadata["id"], name=self.get_or_none("workflowName", metadata),
-        #                        status=metadata["status"], start=self.parse_time(self.get_or_none("start")),
-        #                        notified=False, person_id=self.get_person_id(metadata))
+        # super(Workflow, self).__init__(id=metadata["id"], name=self.get_or_none("workflowName", metadata), # noqa
+        #                        status=metadata["status"], start=self.parse_time(self.get_or_none("start")), # noqa
+        #                        notified=False, person_id=self.get_person_id(metadata)) # noqa
 
     def update_status(self, status):
         self.status = status

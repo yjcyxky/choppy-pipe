@@ -2,7 +2,7 @@
 import csv
 import os
 import logging
-from .check_utils import check_dir, is_valid_label
+from .check_utils import check_dir, is_valid_label, is_valid_app
 from .app_utils import (parse_samples, render_app, write, copy_and_overwrite,
                         generate_dependencies_zip, submit_workflow,)
 from .json_checker import check_json
@@ -52,11 +52,12 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
 
             if not dry_run:
                 try:
-                    dependencies_path = os.path.join(app_dir, 'tasks')
-                    dependencies_zip_file = generate_dependencies_zip(
-                        dependencies_path)
-                    result = submit_workflow(wdl_path, inputs_path, dependencies_zip_file, label,
-                                             username=username, server=server)
+                    dep_path = os.path.join(app_dir, 'tasks')
+                    dep_zip_file = generate_dependencies_zip(dep_path)
+                    result = submit_workflow(wdl_path, inputs_path,
+                                             dep_zip_file,
+                                             label, username=username,
+                                             server=server)
 
                     sample['workflow_id'] = result['id']
                     logger.info("Sample ID: %s, Workflow ID: %s" %
@@ -99,6 +100,6 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
                      (len(failed_samples), failed_file_path))
 
     return {
-        successed: successed_samples,
-        failed: failed_samples
+        "successed": successed_samples,
+        "failed": failed_samples
     }

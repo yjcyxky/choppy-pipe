@@ -3,10 +3,8 @@ import logging
 import json
 import requests
 import sys
-from requests.utils import quote
 from ratelimit import rate_limited
 from requests.compat import urljoin
-from . import config as c
 from . import exit_code
 from .exceptions import (UnauthorizedException, UnFoundException,
                          BadRequestException)
@@ -50,6 +48,7 @@ class ChoppyStore:
     def get(self, endpoint, params=None, headers=None, v2=False):
         """
         A generic get request function.
+        :param params: choppy web api parammeters
         :param endpoint: choppy web api endpoint.
         :param headers: Optional headers for request.
         :return: json of request response
@@ -60,9 +59,10 @@ class ChoppyStore:
         url = urljoin(api_url, endpoint)
         self.logger.debug("GET REQUEST:{}".format(url))
         if headers:
-            r = requests.get(url, headers=headers, auth=self.auth)
+            r = requests.get(url, headers=headers,
+                             params=params, auth=self.auth)
         else:
-            r = requests.get(url, auth=self.auth)
+            r = requests.get(url, params=params, auth=self.auth)
 
         # TODO: More Conditions
         if r.status_code == 200:
@@ -77,9 +77,10 @@ class ChoppyStore:
         else:
             r.raise_for_status()
 
-    def post(self, endpoint, headers=None, v2=False):
+    def post(self, endpoint, params=None, headers=None, v2=False):
         """
         A generic post request function.
+        :param params: choppy web api parammeters
         :param endpoint: choppy web api endpoint.
         :param headers: Optional headers for request.
         :return: json of request response
@@ -90,9 +91,10 @@ class ChoppyStore:
         url = urljoin(api_url, endpoint)
         self.logger.debug("GET REQUEST:{}".format(url))
         if headers:
-            r = requests.post(url, headers=headers, auth=self.auth)
+            r = requests.post(url, params=params,
+                              headers=headers, auth=self.auth)
         else:
-            r = requests.post(url, auth=self.auth)
+            r = requests.post(url, params=params, auth=self.auth)
 
         # TODO: More Conditions
         if r.status_code == 201:
@@ -107,10 +109,11 @@ class ChoppyStore:
         else:
             r.raise_for_status()
 
-    def patch(self, endpoint, payload, headers, v2=False):
+    def patch(self, endpoint, payload, headers=None, v2=False):
         """
         Make a patch request to the Cromwell server.
         :param endpoint: choppy web api endpoint.
+        :param params: choppy web api parammeters
         :param payload: the json data to patch.
         :param headers: payload headers.
         :return: request result
@@ -136,15 +139,16 @@ class ChoppyStore:
         return r
 
     @rate_limited(300, ONE_MINUTE)
-    def search(self, q_str, page=1, limit=10, mode='source', sort='created', order='asc'):
+    def search(self, q_str, page=1, limit=10, mode='source',
+               sort='created', order='asc'):
         """
         Search apps from choppy app store.
         :param q_str: query string.
         :param page: page number of results to return (1-based).
         :param limit: page size of results, maximum page size is 50.
-        :param mode: type of repository to search for. Supported values are "fork", "source", "mirror" and "collaborative".
-        :param sort: sort repos by attribute. Supported values are "alpha", "created", "updated", "size", and "id". Default is "alpha".
-        :param order: sort order, either “asc” (ascending) or “desc” (descending). Default is "asc", ignored if “sort” is not specified.
+        :param mode: type of repository to search for. Supported values are "fork", "source", "mirror" and "collaborative". # noqa
+        :param sort: sort repos by attribute. Supported values are "alpha", "created", "updated", "size", and "id". Default is "alpha". # noqa
+        :param order: sort order, either “asc” (ascending) or “desc” (descending). Default is "asc", ignored if “sort” is not specified. # noqa
         :return: request result
         """
         search_params = {
