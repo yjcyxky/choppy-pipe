@@ -10,6 +10,14 @@ from jinja2 import Environment, meta
 logger = logging.getLogger('choppy')
 
 
+def check_url(url):
+    pattern = r'(https?)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]'
+    if re.match(pattern, url):
+        return True
+    else:
+        return False
+
+
 def is_valid_app_name(app_name):
     """
     Example(app_name):

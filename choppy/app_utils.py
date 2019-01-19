@@ -20,9 +20,9 @@ from . import exit_code
 logger = logging.getLogger('choppy')
 
 try:
-    str = basestring  # noqa: python2
+    basestring = basestring  # noqa: python2
 except Exception:
-    str = str  # noqa: python3
+    basestring = str  # noqa: python3
 
 
 def parse_app_name(app_name):
@@ -299,7 +299,7 @@ def parse_json(instance):
         for key, value in instance.iteritems():
             # str is not supported by python2.7+
             # basestring is not supported by python3+
-            if isinstance(value, str):
+            if isinstance(value, basestring):
                 try:
                     instance[key] = json.loads(value)
                 except ValueError:

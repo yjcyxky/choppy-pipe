@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+# -*- coding:utf-8 -*-
 import logging
 import os
 import bjoern
@@ -90,7 +90,7 @@ class Repo(Resource):
         'limit': 'page size of results, maximum page size is 50.',
         'mode': 'type of repository to search for. Supported values are "fork", "source", "mirror" and "collaborative".',  # noqa
         'sort': 'sort repos by attribute. Supported values are "alpha", "created", "updated", "size", and "id". Default is "alpha".',  # noqa
-        'order': 'sort order, either “asc” (ascending) or “desc” (descending). Default is "asc", ignored if “sort” is not specified.'  # noqa
+        'order': 'sort order, either "asc" (ascending) or "desc" (descending). Default is "asc", ignored if "sort" is not specified.'  # noqa
     })
     def get(self):
         repo_parser.add_argument('q', default='')

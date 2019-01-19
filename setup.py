@@ -85,5 +85,6 @@ setup(
         'flask == 1.0.2',
         'gevent == 1.4.0',
         'flask-restplus==0.12.1',
+        'docker==3.7.0',
     ]
 )

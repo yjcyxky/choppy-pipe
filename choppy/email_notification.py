@@ -16,8 +16,8 @@ class EmailNotification(object):
         self.messenger = Messenger("")
 
     def on_changed_workflow_status(self, workflow, metadata, host, port):
-        if (workflow.status == "Aborted" or workflow.status == "Failed" or workflow.status == "Succeeded") and \  # noqa
-        (workflow.person_id != "" and workflow.person_id is not None):
+        if (workflow.status == "Aborted" or workflow.status == "Failed" or workflow.status == "Succeeded") and \
+                (workflow.person_id != "" and workflow.person_id is not None):
             if c.sender_user:
                 user = c.sender_user
             else:
@@ -27,8 +27,7 @@ class EmailNotification(object):
             msg = self.messenger.compose_email(email_body)
             EmailNotification.attach_logs(msg, metadata)
 
-            logging.warn("E-mail notification for: " +
-                         str(workflow) + " to " + user)
+            logging.warn("E-mail notification for: " + str(workflow) + " to " + user)
             self.messenger.send_email(msg, user + "@{}".format(c.email_domain))
 
     @staticmethod

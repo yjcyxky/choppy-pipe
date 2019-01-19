@@ -181,11 +181,11 @@ class Validator:
         :return: Boolean
         """
         try:
-            str = basestring  # noqa: python2+
+            basestring = basestring  # noqa: python2+
         except Exception:
-            str = str  # noqa: python3+
+            basestring = str  # noqa: python3+
 
-        return isinstance(i, str)
+        return isinstance(i, basestring)
 
     @staticmethod
     def validate_file(f):
