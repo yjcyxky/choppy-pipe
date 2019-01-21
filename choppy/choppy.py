@@ -20,11 +20,12 @@ from . import exit_code
 from .bash_colors import BashColors
 from .app_utils import (kv_list_to_dict, install_app, uninstall_app,
                         parse_json, get_header, parse_app_name, listapps,
-                        render_readme, print_obj, generate_dependencies_zip)
+                        render_readme, print_obj, generate_dependencies_zip,
+                        AppDefaultVar)
 from .check_utils import (is_valid_label, is_valid_project_name, is_valid,
                           is_valid_oss_link, check_dir, check_identifier,
                           is_valid_zip_or_dir, is_valid_app_name,
-                          get_vars_from_app, check_variables, check_url)
+                          get_all_variables, check_variables, is_valid_url)
 from .json_checker import check_json
 from .workflow import run_batch
 from .project_revision import Git
@@ -613,21 +614,19 @@ def call_samples(args):
     checkfile = args.checkfile
     output = args.output
     app_name = args.app_name
+    no_default = args.no_default
     app_dir = os.path.join(c.app_dir, app_name)
+
     if checkfile:
         if not os.path.isfile(checkfile):
             raise argparse.ArgumentTypeError('%s: No such file.' % checkfile)
         else:
             header_lst = get_header(checkfile)
-            if check_variables(app_dir, 'inputs', header_list=header_lst) and \
-               check_variables(app_dir, 'workflow.wdl', header_list=header_lst): # noqa
+            if check_variables(app_dir, 'inputs', header_list=header_lst, no_default=no_default) and \
+               check_variables(app_dir, 'workflow.wdl', header_list=header_lst, no_default=no_default): # noqa
                 logger.info("%s is valid." % checkfile)
     else:
-        inputs_variables = get_vars_from_app(app_dir, 'inputs')
-        workflow_variables = get_vars_from_app(app_dir, 'workflow.wdl')
-        variables = list(set(list(inputs_variables) + list(workflow_variables) + ['sample_id', ]))  # noqa
-        if 'project_name' in variables:
-            variables.remove('project_name')
+        variables = get_all_variables(app_dir)
 
         if output:
             with open(output, 'w') as f:
@@ -642,15 +641,42 @@ def call_version(args):
 
 
 def call_config(args):
-    conf_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'conf'))
-    choppy_conf = os.path.join(conf_dir, 'choppy.conf.example')
+    key = args.key
+    value = args.value
+    app_name = args.app_name
+    app_path = os.path.join(c.app_dir, app_name)
+    if app_name:
+        app_default_var = AppDefaultVar(app_path)
 
-    if args.output:
-        shutil.copyfile(choppy_conf, args.output)
+        variables = get_all_variables(app_path)
+
+        if args.show:
+            all_default_value = app_default_var.show_default_value()
+            print_obj(json.dumps(all_default_value, indent=2, sort_keys=True))
+            sys.exit(exit_code.NORMAL_EXIT)
+
+        if key not in variables:
+            raise argparse.ArgumentTypeError('Key not in %s' % str(variables))
+
+        if key and value:
+            app_default_var.set_default_value(key, value)
+            app_default_var.save()
+        elif key:
+            if args.delete:
+                app_default_var.delete(key)
+            elif args.show:
+                default_value = app_default_var.show_default_value([key, ])
+                print_obj(json.dumps(default_value, indent=2, sort_keys=True))
     else:
-        with open(choppy_conf, 'r') as f:
-            print_obj(f.read())
-            sys.stdout.flush()
+        conf_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'conf'))
+        choppy_conf = os.path.join(conf_dir, 'choppy.conf.example')
+
+        if args.output:
+            shutil.copyfile(choppy_conf, args.output)
+        else:
+            with open(choppy_conf, 'r') as f:
+                print_obj(f.read())
+                sys.stdout.flush()
 
 
 def call_readme(args):
@@ -730,7 +756,7 @@ def run_docker_builder(args):
     channels = args.channel
 
     for channel in channels:
-        if not check_url(channel):
+        if not is_valid_url(channel):
             raise argparse.ArgumentTypeError(
                 "Invalid url: {} did not match the regex "
                 "'(https?)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]'".format(channel))
@@ -811,7 +837,7 @@ restart = sub.add_parser(name='restart',
 restart.add_argument('workflow_id', action='store', help='workflow id of workflow to restart.')
 restart.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
                      help='Choose a cromwell server from {}'.format(c.servers))
-restart.add_argument('-M', '--monitor', action='store_true', default=True, help=argparse.SUPPRESS)
+restart.add_argument('-M', '--monitor', action='store_true', default=False, help=argparse.SUPPRESS)
 restart.add_argument('-D', '--disable_caching', action='store_true', default=False, help="Don't used cached data.")
 restart.set_defaults(func=call_restart)
 
@@ -1065,8 +1091,16 @@ config = sub.add_parser(name="config",
                         description="Generate config template.",
                         usage="choppy config",
                         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-config.set_defaults(func=call_config)
 config.add_argument('--output', action='store', help='Choppy config file name.')
+config.add_argument('-k', '--key', action="store", help='Set default value for an app.')
+config.add_argument('-v', '--value', action="store", help='Set default value for an app.')
+config.add_argument('--app-name', action='store', choices=listapps(),
+                    help='The app name for your project.', metavar="app_name")
+config.add_argument('-d', '--delete', action="store_true", default=False,
+                    help="Delete default key.")
+config.add_argument('-s', '--show', action="store_true", default=False,
+                    help="Show default variable.")
+config.set_defaults(func=call_config)
 
 samples = sub.add_parser(name="samples",
                          description="samples file.",
@@ -1076,6 +1110,8 @@ samples.add_argument('app_name', action='store', choices=listapps(),
                      help='The app name for your project.', metavar="app_name")
 samples.add_argument('--output', action='store', help='Samples file name.')
 samples.add_argument('--checkfile', action='store', help="Your samples file.")
+samples.add_argument('--no-default', action="store_true", default=False,
+                     help="Don't list default keys that have been config in an app.")
 samples.set_defaults(func=call_samples)
 
 search = sub.add_parser(name='search',

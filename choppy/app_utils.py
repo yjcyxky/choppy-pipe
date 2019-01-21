@@ -25,6 +25,65 @@ except Exception:
     basestring = str  # noqa: python3
 
 
+class AppDefaultVar:
+    def __init__(self, app_path):
+        self.app_path = app_path
+        self.default = os.path.join(self.app_path, 'defaults')
+        self.default_vars = self._parse()
+
+    def _parse(self):
+        if os.path.isfile(self.default):
+            with open(self.default, 'r') as f:
+                vars = json.load(f)
+                return vars
+        else:
+            return dict()
+
+    def get(self, key):
+        return self.default_vars.get(key)
+
+    def has_key(self, key):
+        if self.default_vars.get(key):
+            return True
+        else:
+            return False
+
+    def diff(self, key_list):
+        keys = self.default_vars.keys()
+        # key_list need to have more key.
+        diff_sets = set(key_list) - set(keys)
+        return diff_sets
+
+    def set_default_value(self, key, value):
+        self.default_vars.update({key: value})
+
+    def set_default_vars(self, vars_dict):
+        self.default_vars.update(vars_dict)
+
+    def get_default_vars(self, key_list):
+        keys = self.default_vars.keys()
+        inter_keys = list(set(key_list).intersection(set(keys)))
+        return inter_keys
+
+    def show_default_value(self, key_list=list()):
+        if len(key_list) > 0:
+            inter_keys = self.get_default_vars(key_list)
+        else:
+            inter_keys = self.default_vars.keys()
+
+        results = dict()
+        for key in inter_keys:
+            results.update({
+                key: self.get(key)
+            })
+
+        return results
+
+    def save(self):
+        with open(self.default, 'w') as f:
+            json.dump(self.default_vars, f, indent=2, sort_keys=True)
+
+
 def parse_app_name(app_name):
     pattern = r'^([-\w]+)/([-\w]+)(:[-.\w]+)?$'
     match = re.search(pattern, app_name)

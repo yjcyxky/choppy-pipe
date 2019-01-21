@@ -4,7 +4,8 @@ import os
 import logging
 from .check_utils import check_dir, is_valid_label, is_valid_app
 from .app_utils import (parse_samples, render_app, write, copy_and_overwrite,
-                        generate_dependencies_zip, submit_workflow,)
+                        generate_dependencies_zip, submit_workflow,
+                        AppDefaultVar)
 from .json_checker import check_json
 
 logger = logging.getLogger('choppy')
@@ -25,6 +26,15 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
         if 'sample_id' not in sample.keys():
             raise Exception("Your samples file must contain sample_id column.")
         else:
+            # 用户可通过samples文件覆写default文件中已定义的变量
+            # 只有samples文件中缺少的变量才从default文件中取值
+            app_default_var = AppDefaultVar(app_dir)
+            all_default_value = app_default_var.show_default_value()
+
+            for key in all_default_value.keys():
+                if key not in sample.keys():
+                    sample[key] = all_default_value.get(key)
+
             # make project_name/sample_id directory
             sample_path = os.path.join(project_path, sample.get('sample_id'))
             check_dir(sample_path, skip=force)

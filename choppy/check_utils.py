@@ -5,12 +5,13 @@ import os
 import zipfile
 import logging
 from jinja2 import Environment, meta
+from .app_utils import AppDefaultVar
 
 
 logger = logging.getLogger('choppy')
 
 
-def check_url(url):
+def is_valid_url(url):
     pattern = r'(https?)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]'
     if re.match(pattern, url):
         return True
@@ -37,7 +38,17 @@ def is_valid_app_name(app_name):
                 "'^([-\\w]+)/([-\\w]+)(:[-.\\w]+)?$'" % app_name)
 
 
-def get_vars_from_app(app_path, template_file):
+def get_all_variables(app_dir, no_default=False):
+    inputs_variables = get_vars_from_app(app_dir, 'inputs', no_default=no_default)
+    workflow_variables = get_vars_from_app(app_dir, 'workflow.wdl', no_default=no_default)
+    variables = list(set(list(inputs_variables) + list(workflow_variables) + ['sample_id', ]))  # noqa
+    if 'project_name' in variables:
+        variables.remove('project_name')
+
+    return variables
+
+
+def get_vars_from_app(app_path, template_file, no_default=False):
     env = Environment()
     template = os.path.join(app_path, template_file)
     with open(template) as f:
@@ -45,12 +56,22 @@ def get_vars_from_app(app_path, template_file):
         ast = env.parse(templ_str)
         variables = meta.find_undeclared_variables(ast)
 
+        if no_default:
+            app_default_var = AppDefaultVar(app_path)
+            diff_variables = app_default_var.diff(variables)
+            return diff_variables
+
     return variables
 
 
-def check_variables(app_path, template_file, line_dict=None, header_list=None):
+def check_variables(app_path, template_file, line_dict=None, header_list=None,
+                    no_default=False):
     variables = get_vars_from_app(app_path, template_file)
     variables = list(variables) + ['sample_id', ]
+    if no_default:
+        app_default_var = AppDefaultVar(app_path)
+        variables = app_default_var.diff(variables)
+
     for var in variables:
         if line_dict:
             if var not in line_dict.keys() and var != 'project_name':
