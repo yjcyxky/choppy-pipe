@@ -41,14 +41,21 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
 
             sample['project_name'] = project_name
 
+            # inputs
             inputs = render_app(app_dir, 'inputs', sample)
             check_json(str=inputs)  # Json Syntax Checker
             write(sample_path, 'inputs', inputs)
             inputs_path = os.path.join(sample_path, 'inputs')
 
+            # workflow.wdl
             wdl = render_app(app_dir, 'workflow.wdl', sample)
             write(sample_path, 'workflow.wdl', wdl)
             wdl_path = os.path.join(sample_path, 'workflow.wdl')
+
+            # defaults
+            src_defaults_file = os.path.join(app_dir, 'defaults')
+            dest_defaults_file = os.path.join(sample_path, 'defaults')
+            copy_and_overwrite(src_defaults_file, dest_defaults_file)
 
             src_dependencies = os.path.join(app_dir, 'tasks')
             dest_dependencies = os.path.join(sample_path, 'tasks')

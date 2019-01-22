@@ -451,6 +451,22 @@ def call_batch(args):
     run_batch(project_name, app_dir, samples, label, server, username, dry_run, force)  # noqa
 
 
+def call_test(args):
+    app_dir = os.path.join(c.app_dir, args.app_name)
+    project_name = args.project_name
+    samples = os.path.join(c.app_dir, 'test', 'samples')
+    if not os.path.isfile(samples):
+        print_obj("No test file for %s" % args.app_name)
+        sys.exit(exit_code.NOTESTFILE)
+
+    label = args.label
+    server = args.server
+    dry_run = args.dry_run
+    username = args.username.lower()
+    force = args.force
+    run_batch(project_name, app_dir, samples, label, server, username, dry_run, force)  # noqa
+
+
 def call_testapp(args):
     # app_dir is not same with call_batch.
     app_dir = args.app_dir
@@ -776,7 +792,7 @@ def run_docker_builder(args):
 
 
 description = """Global Management:
-    config      Generate config template.
+    config      Generate config template / config app default values.
     version     Show the version.
 
 Single Workflow Management:
@@ -794,6 +810,7 @@ Single Workflow Management:
 Choppy App Management:
     batch       Submit batch jobs for execution on a Cromwell VM.
     apps        List all apps that is supported by choppy.
+    test        Run app test case.
     testapp     Test an app.
     install     Install an app.
     uninstall   Uninstall an app.
@@ -995,6 +1012,22 @@ batch.add_argument('-f', '--force', action='store_true', default=False, help='Fo
 batch.add_argument('-u', '--username', action='store', default=c.getuser(), type=is_valid_label,
                    help=argparse.SUPPRESS)
 batch.set_defaults(func=call_batch)
+
+test = sub.add_parser(name="test",
+                      description="Submit test jobs for execution on a Cromwell VM.",
+                      usage="choppy test <app_name> [<args>]",
+                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+test.add_argument('app_name', action='store', choices=listapps(), metavar="app_name",
+                  help='The app name for your project.')
+test.add_argument('--project-name', action='store', type=is_valid_project_name, required=True, help='Your project name.')
+test.add_argument('--dry-run', action='store_true', default=False, help='Generate all workflow but skipping running.')
+test.add_argument('-l', '--label', action='append', help='A key:value pair to assign. May be used multiple times.')
+test.add_argument('-S', '--server', action='store', default='localhost', type=str,
+                  help='Choose a cromwell server.', choices=c.servers)
+test.add_argument('-f', '--force', action='store_true', default=False, help='Force to overwrite files.')
+test.add_argument('-u', '--username', action='store', default=c.getuser(), type=is_valid_label,
+                  help=argparse.SUPPRESS)
+test.set_defaults(func=call_test)
 
 testapp = sub.add_parser(name="testapp",
                          description="Test an app.",
