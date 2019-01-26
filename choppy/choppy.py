@@ -21,7 +21,7 @@ from .bash_colors import BashColors
 from .app_utils import (kv_list_to_dict, install_app, uninstall_app,
                         parse_json, get_header, parse_app_name, listapps,
                         render_readme, print_obj, generate_dependencies_zip,
-                        AppDefaultVar)
+                        AppDefaultVar, is_valid_app)
 from .check_utils import (is_valid_label, is_valid_project_name, is_valid,
                           is_valid_oss_link, check_dir, check_identifier,
                           is_valid_zip_or_dir, is_valid_app_name,
@@ -33,8 +33,8 @@ from .version import get_version
 from .cromwell import Cromwell, print_log_exit
 from .monitor import Monitor
 from .validator import Validator
-from .server import run_server
-from .docker_mgmt import Docker
+from .server import run_server as call_server
+from .docker_mgmt import Docker, get_parser
 
 __author__ = "Jingcheng Yang"
 __copyright__ = "Copyright 2018, The Genius Medicine Consortium."
@@ -448,6 +448,7 @@ def call_batch(args):
     dry_run = args.dry_run
     username = args.username.lower()
     force = args.force
+    is_valid_app(app_dir)
     run_batch(project_name, app_dir, samples, label, server, username, dry_run, force)  # noqa
 
 
@@ -660,8 +661,8 @@ def call_config(args):
     key = args.key
     value = args.value
     app_name = args.app_name
-    app_path = os.path.join(c.app_dir, app_name)
     if app_name:
+        app_path = os.path.join(c.app_dir, app_name)
         app_default_var = AppDefaultVar(app_path)
 
         variables = get_all_variables(app_path)
@@ -760,7 +761,7 @@ def call_status(args):
         print("Nothing to commit, working tree clean")
 
 
-def run_docker_builder(args):
+def call_docker_builder(args):
     software_name = args.software_name
     software_version = args.software_version
     summary = args.summary
@@ -770,6 +771,24 @@ def run_docker_builder(args):
     tag = args.tag
     username = args.username
     channels = args.channel
+    main_program = args.main_program
+    raw_deps = args.dep
+    parser = args.parser
+    dry_run = args.dry_run
+
+    deps = [{'name': dep.split(':')[0], 'version': dep.split(':')[1]}
+            for dep in raw_deps if re.match(r'^[-\w.]+:[-\w.]+$', dep)]
+
+    c.print_color(BashColors.OKBLUE,
+                  "dependences: %s, parser: %s, main_program: %s, channels: %s" %
+                  (str(deps), str(parser), str(main_program), str(channels)))
+
+    if main_program:
+        if not os.path.isfile(main_program):
+            raise argparse.ArgumentTypeError("%s not in %s" % (main_program, os.getcwd()))
+    elif parser:
+        raise argparse.ArgumentTypeError("You need to specify --main-program argument "
+                                         "when you use --parser argument.")
 
     for channel in channels:
         if not is_valid_url(channel):
@@ -782,12 +801,20 @@ def run_docker_builder(args):
     else:
         username = None
         password = None
-    docker_instance = Docker(username=username, password=password)
-    docker_instance.build(software_name, software_version, tag, summary=summary,
-                          home=home, software_doc=software_doc, tags=software_tags,
-                          channels=channels)
 
-    if not args.no_clean:
+    if not tag:
+        tag = 'choppy/%s:%s' % (software_name, software_version)
+
+    docker_instance = Docker(username=username, password=password)
+    success = docker_instance.build(software_name, software_version, tag, summary=summary,
+                                    home=home, software_doc=software_doc, tags=software_tags,
+                                    channels=channels, parser=parser, main_program=main_program,
+                                    deps=deps, dry_run=dry_run)
+
+    if success:
+        c.print_color(BashColors.OKGREEN, 'Dockerfile Path: %s/Dockerfile' % success)
+
+    if not args.no_clean and not success:
         docker_instance.clean_all()
 
 
@@ -1220,7 +1247,7 @@ server.add_argument('-D', '--daemon', action='store_true', default=False,
 server.add_argument('-f', '--framework', action='store', default='BJOERN',
                     choices=['BJOERN', 'GEVENT'], help='Run server with framework.')
 server.add_argument('-s', '--swagger', action='store_true', default=False, help="Enable swagger documentation.")
-server.set_defaults(func=run_server)
+server.set_defaults(func=call_server)
 
 docker_builder = sub.add_parser(name="build",
                                 description="Auto build docker image for a software.",
@@ -1236,9 +1263,13 @@ docker_builder.add_argument('--software-tags', action='store', default='', help=
 docker_builder.add_argument('-u', '--username', action='store', type=is_valid_label,
                             help='Account of docker registry.')
 docker_builder.add_argument('--channel', action='append', default=[], help='Add conda channel url.')
+docker_builder.add_argument('--dep', action='append', default=[], help='Add dependencie, be similar as software:version.')
+docker_builder.add_argument('--main-program', action='store', help='Your main script.')
+docker_builder.add_argument('--parser', action='store', help='What script language.', choices=get_parser())
+docker_builder.add_argument('--dry-run', action='store_true', default=False, help='Generate all related files but skipping running.')
 docker_builder.add_argument('--no-clean', action='store_true', default=False,
                             help='NOT clean containers and images.')
-docker_builder.set_defaults(func=run_docker_builder)
+docker_builder.set_defaults(func=call_docker_builder)
 
 
 def main():

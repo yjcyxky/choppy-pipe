@@ -134,23 +134,6 @@ def check_dir(path, skip=None, force=True):
         raise Exception("%s exists" % path)
 
 
-def is_valid_app(path):
-    """
-    Validate a directory path and verify the directory is an valid app directory. # noqa
-    :param path: Path to a directory.
-    :return: The path if it exists and is an app directory, otherwise raises an error. # noqa
-    """
-    inputs_path = os.path.join(path, 'inputs')
-    wdl_path = os.path.join(path, 'workflow.wdl')
-    dependencies = os.path.join(path, 'tasks')
-    pathlist = [path, inputs_path, wdl_path, dependencies]
-    for fpath in pathlist:
-        if not os.path.exists(fpath):
-            raise Exception("%s is not a valid app.\n" %
-                            os.path.basename(path))
-    return True
-
-
 def is_valid(path):
     """
     Integrates with ArgParse to validate a file path.

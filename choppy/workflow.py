@@ -2,10 +2,10 @@
 import csv
 import os
 import logging
-from .check_utils import check_dir, is_valid_label, is_valid_app
+from .check_utils import check_dir, is_valid_label
 from .app_utils import (parse_samples, render_app, write, copy_and_overwrite,
                         generate_dependencies_zip, submit_workflow,
-                        AppDefaultVar)
+                        AppDefaultVar, is_valid_app)
 from .json_checker import check_json
 
 logger = logging.getLogger('choppy')
@@ -55,7 +55,7 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
             # defaults
             src_defaults_file = os.path.join(app_dir, 'defaults')
             dest_defaults_file = os.path.join(sample_path, 'defaults')
-            copy_and_overwrite(src_defaults_file, dest_defaults_file)
+            copy_and_overwrite(src_defaults_file, dest_defaults_file, is_file=True)
 
             src_dependencies = os.path.join(app_dir, 'tasks')
             dest_dependencies = os.path.join(sample_path, 'tasks')

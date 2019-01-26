@@ -13,6 +13,27 @@ from .bash_colors import BashColors
 from .check_utils import check_dir
 
 
+def get_parser():
+    return ('r', 'python', 'bash')
+
+
+def overwrite_dockerfile(dockerfile):
+    answer = ''
+    while answer.upper() not in ("YES", "NO", "Y", "N"):
+        try:
+            answer = raw_input("Overwrite Dockerfile, Enter Yes/No: ")  # noqa: python2
+        except Exception:
+            answer = input("Overwrite Dockerfile, Enter Yes/No: ")  # noqa: python3
+
+        answer = answer.upper()
+        if answer == "YES" or answer == "Y":
+            os.remove(dockerfile)
+        elif answer == "NO" or answer == "N":
+            raise Exception('Dockerfile Exists.')
+        else:
+            print("Please enter Yes/No.")
+
+
 class Docker:
     """ Module to interact with Docker. Example usage:
         docker = Docker()
@@ -65,6 +86,17 @@ class Docker:
         else:
             return rendered_tmpl
 
+    def _gen_wrapper(self, main_program, parser='', output_file=None):
+        env = Environment(loader=FileSystemLoader(c.resource_dir))
+        template = env.get_template('wrapper.template')
+        rendered_tmpl = template.render(main_program=main_program, parser=parser)
+        if output_file:
+            with open(output_file, 'w') as f:
+                f.write(rendered_tmpl)
+                return output_file
+        else:
+            return rendered_tmpl
+
     def version(self):
         try:
             self._exist_docker()
@@ -72,7 +104,6 @@ class Docker:
             if version_json:
                 print(json.dumps(parse_json(version_json), indent=2, sort_keys=True))
         except Exception as err:
-            self.logger.error(str(err))
             c.print_color(BashColors.FAIL, str(err))
 
     def clean_containers(self, filters):
@@ -80,16 +111,16 @@ class Docker:
             containers = self.client.containers.list(filters=filters)
             for container in containers:
                 container.remove(force=True)
-        except docker.errors.APIError as err:
-            self.logger.error("Clean Containers: %s" % str(err))
+        except (docker.errors.APIError, Exception) as err:
+            c.print_color(BashColors.FAIL, "Clean Containers: %s" % str(err))
 
     def clean_images(self, filters):
         try:
             images = self.client.images.list(filters=filters)
             for image in images:
                 self.client.images.remove(image=image.id, force=True)
-        except docker.errors.APIError as err:
-            self.logger.error("Clean Images: %s" % str(err))
+        except (docker.errors.APIError, Exception) as err:
+            c.print_color(BashColors.FAIL, "Clean Images: %s" % str(err))
 
     def clean_all(self):
         container_filters = {
@@ -103,31 +134,49 @@ class Docker:
         self.clean_images(image_filters)
 
     def build(self, software_name, software_version, tag_name, summary='',
-              home='', software_doc='', tags='', channels=list(), base_image=None):
+              home='', software_doc='', tags='', channels=list(), base_image=None,
+              parser='', main_program=None, deps=None, dry_run=False, current_dir=True):
         """
         Build docker image.
         """
         try:
+            current_dir = os.getcwd()
+            if main_program:
+                wrapper_program = os.path.join(current_dir, software_name)
+                self._gen_wrapper(main_program, parser=parser, output_file=wrapper_program)
+
             self._exist_docker()
-            tmp_dir = os.path.join('/tmp', 'choppy', str(uuid.uuid1()))
-            check_dir(tmp_dir)
+            if current_dir:
+                tmp_dir = os.getcwd()
+            else:
+                tmp_dir = os.path.join('/tmp', 'choppy', str(uuid.uuid1()))
+                check_dir(tmp_dir)
+
             tmp_dockerfile = os.path.join(tmp_dir, 'Dockerfile')
+
+            if os.path.isfile(tmp_dockerfile):
+                overwrite_dockerfile(tmp_dockerfile)
+
             choppy_tag = '%s-%s' % (software_name, software_version)
+
             self._gen_dockerfile(software_name, software_version, summary=summary, home=home,
                                  software_doc=software_doc, tags=tags, output_file=tmp_dockerfile,
-                                 choppy_tag=choppy_tag, channels=channels, base_image=base_image)
-            cli = docker.APIClient(base_url=self.base_url)
-            logs = cli.build(path=tmp_dir, tag=tag_name, decode=True,
-                             nocache=True, rm=True, pull=False)
+                                 choppy_tag=choppy_tag, channels=channels, base_image=base_image,
+                                 deps=deps, parser=parser)
+            if not dry_run:
+                cli = docker.APIClient(base_url=self.base_url)
+                logs = cli.build(path=tmp_dir, tag=tag_name, decode=True,
+                                 nocache=True, rm=True, pull=False)
 
-            for line in logs:
-                streamline = line.get('stream')
-                if streamline:
-                    print(streamline.strip())
+                for line in logs:
+                    streamline = line.get('stream')
+                    if streamline:
+                        print(streamline.strip())
+            return tmp_dir
         except (docker.errors.APIError, Exception) as err:
             err_msg = "Build docker(%s-%s): %s" % (software_name, software_version, str(err))
-            self.logger.error(err_msg)
             c.print_color(BashColors.FAIL, err_msg)
+            return False
 
 
 if __name__ == "__main__":

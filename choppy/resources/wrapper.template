@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# Wrapper to easily run an R script at the command line, with arguments,
+# like you're used to with Python/Perl/Ruby/Bash/anything else remotely sane.
+#
+# Jinja2 - Variables
+# parser -- r/python
+# main_program -- main program
+
+set -eu -o pipefail
+
+export LC_ALL=en_US.UTF-8
+
+# Find original directory of bash script, resolving symlinks
+# http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in/246128#246128
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+    DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+BINDIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+echo "Binary directory: ${BINDIR}"
+
+# Change Working Directory
+cd ${BINDIR}
+
+{% if parser|lower == 'r' %}
+PARSER='Rscript'
+MAIN_PROGRAM="${BINDIR}/{{ main_program }}"
+if [ -f "{{ main_program }}" ];then
+    $PARSER ${MAIN_PROGRAM} '$@'
+fi
+{% elif parser|lower == 'python' %}
+PARSER='python'
+MAIN_PROGRAM="${BINDIR}/{{ main_program }}"
+if [ -f "{{ main_program }}" ];then
+    $PARSER ${MAIN_PROGRAM} '$@'
+fi
+{% elif parser|lower == 'bash' %}
+PARSER='bash'
+MAIN_PROGRAM="${BINDIR}/{{ main_program }}"
+if [ -f "{{ main_program }}" ];then
+    $PARSER ${MAIN_PROGRAM} '$@'
+fi
+{% endif %}
+
+if [ ! -f "{{ main_program }}" ];then
+    echo "No such main program: ${MAIN_PROGRAM}"
+fi

@@ -84,6 +84,23 @@ class AppDefaultVar:
             json.dump(self.default_vars, f, indent=2, sort_keys=True)
 
 
+def is_valid_app(path):
+    """
+    Validate a directory path and verify the directory is an valid app directory. # noqa
+    :param path: Path to a directory.
+    :return: The path if it exists and is an app directory, otherwise raises an error. # noqa
+    """
+    inputs_path = os.path.join(path, 'inputs')
+    wdl_path = os.path.join(path, 'workflow.wdl')
+    dependencies = os.path.join(path, 'tasks')
+    pathlist = [path, inputs_path, wdl_path, dependencies]
+    for fpath in pathlist:
+        if not os.path.exists(fpath):
+            raise Exception("%s is not a valid app.\n" %
+                            os.path.basename(path))
+    return True
+
+
 def parse_app_name(app_name):
     pattern = r'^([-\w]+)/([-\w]+)(:[-.\w]+)?$'
     match = re.search(pattern, app_name)
@@ -155,7 +172,10 @@ def generate_dependencies_zip(dependencies_path):
     zip_output = os.path.join('/', 'tmp', par_dir, 'tasks.zip')
 
     os.chdir(workdir)
-    dest_path = os.path.join('tasks', 'tasks')
+    # Fix bug:
+    # Need two levels or one level?
+    # dest_path = os.path.join('tasks', 'tasks')
+    dest_path = 'tasks'
     shutil.copytree(dependencies_path, dest_path)
 
     # 外部命令
@@ -184,7 +204,13 @@ def install_app_by_git(base_url, namespace, app_name, dest_dir='./',
     proc.communicate(password)
     rc = proc.returncode
     if rc == 0:
-        print_color(BashColors.OKGREEN, "Install %s successfully." % app_name)
+        try:
+            is_valid_app(dest_dir)
+            print_color(BashColors.OKGREEN, "Install %s successfully." % app_name)
+        except Exception as err:
+            shutil.rmtree(dest_dir)
+            print_color(BashColors.FAIL, "Install %s unsuccessfully." % app_name)
+            print_color(BashColors.FAIL, str(err))
     else:
         print_color(BashColors.FAIL, "Install %s unsuccessfully." % app_name)
         sys.exit(exit_code.APP_INSTALL_FAILED)
@@ -372,7 +398,14 @@ def parse_json(instance):
     return instance
 
 
-def copy_and_overwrite(from_path, to_path):
-    if os.path.exists(to_path):
+def copy_and_overwrite(from_path, to_path, is_file=False):
+    if os.path.isfile(to_path):
+        os.remove(to_path)
+
+    if os.path.isdir(to_path):
         shutil.rmtree(to_path)
-    shutil.copytree(from_path, to_path)
+
+    if is_file and os.path.isfile(from_path):
+        shutil.copy2(from_path, to_path)
+    elif os.path.isdir(from_path):
+        shutil.copytree(from_path, to_path)
