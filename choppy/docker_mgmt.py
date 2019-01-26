@@ -86,10 +86,17 @@ class Docker:
         else:
             return rendered_tmpl
 
-    def _gen_wrapper(self, main_program, parser='', output_file=None):
+    def _gen_wrapper(self, main_program_list, parser='', output_file=None):
         env = Environment(loader=FileSystemLoader(c.resource_dir))
-        template = env.get_template('wrapper.template')
-        rendered_tmpl = template.render(main_program=main_program, parser=parser)
+        if len(main_program_list) == 1:
+            template = env.get_template('wrapper.template')
+            rendered_tmpl = template.render(main_program=main_program_list[0], parser=parser)
+        elif len(main_program_list) > 1:
+            template = env.get_template('multi_wrapper.template')
+            program_list = [program.split('.')[0] for program in main_program_list]
+            program_list_str = ','.join(program_list)
+            rendered_tmpl = template.render(program_list_str=program_list_str, parser=parser)
+
         if output_file:
             with open(output_file, 'w') as f:
                 f.write(rendered_tmpl)
@@ -135,15 +142,15 @@ class Docker:
 
     def build(self, software_name, software_version, tag_name, summary='',
               home='', software_doc='', tags='', channels=list(), base_image=None,
-              parser='', main_program=None, deps=None, dry_run=False, current_dir=True):
+              parser='', main_program_lst=None, deps=None, dry_run=False, current_dir=True):
         """
         Build docker image.
         """
         try:
             current_dir = os.getcwd()
-            if main_program:
+            if main_program_lst:
                 wrapper_program = os.path.join(current_dir, software_name)
-                self._gen_wrapper(main_program, parser=parser, output_file=wrapper_program)
+                self._gen_wrapper(main_program_lst, parser=parser, output_file=wrapper_program)
 
             self._exist_docker()
             if current_dir:

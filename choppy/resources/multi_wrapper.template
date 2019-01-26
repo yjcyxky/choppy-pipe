@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# Wrapper to easily run an R script at the command line, with arguments,
+# like you're used to with Python/Perl/Ruby/Bash/anything else remotely sane.
+#
+# Jinja2 - Variables
+# parser -- r/python
+# program_list_str -- main program list string
+# exit_code: 0 - normal, 1 - no such program, 2 - choice error
+
+set -eu -o pipefail
+
+export LC_ALL=en_US.UTF-8
+
+# trans str to array
+function split2array() {
+    x=$1
+    echo $x | awk '{split($0,arr,",");for(i in arr) print arr[i]}'
+}
+
+# Script Index
+# Bash array must be ()
+program_array=(`split2array "{{ program_list_str }}"`)
+
+show_help(){
+cat << EOF
+usage: $(echo $0) [-p <script_name>]
+       -p script name. choices: {{ program_list_str }}
+EOF
+}
+
+program=''
+while getopts ":hp:" arg
+do
+	case "$arg" in
+		"p")
+			program="$OPTARG"
+			# echo "$OPTARG"
+			;;
+		":")
+			echo "No argument value for option $OPTARG"
+			;;
+		h)
+			show_help
+			exit 0
+			;;
+	esac
+done
+
+if [ -z "$program" ]; then
+    echo "You must specify a program name."
+    exit 1
+fi
+
+# Find original directory of bash script, resolving symlinks
+# http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in/246128#246128
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+    DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+BINDIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+echo "Binary directory: ${BINDIR}"
+
+# Change Working Directory
+cd ${BINDIR}
+
+program_path=${BINDIR}
+for i in "${program_array[@]}"
+do
+    if [ "$i" == "$program" ]; then
+        shift 2
+        {% if parser|lower == 'r' %}
+            PARSER='Rscript'
+            echo "Running: $PARSER ${program_path}/${program}.R $@"
+            if [ -f "${program_path}/${program}.R" ];then
+                $PARSER "${program_path}/$program".R "$@"
+            elif [ -f "${program_path}/${program}.r" ];then
+                $PARSER "${program_path}/$program".r "$@"
+            elif [ -f "${program_path}/${program}" ];then
+                $PARSER "${program_path}/$program" "$@"
+            else
+                echo "No such program: ${program_path}/${program} or ${program_path}/${program}.r or ${program_path}/${program}.R"
+                exit 1
+            fi
+            exit 0
+        {% elif parser|lower == 'python' %}
+            PARSER='python'
+            echo "Running: $PARSER ${program_path}/${program}.py $@"
+            if [ -f "${program_path}/${program}.py" ];then
+                $PARSER "${program_path}/$program".py "$@"
+            elif [ -f "${program_path}/${program}.PY" ];then
+                $PARSER "${program_path}/$program".PY "$@"
+            elif [ -f "${program_path}/${program}" ];then
+                $PARSER "${program_path}/$program" "$@"
+            else
+                echo "No such program: ${program_path}/${program} or ${program_path}/${program}.py or ${program_path}/${program}.PY"
+                exit 1
+            fi
+            exit 0
+        {% elif parser|lower == 'bash' %}
+            PARSER='bash'
+            echo "Running: $PARSER ${program_path}/${program}.sh $@"
+            if [ -f "${program_path}/${program}.sh" ];then
+                $PARSER "${program_path}/$program".sh "$@"
+            elif [ -f "${program_path}/${program}.bash" ];then
+                $PARSER "${program_path}/$program".bash "$@"
+            elif [ -f "${program_path}/${program}" ];then
+                $PARSER "${program_path}/$program" "$@"
+            else
+                echo "No such program: ${program_path}/${program} or ${program_path}/${program}.sh or ${program_path}/${program}.bash"
+                exit 1
+            fi
+            exit 0
+        {% endif %}
+    fi
+done
+
+# script name not in {{ program_list_str }}
+echo "Scipt name must be one of {{ program_list_str }}"
+exit 2

@@ -771,7 +771,7 @@ def call_docker_builder(args):
     tag = args.tag
     username = args.username
     channels = args.channel
-    main_program = args.main_program
+    main_program_lst = args.main_program
     raw_deps = args.dep
     parser = args.parser
     dry_run = args.dry_run
@@ -781,11 +781,12 @@ def call_docker_builder(args):
 
     c.print_color(BashColors.OKBLUE,
                   "dependences: %s, parser: %s, main_program: %s, channels: %s" %
-                  (str(deps), str(parser), str(main_program), str(channels)))
+                  (str(deps), str(parser), str(main_program_lst), str(channels)))
 
-    if main_program:
-        if not os.path.isfile(main_program):
-            raise argparse.ArgumentTypeError("%s not in %s" % (main_program, os.getcwd()))
+    if len(main_program_lst) > 0:
+        for main_program in main_program_lst:
+            if not os.path.isfile(main_program):
+                raise argparse.ArgumentTypeError("%s not in %s" % (main_program, os.getcwd()))
     elif parser:
         raise argparse.ArgumentTypeError("You need to specify --main-program argument "
                                          "when you use --parser argument.")
@@ -808,7 +809,7 @@ def call_docker_builder(args):
     docker_instance = Docker(username=username, password=password)
     success = docker_instance.build(software_name, software_version, tag, summary=summary,
                                     home=home, software_doc=software_doc, tags=software_tags,
-                                    channels=channels, parser=parser, main_program=main_program,
+                                    channels=channels, parser=parser, main_program_lst=main_program_lst,
                                     deps=deps, dry_run=dry_run)
 
     if success:
@@ -1264,7 +1265,7 @@ docker_builder.add_argument('-u', '--username', action='store', type=is_valid_la
                             help='Account of docker registry.')
 docker_builder.add_argument('--channel', action='append', default=[], help='Add conda channel url.')
 docker_builder.add_argument('--dep', action='append', default=[], help='Add dependencie, be similar as software:version.')
-docker_builder.add_argument('--main-program', action='store', help='Your main script.')
+docker_builder.add_argument('--main-program', action='append', default=[], help='Your main script, may be several.')
 docker_builder.add_argument('--parser', action='store', help='What script language.', choices=get_parser())
 docker_builder.add_argument('--dry-run', action='store_true', default=False, help='Generate all related files but skipping running.')
 docker_builder.add_argument('--no-clean', action='store_true', default=False,
