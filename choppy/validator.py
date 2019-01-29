@@ -1,15 +1,15 @@
 # -*- coding:utf-8 -*-
-__author__ = 'Amr Abouelleil'
+from __future__ import unicode_literals
 # import SingleBucket
 
 import logging
 import json
-from . import config as c
+import choppy.config as c
 import os
 import subprocess
 import csv
 import sys
-from . import exit_code
+from choppy import exit_code
 
 module_logger = logging.getLogger('choppy.Validator')
 

@@ -1,10 +1,11 @@
-__author__ = 'Amr Abouelleil'
+# coding: utf-8
+from __future__ import unicode_literals
 import unittest
 import logging
-from . import config as c
+import choppy.config as c
 import os
-from .validator import Validator
-from .single_bucket import SingleBucket
+from choppy.validator import Validator
+from choppy.single_bucket import SingleBucket
 
 
 class ValidatorUnitTests(unittest.TestCase):

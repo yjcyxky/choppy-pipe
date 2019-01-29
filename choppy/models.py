@@ -1,11 +1,11 @@
 # -*- coding:utf-8 -*-
-__author__ = 'paulcao'
+from __future__ import unicode_literals
 
 from sqlalchemy import Column, String, DateTime, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 
-from . import config
+from choppy import config
 import datetime
 import json
 

@@ -1,11 +1,12 @@
 # -*- coding:utf-8 -*-
+from __future__ import unicode_literals
 import logging
 import json
 import requests
 import datetime
 import sys
-from . import config as c
-from . import exit_code
+import choppy.config as c
+from choppy import exit_code
 
 from requests.utils import quote
 from ratelimit import rate_limited

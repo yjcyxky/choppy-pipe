@@ -1,11 +1,12 @@
 # -*- coding:utf-8 -*-
+from __future__ import unicode_literals
 import re
 import argparse
 import os
 import zipfile
 import logging
 from jinja2 import Environment, meta
-from .app_utils import AppDefaultVar
+from choppy.app_utils import AppDefaultVar
 
 
 logger = logging.getLogger('choppy')

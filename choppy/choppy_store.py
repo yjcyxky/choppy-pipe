@@ -1,13 +1,14 @@
 # -*- coding:utf-8 -*-
+from __future__ import unicode_literals
 import logging
 import json
 import requests
 import sys
 from ratelimit import rate_limited
 from requests.compat import urljoin
-from . import exit_code
-from .exceptions import (UnauthorizedException, UnFoundException,
-                         BadRequestException)
+from choppy import exit_code
+from choppy.exceptions import (UnauthorizedException, UnFoundException,
+                               BadRequestException)
 
 module_logger = logging.getLogger('choppy.choppy_store')
 ONE_MINUTE = 60

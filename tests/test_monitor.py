@@ -1,9 +1,11 @@
+# coding: utf-8
+from __future__ import unicode_literals
 import unittest
 import os
 import time
-from .cromwell import Cromwell
-from .monitor import Monitor
-from . import config as c
+from choppy.cromwell import Cromwell
+from choppy.monitor import Monitor
+import choppy.config as c
 
 
 class MyTestCase(unittest.TestCase):

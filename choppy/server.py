@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
+from __future__ import unicode_literals
 import logging
 import os
 import bjoern
@@ -9,12 +10,12 @@ import argparse
 from gevent.pywsgi import WSGIServer
 from flask import Flask, jsonify
 from flask_restplus import Resource, Api, reqparse
-from . import config as c
-from .app_utils import listapps
-from .check_utils import check_dir, is_valid_project_name
-from .workflow import run_batch
-from .bash_colors import BashColors
-from .choppy_store import ChoppyStore
+import choppy.config as c
+from choppy.app_utils import listapps
+from choppy.check_utils import check_dir, is_valid_project_name
+from choppy.workflow import run_batch
+from choppy.bash_colors import BashColors
+from choppy.choppy_store import ChoppyStore
 
 
 cromwell_server = 'localhost'

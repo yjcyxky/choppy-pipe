@@ -1,13 +1,14 @@
 # -*- coding:utf-8 -*-
+from __future__ import unicode_literals
 import datetime
 import calendar
-from .cromwell import Cromwell
-from .messenger import Messenger
+from choppy.cromwell import Cromwell
+from choppy.messenger import Messenger
 from dateutil.parser import parse
 import json
 from email.mime.text import MIMEText
 import logging
-from . import config as c
+import choppy.config as c
 
 
 class EmailNotification(object):

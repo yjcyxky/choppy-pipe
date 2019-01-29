@@ -2,6 +2,7 @@
 """
 A module that handles messaging of workflow results.
 """
+from __future__ import unicode_literals
 import smtplib
 import os
 import logging
@@ -9,7 +10,7 @@ from email.mime.text import MIMEText
 from string import Template
 from email.mime.multipart import MIMEMultipart
 from email.utils import formatdate
-from . import config as c
+import choppy.config as c
 from ratelimit import rate_limited
 
 __author__ = "Amr Abouelleil"

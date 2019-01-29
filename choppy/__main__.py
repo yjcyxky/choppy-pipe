@@ -1,4 +1,10 @@
+#!/usr/bin/env python
 # -*- coding:utf-8 -*-
+# PYTHON_ARGCOMPLETE_OK
+"""
+Choppy is a tool for submitting workflows via command-line to the cromwell execution engine servers. # noqa
+"""
+from __future__ import unicode_literals
 import argcomplete
 import argparse
 import sys
@@ -15,26 +21,27 @@ import datetime
 import getpass
 import coloredlogs
 from subprocess import CalledProcessError, check_output, PIPE, Popen, call as subprocess_call # noqa
-from . import config as c
-from . import exit_code
-from .bash_colors import BashColors
-from .app_utils import (kv_list_to_dict, install_app, uninstall_app,
-                        parse_json, get_header, parse_app_name, listapps,
-                        render_readme, print_obj, generate_dependencies_zip,
-                        AppDefaultVar, is_valid_app)
-from .check_utils import (is_valid_label, is_valid_project_name, is_valid,
-                          is_valid_oss_link, check_dir, check_identifier,
-                          is_valid_zip_or_dir, is_valid_app_name,
-                          get_all_variables, check_variables, is_valid_url)
-from .json_checker import check_json
-from .workflow import run_batch
-from .project_revision import Git
-from .version import get_version
-from .cromwell import Cromwell, print_log_exit
-from .monitor import Monitor
-from .validator import Validator
-from .server import run_server as call_server
-from .docker_mgmt import Docker, get_parser
+import choppy.config as c
+from choppy import exit_code
+from choppy.bash_colors import BashColors
+from choppy.app_utils import (kv_list_to_dict, install_app, uninstall_app,
+                              parse_json, get_header, parse_app_name, listapps,
+                              render_readme, print_obj, generate_dependencies_zip,
+                              AppDefaultVar, is_valid_app)
+from choppy.check_utils import (is_valid_label, is_valid_project_name, is_valid,
+                                is_valid_oss_link, check_dir, check_identifier,
+                                is_valid_zip_or_dir, is_valid_app_name,
+                                get_all_variables, check_variables, is_valid_url)
+from choppy.json_checker import check_json
+from choppy.workflow import run_batch
+from choppy.scaffold import Scaffold
+from choppy.project_revision import Git
+from choppy.version import get_version
+from choppy.cromwell import Cromwell, print_log_exit
+from choppy.monitor import Monitor
+from choppy.validator import Validator
+from choppy.server import run_server as call_server
+from choppy.docker_mgmt import Docker, get_parser
 
 __author__ = "Jingcheng Yang"
 __copyright__ = "Copyright 2018, The Genius Medicine Consortium."
@@ -819,6 +826,12 @@ def call_docker_builder(args):
         docker_instance.clean_all()
 
 
+def call_scaffold(args):
+    output_dir = args.output_dir
+    scaffold = Scaffold(output_dir=output_dir)
+    scaffold.generate()
+
+
 description = """Global Management:
     config      Generate config template / config app default values.
     version     Show the version.
@@ -840,6 +853,7 @@ Choppy App Management:
     apps        List all apps that is supported by choppy.
     test        Run app test case.
     testapp     Test an app.
+    scaffold    Generate scaffold for a choppy app.
     install     Install an app.
     uninstall   Uninstall an app.
     samples     Generate or check samples file.
@@ -1273,6 +1287,14 @@ docker_builder.add_argument('--no-clean', action='store_true', default=False,
 docker_builder.set_defaults(func=call_docker_builder)
 
 
+scaffold = sub.add_parser(name="scaffold",
+                          description="Generate scaffold for a choppy app.",
+                          usage="choppy scaffold",
+                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+scaffold.add_argument('--output-dir', action='store', default='./', help='Scaffold output directory.')
+scaffold.set_defaults(func=call_scaffold)
+
+
 def main():
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
@@ -1306,3 +1328,7 @@ def main():
 
     if args.debug:
         logger.debug("\n-------------End Choppy Execution by {}-------------\n".format(user))
+
+
+if __name__ == "__main__":
+    sys.exit(main())

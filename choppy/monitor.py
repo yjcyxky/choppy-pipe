@@ -1,22 +1,23 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 """Module for persistent monitoring of workflows."""
+from __future__ import unicode_literals
 import logging
 import time
 import json
 import os
 from dateutil.parser import parse
-from . import config as c
-from .cromwell import Cromwell
-from .messenger import Messenger
+import choppy.config as c
+from choppy.cromwell import Cromwell
+from choppy.messenger import Messenger
 from email.mime.text import MIMEText
 import pytz
 import threading
 import datetime
-from .models import Workflow, Base
+from choppy.models import Workflow, Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from .email_notification import EmailNotification
+from choppy.email_notification import EmailNotification
 
 import traceback
 

@@ -1,4 +1,5 @@
 # -*- coding:utf-8 -*-
+from __future__ import unicode_literals
 import json
 import os
 import sys
@@ -11,11 +12,11 @@ import logging
 from markdown2 import Markdown
 from subprocess import Popen, PIPE
 from jinja2 import Environment, FileSystemLoader
-from . import config as c
-from .config import print_color
-from .bash_colors import BashColors
-from .cromwell import Cromwell
-from . import exit_code
+import choppy.config as c
+from choppy.config import print_color
+from choppy.bash_colors import BashColors
+from choppy.cromwell import Cromwell
+from choppy import exit_code
 
 logger = logging.getLogger('choppy')
 

@@ -1,9 +1,10 @@
-__author__ = 'Amr Abouelleil'
+# coding: utf-8
+from __future__ import unicode_literals
 import unittest
 import os
 import time
-from .cromwell import Cromwell
-from . import config as c
+from choppy.cromwell import Cromwell
+import choppy.config as c
 import datetime
 import requests
 

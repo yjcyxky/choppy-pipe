@@ -1,4 +1,5 @@
 # -*- coding:utf-8 -*-
+from __future__ import unicode_literals
 import os
 import uuid
 import logging
@@ -6,11 +7,11 @@ import hashlib
 import requests
 import docker
 import json
-from .app_utils import parse_json
+from choppy.app_utils import parse_json
 from jinja2 import Environment, FileSystemLoader
-from . import config as c
-from .bash_colors import BashColors
-from .check_utils import check_dir
+import choppy.config as c
+from choppy.bash_colors import BashColors
+from choppy.check_utils import check_dir
 
 
 def get_parser():

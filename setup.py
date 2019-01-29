@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 import os
 import re
-from setuptools import setup, find_packages
+from setuptools import setup
 from choppy.version import get_version
 from setuptools.command.install import install
 
@@ -37,6 +37,13 @@ class PostInstallCommand(install):
                 f.write(auto_complete_cmd)
 
 
+def get_packages(package):
+    """Return root package and all sub-packages."""
+    return [dirpath
+            for dirpath, dirnames, filenames in os.walk(package)
+            if os.path.exists(os.path.join(dirpath, '__init__.py'))]
+
+
 setup(
     name='choppy',
     version=get_version(),
@@ -45,13 +52,13 @@ setup(
     author='Jingcheng Yang',
     author_email='yjcyxky@163.com',
     url='http://www.nordata.cn',
-    packages=find_packages(exclude=['tests']),
+    packages=get_packages("choppy"),
     include_package_data=True,
     zip_safe=False,
     platforms='any',
     entry_points={
         'console_scripts': [
-            'choppy = choppy.choppy:main',
+            'choppy = choppy.__main__:main',
         ],
     },
     cmdclass={
@@ -62,7 +69,7 @@ setup(
         'certifi==2018.11.29',
         'chardet==3.0.4',
         'configparser==3.5.0',
-        # 'futures==3.2.0',
+        'futures==3.2.0',
         'idna==2.8',
         'Jinja2==2.10',
         'MarkupSafe==1.1.0',

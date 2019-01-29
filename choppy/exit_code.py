@@ -1,4 +1,7 @@
 # -*- coding:utf-8 -*-
+from __future__ import unicode_literals
+
+
 NORMAL_EXIT = 0
 GENERAL_ERROR = 1
 CONFIG_FILE_NOT_EXIST = 2

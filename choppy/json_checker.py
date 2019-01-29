@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
-# pylint: disable=no-name-in-module
+
 """
 Example usage:
 $ f=`cat test.json`; echo -e "$f"; python validate_json.py "$f"
@@ -15,9 +15,10 @@ Invalid JSON
     ^-- Expecting property name
 """
 
+from __future__ import unicode_literals
 import re
 import sys
-from . import exit_code
+from choppy import exit_code
 
 try:
     import json

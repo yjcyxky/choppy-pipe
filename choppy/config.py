@@ -1,12 +1,13 @@
 # -*- coding:utf-8 -*-
+from __future__ import unicode_literals
 import os
 import sys
 import re
 import logging
 import getpass
 import configparser
-from . import exit_code
-from .bash_colors import BashColors
+from choppy import exit_code
+from choppy.bash_colors import BashColors
 
 DIRNAME = os.path.split(os.path.abspath(__file__))[0]
 
