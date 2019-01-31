@@ -12,6 +12,6 @@
 			"**/.env": true,
 			"**/.vscode": true
 		},
-		"python.pythonPath": ".env-python2/bin/python"
+		"python.pythonPath": ".env/bin/python"
 	}
 }

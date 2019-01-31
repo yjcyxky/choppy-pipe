@@ -110,6 +110,8 @@ terminal_states = ['Failed', 'Aborted', 'Succeeded']
 status_list = run_states + terminal_states
 resource_dir = os.path.abspath(os.path.join(
     os.path.dirname(__file__), 'resources'))
+component_dir = os.path.abspath(os.path.join(
+    os.path.dirname(__file__), 'components'))
 
 try:
     workflow_db = os.path.expanduser(config.get('general', 'workflow_db'))

@@ -1,0 +1,73 @@
+# Vars:
+# project_name, repo_url, site_description, site_description, copyright
+# extra_css_lst, extra_js_lst, report_menu
+# report_menu = [
+#   {
+#     "value": "index.md",
+#     "key": "Home"
+#   },
+#   {
+#     "key": "User Guide",
+#     "value": [
+#       {
+#         "value": "user-guide/writing-your-docs.md",
+#         "key": "Writing Your Docs"
+#       },
+#       {
+#         "value": "user-guide/styling-your-docs.md",
+#         "key": "Styling Your Docs"
+#       }
+#     ]
+#   },
+#   {
+#     "value": "about/release-notes.md",
+#     "key": "About"
+#   }
+# ]
+# 
+docs_dir: .
+site_name: {{ context.project_name }}
+repo_url: {{ context.repo_url }}
+site_description: {{ context.site_description }}
+site_author: {{ context.site_author }}
+copyright: {{ context.copyright }}
+
+markdown_extensions:
+    - toc:
+        permalink: 
+    - admonition
+    - def_list
+
+extra_css:
+    {% for css in context.extra_css_lst -%}
+    - {{ css }}
+    {%- endfor %}
+
+extra_javascript:
+    {% for js in context.extra_js_lst -%}
+    - {{ js }}
+    {%- endfor %}
+
+plugins:
+    - search
+
+theme:
+    name: mkdocs
+    highlightjs: true
+    hljs_languages:
+        - yaml
+        - django
+        - bash
+        - python
+
+nav:
+    {% for menu in context.report_menu -%}
+    {% if menu.value is iterable and menu.value is not string -%}
+    - {{ menu.key }}:
+        {% for submenu in menu.value -%}
+        - {{ submenu.key }}: {{ submenu.value }}
+        {%- endfor %}
+    {% else -%}
+    - {{ menu.key }}: {{ menu.value }}
+    {% endif -%}
+    {% endfor -%}

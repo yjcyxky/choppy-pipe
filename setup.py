@@ -69,7 +69,6 @@ setup(
         'certifi==2018.11.29',
         'chardet==3.0.4',
         'configparser==3.5.0',
-        'futures==3.2.0',
         'idna==2.8',
         'Jinja2==2.10',
         'MarkupSafe==1.1.0',
@@ -93,5 +92,6 @@ setup(
         'gevent == 1.4.0',
         'flask-restplus==0.12.1',
         'docker==3.7.0',
+        'mkdocs==1.0.4',
     ]
 )

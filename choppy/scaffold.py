@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*-
 from __future__ import unicode_literals
 import os
+import logging
 from jinja2 import Environment, FileSystemLoader
 import choppy.config as c
 from choppy.app_utils import copy_and_overwrite
@@ -16,12 +17,14 @@ class NoSuchFile(Exception):
 
 class Scaffold:
     def __init__(self, output_dir='.'):
+        self.logger = logging.getLogger(__name__)
         file_list = ['README.md', 'workflow.wdl', 'inputs', 'defaults']
-        dir_list = ['tasks', 'test', 'docker']
+        dir_list = ['tasks', 'test', 'docker', 'report']
         self.scaffold_dir = os.path.join(c.resource_dir, 'scaffold_template')
         self.file_list = [os.path.join(self.scaffold_dir, file) for file in file_list]
         self.dir_list = [os.path.join(self.scaffold_dir, dir) for dir in dir_list]
 
+        # scaffold_template directory must have these files and dirs.
         self._check_file(self.file_list)
         self._check_dir(self.dir_list)
 
@@ -44,6 +47,9 @@ class Scaffold:
                 continue
 
     def _gen_readme(self, output_file='README.md', **kwargs):
+        """
+        Generate README.md from README.md template.
+        """
         template = self.env.get_template('README.md')
         rendered_tmpl = template.render(**kwargs)
 
@@ -55,6 +61,9 @@ class Scaffold:
             return rendered_tmpl
 
     def _gen_defaults(self, output_file='defaults', **kwargs):
+        """
+        Generate defaults from defaults template.
+        """
         template = self.env.get_template('defaults')
         rendered_tmpl = template.render(**kwargs)
 
@@ -66,6 +75,9 @@ class Scaffold:
             return rendered_tmpl
 
     def _gen_inputs(self, output_file='inputs', **kwargs):
+        """
+        Generate inputs from inputs template.
+        """
         template = self.env.get_template('inputs')
         rendered_tmpl = template.render(**kwargs)
 
@@ -77,6 +89,9 @@ class Scaffold:
             return rendered_tmpl
 
     def _gen_workflow(self, output_file='workflow.wdl', **kwargs):
+        """
+        Generate workflow.wdl from workflow.wdl template.
+        """
         template = self.env.get_template('workflow.wdl')
         rendered_tmpl = template.render(**kwargs)
 
@@ -88,24 +103,43 @@ class Scaffold:
             return rendered_tmpl
 
     def _copy_tasks(self):
+        """
+        Generate tasks directory from scaffold template.
+        """
         tasks_dir = os.path.join(self.scaffold_dir, 'tasks')
         dest_dir = os.path.join(self.output_dir, 'tasks')
         copy_and_overwrite(tasks_dir, dest_dir)
 
     def _copy_docker(self):
+        """
+        Generate docker directory from scaffold template.
+        """
         docker_dir = os.path.join(self.scaffold_dir, 'docker')
         dest_dir = os.path.join(self.output_dir, 'docker')
         copy_and_overwrite(docker_dir, dest_dir)
 
     def _copy_test(self):
+        """
+        Generate test directory from scaffold template.
+        """
         test_dir = os.path.join(self.scaffold_dir, 'test')
         dest_dir = os.path.join(self.output_dir, 'test')
         copy_and_overwrite(test_dir, dest_dir)
+
+    def _copy_report(self):
+        """
+        Generate report directory from scaffold template.
+        """
+        report_dir = os.path.join(self.scaffold_dir, 'report')
+        dest_dir = os.path.join(self.output_dir, 'report')
+        copy_and_overwrite(report_dir, dest_dir)
 
     def generate(self):
         self._copy_docker()
         self._copy_tasks()
         self._copy_test()
+        self._copy_report()
+
         readme = os.path.join(self.output_dir, 'README.md')
         self._gen_readme(output_file=readme)
 
@@ -117,3 +151,5 @@ class Scaffold:
 
         workflow = os.path.join(self.output_dir, 'workflow.wdl')
         self._gen_workflow(workflow)
+
+        self.logger.info('Generate scaffold directory successfully. (All files in %s)' % self.output_dir)

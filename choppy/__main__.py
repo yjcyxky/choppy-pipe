@@ -4,7 +4,7 @@
 """
 Choppy is a tool for submitting workflows via command-line to the cromwell execution engine servers. # noqa
 """
-from __future__ import unicode_literals
+from __future__ import unicode_literals, absolute_import
 import argcomplete
 import argparse
 import sys
@@ -42,6 +42,8 @@ from choppy.monitor import Monitor
 from choppy.validator import Validator
 from choppy.server import run_server as call_server
 from choppy.docker_mgmt import Docker, get_parser
+from choppy.report_mgmt import build as build_report
+from choppy.report_mgmt import get_mode
 
 __author__ = "Jingcheng Yang"
 __copyright__ = "Copyright 2018, The Genius Medicine Consortium."
@@ -465,7 +467,7 @@ def call_test(args):
     samples = os.path.join(c.app_dir, 'test', 'samples')
     if not os.path.isfile(samples):
         print_obj("No test file for %s" % args.app_name)
-        sys.exit(exit_code.NOTESTFILE)
+        sys.exit(exit_code.NO_TEST_FILE)
 
     label = args.label
     server = args.server
@@ -832,6 +834,26 @@ def call_scaffold(args):
     scaffold.generate()
 
 
+def call_report(args):
+    app_name = args.app_name
+    app_dir = os.path.join(c.app_dir, app_name)
+    repo_url = args.repo_url
+    site_description = args.site_description
+    site_author = args.site_author
+    copyright = args.copyright
+
+    server = args.server
+    project_dir = args.project_dir
+    # sample_id = args.sample_id
+    dev_addr = args.dev_addr
+    force = args.force
+    mode = args.mode
+
+    build_report(app_dir, project_dir, repo_url=repo_url, site_description=site_description,
+                 site_author=site_author, copyright=copyright, force=force, server=server,
+                 mode=mode, dev_addr=dev_addr)
+
+
 description = """Global Management:
     config      Generate config template / config app default values.
     version     Show the version.
@@ -859,6 +881,7 @@ Choppy App Management:
     samples     Generate or check samples file.
     search      Query cromwell for information on the submitted workflow.
     man         Get manual about app.
+    report      Generate report for your app results.
 
 OSS Management:
     listfiles   List all files where are in the specified bucket.
@@ -1293,6 +1316,27 @@ scaffold = sub.add_parser(name="scaffold",
                           formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 scaffold.add_argument('--output-dir', action='store', default='./', help='Scaffold output directory.')
 scaffold.set_defaults(func=call_scaffold)
+
+
+report = sub.add_parser(name="report",
+                        description="Generate report for your app results.",
+                        usage="choppy report <app_name> [<args>]",
+                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+report.add_argument('app_name', action='store', choices=listapps(),
+                    help='The app name for your project.', metavar="app_name")
+report.add_argument('--mode', action='store', default='build', choices=get_mode(), help='Which mode for your report.')
+report.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
+                    help='Choose a cromwell server from {}'.format(c.servers))
+report.add_argument('--dev-addr', action='store', default='127.0.0.1:8000', help='Development server address.',
+                    metavar='<IP:PORT>')
+report.add_argument('-f', '--force', action='store_true', default=False, help='Force to regenerate files.')
+report.add_argument('--project-dir', action='store', required=True, help='Your project directory',
+                    type=is_valid)
+report.add_argument('--repo-url', action='store', help='Your project repo url', type=is_valid_url)
+report.add_argument('--site-author', action='store', help='The site author')
+report.add_argument('--site-description', action='store', help='The site description')
+report.add_argument('--copyright', action='store', help='The copyright for your project website')
+report.set_defaults(func=call_report)
 
 
 def main():
