@@ -13,8 +13,7 @@ from markdown2 import Markdown
 from subprocess import Popen, PIPE
 from jinja2 import Environment, FileSystemLoader
 import choppy.config as c
-from choppy.config import print_color
-from choppy.bash_colors import BashColors
+from choppy.utils import BashColors
 from choppy.cromwell import Cromwell
 from choppy import exit_code
 
@@ -207,13 +206,13 @@ def install_app_by_git(base_url, namespace, app_name, dest_dir='./',
     if rc == 0:
         try:
             is_valid_app(dest_dir)
-            print_color(BashColors.OKGREEN, "Install %s successfully." % app_name)
+            BashColors.print_color('SUCCESS', "Install %s successfully." % app_name)
         except Exception as err:
             shutil.rmtree(dest_dir)
-            print_color(BashColors.FAIL, "Install %s unsuccessfully." % app_name)
-            print_color(BashColors.FAIL, str(err))
+            BashColors.print_color('DANGER', "Install %s unsuccessfully." % app_name)
+            BashColors.print_color('DANGER', str(err))
     else:
-        print_color(BashColors.FAIL, "Install %s unsuccessfully." % app_name)
+        BashColors.print_color('DANGER', "Install %s unsuccessfully." % app_name)
         sys.exit(exit_code.APP_INSTALL_FAILED)
 
 

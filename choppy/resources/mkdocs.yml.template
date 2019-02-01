@@ -26,7 +26,7 @@
 # ]
 # 
 docs_dir: .
-site_name: {{ context.project_name }}
+site_name: {{ context.site_name }}
 repo_url: {{ context.repo_url }}
 site_description: {{ context.site_description }}
 site_author: {{ context.site_author }}
@@ -38,15 +38,19 @@ markdown_extensions:
     - admonition
     - def_list
 
+{% if context.extra_css_lst | length > 0 -%}
 extra_css:
     {% for css in context.extra_css_lst -%}
     - {{ css }}
     {%- endfor %}
+{%- endif %}
 
+{% if context.extra_css_lst | length > 0 -%}
 extra_javascript:
     {% for js in context.extra_js_lst -%}
     - {{ js }}
     {%- endfor %}
+{%- endif %}
 
 plugins:
     - search

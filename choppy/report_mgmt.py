@@ -9,14 +9,17 @@ import json
 import yaml
 import csv
 import uuid
-import choppy.config as c
-import choppy.exit_code as exit_code
+
 from mkdocs import config
-from choppy.cromwell import Cromwell
+from jinja2 import Environment, FileSystemLoader
 from mkdocs.commands.build import build as build_docs
 from mkdocs.commands.serve import serve as serve_docs
-from jinja2 import Environment, FileSystemLoader
+
+import choppy.config as c
+import choppy.exit_code as exit_code
+from choppy.cromwell import Cromwell
 from choppy.check_utils import check_dir
+from choppy.utils import BashColors
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +153,7 @@ class Context:
         self._context = {
             # Mkdocs
             'project_name': os.path.basename(self.project_dir),
+            'site_name': '',
             'repo_url': '',
             'site_description': '',
             'site_author': '',
@@ -226,6 +230,9 @@ class Context:
 
     def set_repo_url(self, repo_url):
         self._context['repo_url'] = repo_url
+
+    def set_site_name(self, site_name):
+        self._context['site_name'] = site_name
 
     def set_site_description(self, site_description):
         self._context['site_description'] = site_description
@@ -312,8 +319,10 @@ class Context:
         self._context['workflow_log'] = workflow_log
 
     def set_extra_context(self, repo_url='', site_description='', site_author='',
-                          copyright='', extra_css_lst=[], extra_js_lst=[]):
+                          copyright='', extra_css_lst=[], extra_js_lst=[],
+                          site_name=''):
         self.set_repo_url(repo_url)
+        self.set_site_name(site_name)
         self.set_site_description(site_description)
         self.set_site_author(site_author)
         self.set_copyright(copyright)
@@ -494,8 +503,8 @@ class Report:
 
 
 def build(app_dir, project_dir, resource_dir=c.resource_dir, repo_url='',
-          site_description='', site_author='', copyright='', force=False,
-          server='localhost', dev_addr='127.0.0.1:8000', mode='build'):
+          site_description='', site_author='', copyright='', site_name='',
+          server='localhost', dev_addr='127.0.0.1:8000', mode='build', force=False):
     report_dir = os.path.join(project_dir, 'report_markdown')
     if os.path.exists(report_dir) and not force:
         logger.info('Skip generate context and render markdown.')
@@ -512,7 +521,10 @@ def build(app_dir, project_dir, resource_dir=c.resource_dir, repo_url='',
             parser.parse(tmp_report_dir)
         except InValidReport as err:
             logger.debug('Warning: %s' % str(err))
-            logger.info("The app %s doesn't support report." % os.path.basename(app_dir))
+            message = "The app %s doesn't support report.\n" \
+                      "Please contact the app maintainer." % os.path.basename(app_dir)
+            color_msg = BashColors.get_color_msg('WARNING', message)
+            logger.info(color_msg)
             # TODO: How to deal with exit way when choppy run as web api mode.
             sys.exit(exit_code.INVALID_REPORT)
 
@@ -520,7 +532,7 @@ def build(app_dir, project_dir, resource_dir=c.resource_dir, repo_url='',
         logger.debug('Generate report context.')
         context = Context(project_dir, server=server)
         context.set_extra_context(repo_url=repo_url, site_description=site_description,
-                                  site_author=site_author, copyright=copyright,
+                                  site_author=site_author, copyright=copyright, site_name=site_name,
                                   extra_css_lst=parser.extra_css_lst, extra_js_lst=parser.extra_js_lst)
 
         # Renderer: render report markdown files.

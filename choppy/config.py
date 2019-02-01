@@ -7,7 +7,7 @@ import logging
 import getpass
 import configparser
 from choppy import exit_code
-from choppy.bash_colors import BashColors
+from choppy.utils import BashColors
 
 DIRNAME = os.path.split(os.path.abspath(__file__))[0]
 
@@ -36,16 +36,11 @@ def check_dir(path):
         os.makedirs(path)
 
 
-def print_color(color, msg):
-    print(color + msg + BashColors.ENDC)
-
-
 def check_oss_config():
     if access_key and access_secret and endpoint:
         return True
     else:
-        print_color(BashColors.FAIL,
-                    "You need to config oss section in choppy.conf")
+        BashColors.print_color('DANGER', "You need to config oss section in choppy.conf")
         sys.exit(exit_code.OSS_NOT_CONFIG)
 
 
@@ -53,8 +48,7 @@ def check_server_config(host, port, username=None, password=None):
     if host and port:
         return True
     else:
-        print_color(BashColors.FAIL,
-                    "You need to config local/remote_* section in choppy.conf")
+        BashColors.print_color('DANGER', "You need to config local/remote_* section in choppy.conf")
         sys.exit(exit_code.SERVER_NOT_CONFIG)
 
 
@@ -87,7 +81,7 @@ def get_remote_info(section_name):
         password = config.get(section_name, 'password')
         return (remote_host, remote_port, username, password)
     except KeyError:
-        print_color(BashColors.WARNING, 'No such key in %s' % section_name)
+        BashColors.print_color('WARNING', 'No such key in %s' % section_name)
         sys.exit(exit_code.NO_SUCH_KEY_IN_SECTION)
 
 
@@ -194,8 +188,8 @@ try:
     else:
         log_level = logging.DEBUG
 except (configparser.NoSectionError, KeyError) as err:
-    print_color(BashColors.FAIL, 'Parsing config file (%s) error.\n%s' %
-                (conf_path, str(err)))
+    BashColors.print_color('DANGER', 'Parsing config file (%s) error.\n%s' %
+                           (conf_path, str(err)))
     sys.exit(exit_code.CONFIG_FILE_FAILED)
 
 
@@ -205,7 +199,7 @@ def getuser():
     if matchObj:
         return user
     else:
-        print_color(BashColors.FAIL,
-                    "Your account name is not valid. "
-                    "Did not match the regex ^[a-zA-Z0-9_]+$")
+        BashColors.print_color('DANGER',
+                               "Your account name is not valid. "
+                               "Did not match the regex ^[a-zA-Z0-9_]+$")
         sys.exit(exit_code.USERNAME_NOT_VALID)

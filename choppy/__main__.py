@@ -23,7 +23,6 @@ import coloredlogs
 from subprocess import CalledProcessError, check_output, PIPE, Popen, call as subprocess_call # noqa
 import choppy.config as c
 from choppy import exit_code
-from choppy.bash_colors import BashColors
 from choppy.app_utils import (kv_list_to_dict, install_app, uninstall_app,
                               parse_json, get_header, parse_app_name, listapps,
                               render_readme, print_obj, generate_dependencies_zip,
@@ -44,6 +43,7 @@ from choppy.server import run_server as call_server
 from choppy.docker_mgmt import Docker, get_parser
 from choppy.report_mgmt import build as build_report
 from choppy.report_mgmt import get_mode
+from choppy.utils import get_copyright, BashColors
 
 __author__ = "Jingcheng Yang"
 __copyright__ = "Copyright 2018, The Genius Medicine Consortium."
@@ -730,14 +730,14 @@ def call_save(args):
         msg = 'Add new files.'
 
     git.commit(msg)
-    c.print_color(BashColors.OKGREEN, 'Save project files successfully.')
+    BashColors.print_color('SUCCESS', 'Save project files successfully.')
 
     if url:
         # Remote Push
         project_name = os.path.basename(project_path)
         git.add_remote(url, name=project_name, username=username)
         git.push()
-        c.print_color(BashColors.OKGREEN, 'Sync project files successfully.')
+        BashColors.print_color('SUCCESS', 'Sync project files successfully.')
 
 
 def call_clone(args):
@@ -788,9 +788,9 @@ def call_docker_builder(args):
     deps = [{'name': dep.split(':')[0], 'version': dep.split(':')[1]}
             for dep in raw_deps if re.match(r'^[-\w.]+:[-\w.]+$', dep)]
 
-    c.print_color(BashColors.OKBLUE,
-                  "dependences: %s, parser: %s, main_program: %s, channels: %s" %
-                  (str(deps), str(parser), str(main_program_lst), str(channels)))
+    BashColors.print_color('BLUE',
+                           "dependences: %s, parser: %s, main_program: %s, channels: %s" %
+                           (str(deps), str(parser), str(main_program_lst), str(channels)))
 
     if len(main_program_lst) > 0:
         for main_program in main_program_lst:
@@ -822,7 +822,7 @@ def call_docker_builder(args):
                                     deps=deps, dry_run=dry_run)
 
     if success:
-        c.print_color(BashColors.OKGREEN, 'Dockerfile Path: %s/Dockerfile' % success)
+        BashColors.print_color('SUCCESS', 'Dockerfile Path: %s/Dockerfile' % success)
 
     if not args.no_clean and not success:
         docker_instance.clean_all()
@@ -838,9 +838,10 @@ def call_report(args):
     app_name = args.app_name
     app_dir = os.path.join(c.app_dir, app_name)
     repo_url = args.repo_url
+    site_name = args.site_name
     site_description = args.site_description
     site_author = args.site_author
-    copyright = args.copyright
+    copyright = get_copyright(site_author)
 
     server = args.server
     project_dir = args.project_dir
@@ -850,8 +851,8 @@ def call_report(args):
     mode = args.mode
 
     build_report(app_dir, project_dir, repo_url=repo_url, site_description=site_description,
-                 site_author=site_author, copyright=copyright, force=force, server=server,
-                 mode=mode, dev_addr=dev_addr)
+                 site_author=site_author, copyright=copyright, site_name=site_name,
+                 mode=mode, dev_addr=dev_addr, force=force, server=server)
 
 
 description = """Global Management:
@@ -1333,9 +1334,10 @@ report.add_argument('-f', '--force', action='store_true', default=False, help='F
 report.add_argument('--project-dir', action='store', required=True, help='Your project directory',
                     type=is_valid)
 report.add_argument('--repo-url', action='store', help='Your project repo url', type=is_valid_url)
-report.add_argument('--site-author', action='store', help='The site author')
-report.add_argument('--site-description', action='store', help='The site description')
-report.add_argument('--copyright', action='store', help='The copyright for your project website')
+report.add_argument('--site-name', action='store', help='The site name for your report website', default='Choppy Report')
+report.add_argument('--site-author', action='store', help='The site author', default='choppy')
+report.add_argument('--site-description', action='store', help='The site description',
+                    default='Choppy is a painless reproducibility manager.')
 report.set_defaults(func=call_report)
 
 
@@ -1345,10 +1347,10 @@ def main():
 
     # Fix bug: user need to set choppy.conf before running choppy.
     if args.func != call_config and c.conf_path == c.conf_file_example:
-        c.print_color(BashColors.FAIL, "Error: Not Found choppy.conf.\n\n"
-                      "You need to run `choppy config` to generate "
-                      "config template, modify it and copy to the one of directories %s.\n"
-                      % c.CONFIG_FILES)
+        BashColors.print_color('DANGER', "Error: Not Found choppy.conf.\n\n"
+                               "You need to run `choppy config` to generate "
+                               "config template, modify it and copy to the one of directories %s.\n"
+                               % c.CONFIG_FILES)
         sys.exit(exit_code.CONFIG_FILE_NOT_EXIST)
 
     user = c.getuser()
