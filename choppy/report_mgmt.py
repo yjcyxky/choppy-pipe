@@ -19,7 +19,8 @@ import choppy.config as c
 import choppy.exit_code as exit_code
 from choppy.cromwell import Cromwell
 from choppy.check_utils import check_dir
-from choppy.utils import BashColors
+from choppy.utils import BashColors, copy_and_overwrite, get_copyright
+from choppy.exceptions import InValidDefaults, InValidReport
 
 logger = logging.getLogger(__name__)
 
@@ -34,17 +35,12 @@ TEMPLATE_FILES = [
 ]
 
 
-class InValidReport(Exception):
-    pass
-
-
 class ReportDefaultVar:
     """
     Report Default File Management.
     """
-    def __init__(self, app_report_dir):
-        self.app_report_dir = app_report_dir
-        self.default = os.path.join(self.app_report_dir, 'defaults')
+    def __init__(self, defaults):
+        self.defaults = defaults
         self.default_vars = self._parse()
 
     def _parse(self):
@@ -52,10 +48,13 @@ class ReportDefaultVar:
         Parse defaults file and convert it to a dict.
         :return: a dict.
         """
-        if os.path.isfile(self.default):
-            with open(self.default, 'r') as f:
-                vars = json.load(f)
-                return vars
+        if os.path.isfile(self.defaults):
+            try:
+                with open(self.defaults, 'r') as f:
+                    vars = json.load(f)
+                    return vars
+            except json.decoder.JSONDecodeError:
+                raise InValidDefaults('The defaults file defined in app is not a valid json.')
         else:
             return dict()
 
@@ -139,7 +138,7 @@ class ReportDefaultVar:
         """
         Save all default vars into 'defaults' file. It should be called after you update variable's value.
         """
-        with open(self.default, 'w') as f:
+        with open(self.defaults, 'w') as f:
             json.dump(self.default_vars, f, indent=2, sort_keys=True)
 
 
@@ -152,13 +151,14 @@ class Context:
 
         self._context = {
             # Mkdocs
+            'docs_dir': 'report_markdown',
             'project_name': os.path.basename(self.project_dir),
-            'site_name': '',
-            'repo_url': '',
-            'site_description': '',
-            'site_author': '',
-            'copyright': '',
-            'extra_css_lst': [],
+            'site_name': 'Choppy Report',
+            'repo_url': 'http://choppy.3steps.cn',
+            'site_description': 'Choppy is a painless reproducibility manager.',
+            'site_author': 'choppy',
+            'copyright': get_copyright(),
+            'extra_css_lst': ['http://kancloud.nordata.cn/2019-02-01-choppy-extra.css'],
             'extra_js_lst': [],
             'report_menu': [
                 {
@@ -169,7 +169,7 @@ class Context:
                     'value': [
                         {
                             'key': 'sample_name',
-                            'value': 'project/sample_name.md'
+                            'value': 'project/sample.md'
                         }
                     ]
                 }, {
@@ -195,59 +195,88 @@ class Context:
             'submitted_jobs': self.get_submitted_jobs(),
             'failed_jobs': self.get_failed_jobs(),
             'project_dir': self.project_dir,
-            'workflow_metadata': self.get_workflow_metadata(),
-            'workflow_log': self.get_workflow_log(),
-            'workflow_status': self.get_workflow_status(),
-            'sample_id_lst': self.get_sample_id_lst(),  # must be after self.get_submitted_jobs() and self.get_failed_jobs().
-            'workflow_id_lst': self.get_workflow_id_lst(),  # must be after self.get_submitted_jobs().
+            'workflow_metadata': [],
+            'workflow_log': [],
+            'workflow_status': [],
+            'sample_id_lst': [],
+            'workflow_id_lst': [],
+            'defaults': {},
+            'theme_name': 'mkdocs',
         }
 
-        self.set_project_menu(self.get_sample_id_lst())
         self.logger.debug('Report Context: %s' % str(self._context))
+
+        # Must be after self.get_submitted_jobs() and self.get_failed_jobs().
+        self.set_sample_id_lst()
+        # Must be after self.get_submitted_jobs().
+        self.set_workflow_id_lst()
+
+        # Must be after self.set_sample_id_lst()
+        self.set_project_menu(self._context['sample_id_lst'])
+
+        # Must be after self.set_sample_id_lst() and self.set_workflow_id_lst().
+        self.set_workflow_metadata()
+        self.set_workflow_log()
+        self.set_workflow_status()
 
     @property
     def context(self):
         return self._context
 
-    def get_workflow_id_lst(self):
+    def set_theme_name(self, theme_name):
+        if isinstance(theme_name, str):
+            self._context.update({
+                'theme_name': theme_name
+            })
+
+    def set_defaults(self, defaults):
+        if isinstance(defaults, dict):
+            self._context.update(defaults)
+
+    def set_workflow_id_lst(self):
         raw_workflow_id_lst = self._context['workflow_id_lst']
-        if raw_workflow_id_lst:
-            return raw_workflow_id_lst
-        else:
+        if len(raw_workflow_id_lst) > 0:
             submitted_jobs = self._context['submitted_jobs']
             workflow_id_lst = [row.get('workflow_id') for row in submitted_jobs]
-            return workflow_id_lst
+            self._context['workflow_id_lst'] = workflow_id_lst
 
-    def get_sample_id_lst(self):
+    def set_sample_id_lst(self):
         raw_sample_id_lst = self._context['sample_id_lst']
-        if raw_sample_id_lst:
-            return raw_sample_id_lst
-        else:
+        if len(raw_sample_id_lst) > 0:
             submitted_jobs = self._context['submitted_jobs']
             failed_jobs = self._context['failed_jobs']
             sample_id_lst = [row.get('sample_id') for row in submitted_jobs] + [row.get('sample_id') for row in failed_jobs]
-            return sample_id_lst
+
+            if len(sample_id_lst) > 0:
+                self._context['sample_id_lst'] = sample_id_lst
 
     def set_repo_url(self, repo_url):
-        self._context['repo_url'] = repo_url
+        if repo_url:
+            self._context['repo_url'] = repo_url
 
     def set_site_name(self, site_name):
-        self._context['site_name'] = site_name
+        if site_name:
+            self._context['site_name'] = site_name
 
     def set_site_description(self, site_description):
-        self._context['site_description'] = site_description
+        if site_description:
+            self._context['site_description'] = site_description
 
     def set_site_author(self, site_author):
-        self._context['site_author'] = site_author
+        if site_author:
+            self._context['site_author'] = site_author
 
     def set_copyright(self, copyright):
-        self._context['copyright'] = copyright
+        if copyright:
+            self._context['copyright'] = copyright
 
     def set_extra_css_lst(self, extra_css_lst):
-        self._context['extra_css_lst'] = extra_css_lst
+        if len(extra_css_lst) > 0:
+            self._context['extra_css_lst'].extend(extra_css_lst)
 
     def set_extra_js_lst(self, extra_js_lst):
-        self._context['extra_js_lst'] = extra_js_lst
+        if len(extra_js_lst) > 0:
+            self._context['extra_js_lst'].extend(extra_js_lst)
 
     def set_project_menu(self, sample_list):
         project_menu = []
@@ -257,31 +286,35 @@ class Context:
                 'value': 'project/%s.md' % sample
             })
 
-        self._context['report_menu'][1]['value'] = project_menu
+        if len(project_menu) > 0:
+            # TODO: more security way to update the value of report_menu.
+            self._context['report_menu'][1]['value'] = project_menu
 
     def get_submitted_jobs(self):
         submitted_file = os.path.join(self.project_dir, 'submitted.csv')
 
-        reader = csv.DictReader(open(submitted_file, 'rt'))
-        dict_list = []
+        if os.path.exists(submitted_file):
+            reader = csv.DictReader(open(submitted_file, 'rt'))
+            dict_list = []
 
-        for line in reader:
-            dict_list.append(line)
+            for line in reader:
+                dict_list.append(line)
 
-        return dict_list
+            return dict_list
 
     def get_failed_jobs(self):
         failed_file = os.path.join(self.project_dir, 'failed.csv')
 
-        reader = csv.DictReader(open(failed_file, 'rt'))
-        dict_list = []
+        if os.path.exists(failed_file):
+            reader = csv.DictReader(open(failed_file, 'rt'))
+            dict_list = []
 
-        for line in reader:
-            dict_list.append(line)
+            for line in reader:
+                dict_list.append(line)
 
-        return dict_list
+            return dict_list
 
-    def get_workflow_metadata(self):
+    def set_workflow_metadata(self):
         """
         Get workflow metadata.
         The order may be different with self._context['sample_id_lst']
@@ -294,7 +327,7 @@ class Context:
 
         self._context['workflow_metadata'] = workflow_metadata
 
-    def get_workflow_status(self):
+    def set_workflow_status(self):
         """
         Get all workflow's status.
         """
@@ -306,7 +339,7 @@ class Context:
 
         self._context['workflow_status'] = workflow_status
 
-    def get_workflow_log(self):
+    def set_workflow_log(self):
         """
         Get all workflow's log.
         """
@@ -320,41 +353,62 @@ class Context:
 
     def set_extra_context(self, repo_url='', site_description='', site_author='',
                           copyright='', extra_css_lst=[], extra_js_lst=[],
-                          site_name=''):
+                          site_name='', theme_name='mkdocs'):
         self.set_repo_url(repo_url)
         self.set_site_name(site_name)
         self.set_site_description(site_description)
         self.set_site_author(site_author)
         self.set_copyright(copyright)
+        self.set_theme_name(theme_name)
         self.set_extra_css_lst(extra_css_lst)
         self.set_extra_js_lst(extra_js_lst)
         self.logger.debug('Report Context(extra context medata): %s' % str(self._context))
 
 
 class Renderer:
-    def __init__(self, template_dir, project_dir, resource_dir=c.resource_dir):
+    def __init__(self, template_dir, project_dir, context, resource_dir=c.resource_dir):
+        """
+        :param context: a report context.
+        """
         self.logger = logging.getLogger(__name__)
         self.template_dir = template_dir
         self.project_dir = project_dir
+        self.context = context
+        self.context_dict = self.context.context
+
         self.default_file = os.path.join(self.template_dir, 'defaults')
+        self.default_vars = self.get_default_vars()
+        self.context.set_defaults({
+            'defaults': self.default_vars
+        })
+
         self.project_report_dir = os.path.join(self.project_dir, 'report_markdown')
+        check_dir(self.project_report_dir, skip=True, force=True)
 
         # For mkdocs.yml.template
         self.resource_dir = resource_dir
-        self.template_list = self.get_template_files(self.template_dir)
+        self.template_list = self.get_template_files()
 
-    def render(self, template, output_file, context=None, **kwargs):
+    def render(self, template, output_file, **kwargs):
+        """
+        Render template and write to output_file.
+        :param template: a jinja2 template file and the path must be prefixed with `template_dir`
+        :param output_file:
+        :return:
+        """
         self._validate(**kwargs)
         env = Environment(loader=FileSystemLoader(self.template_dir))
         template = env.get_template(template)
         with open(output_file, 'w') as f:
-            f.write(template.render(context=context, **kwargs))
+            f.write(template.render(context=self.context_dict, **kwargs))
 
-    def batch_render(self, dest_dir, context=None, **kwargs):
+    def batch_render(self, dest_dir, **kwargs):
         """
+        Batch render template files.
+        :param dest_dir: destination directory.
         """
         # All variables from mkdocs.yml must be same with context and kwargs.
-        self._gen_docs_config(context=context, **kwargs)
+        self._gen_docs_config(**kwargs)
 
         # TODO: async加速?
         markdown_templates = [template for template in TEMPLATE_FILES
@@ -366,8 +420,9 @@ class Renderer:
             templ_dir = os.path.dirname(output_file)
             if not os.path.exists(templ_dir):
                 os.makedirs(templ_dir)
-            self.logger.info('Render markdown template: %s \n Save to %s' % (str(templ_file), output_file))
-            self.render(templ_file, output_file, context=context, **kwargs)
+            self.logger.info('Render markdown template: %s, Save to %s' % (str(templ_file), output_file))
+            # Fix bug: template file path must be prefixed with self.template_dir
+            self.render(template, output_file, **kwargs)
             output_file_lst.append(output_file)
 
         self.logger.debug('All markdown templates: %s' % str(output_file_lst))
@@ -380,8 +435,9 @@ class Renderer:
         pass
 
     def get_default_vars(self):
-        defaults = ReportDefaultVar(self.template_dir)
-        return defaults.default_vars
+        defaults = os.path.join(self.template_dir, 'defaults')
+        default_var = ReportDefaultVar(defaults)
+        return default_var.default_vars
 
     def get_template_files(self):
         template_files = []
@@ -391,19 +447,19 @@ class Renderer:
                     template_files.append(os.path.join(root, filename))
         return template_files
 
-    def _gen_docs_config(self, context, **kwargs):
+    def _gen_docs_config(self, **kwargs):
         """
         Generate mkdocs.yml
         """
         mkdocs_templ = os.path.join(self.resource_dir, 'mkdocs.yml.template')
-        output_file = os.path.join(self.project_report_dir, '.mkdoc.yml')
+        output_file = os.path.join(self.project_dir, '.mkdocs.yml')
         self.logger.debug('Mkdocs config template: %s' % mkdocs_templ)
         self.logger.info('Generate mkdocs config: %s' % output_file)
 
         env = Environment(loader=FileSystemLoader(self.resource_dir))
-        template = env.get_template(mkdocs_templ)
+        template = env.get_template('mkdocs.yml.template')
         with open(output_file, 'w') as f:
-            f.write(template.render(context=context, **kwargs))
+            f.write(template.render(context=self.context_dict, **kwargs))
 
 
 class Parser:
@@ -425,8 +481,13 @@ class Parser:
     def extra_js_lst(self):
         return self._extra_js_lst
 
+    def _copy_app_templates(self, dest_dir):
+        copy_and_overwrite(self.app_report_dir, dest_dir)
+
     def parse(self, dest_dir):
-        pass
+        # Fix bug: template files exist when all markdown files don't need to parse.
+        #          so Parser need to parse markdown file from dest_dir
+        self._copy_app_templates(dest_dir)
 
     def _check_report(self):
         current_dir = os.getcwd()
@@ -454,8 +515,8 @@ class Report:
         self.report_dir = os.path.join(self.project_dir, 'report_markdown')
         self.site_dir = os.path.join(self.project_dir, 'report_html')
 
-        # ${project_dir}/report/mkdocs.yml
-        self.config_file = os.path.join(self.report_dir, '.mkdocs.yml')
+        # ${project_dir}/.mkdocs.yml
+        self.config_file = os.path.join(self.project_dir, '.mkdocs.yml')
         self.config = None
 
         self.logger = logging.getLogger(__name__)
@@ -503,8 +564,9 @@ class Report:
 
 
 def build(app_dir, project_dir, resource_dir=c.resource_dir, repo_url='',
-          site_description='', site_author='', copyright='', site_name='',
-          server='localhost', dev_addr='127.0.0.1:8000', mode='build', force=False):
+          site_description='', site_author='choppy', copyright=get_copyright(),
+          site_name='Choppy Report', server='localhost', dev_addr='127.0.0.1:8000',
+          theme_name='mkdocs', mode='build', force=False):
     report_dir = os.path.join(project_dir, 'report_markdown')
     if os.path.exists(report_dir) and not force:
         logger.info('Skip generate context and render markdown.')
@@ -515,10 +577,11 @@ def build(app_dir, project_dir, resource_dir=c.resource_dir, repo_url='',
 
         # Parser: translate markdown new tag to js code.
         logger.debug('Temporary report directory: %s' % tmp_report_dir)
-        logger.debug('Parse new markdown syntax.')
+        logger.info('1. Try parse new markdown syntax.')
         try:
             parser = Parser(app_dir)
             parser.parse(tmp_report_dir)
+            logger.info(BashColors.get_color_msg('SUCCESS', 'Parse markdown successfully.'))
         except InValidReport as err:
             logger.debug('Warning: %s' % str(err))
             message = "The app %s doesn't support report.\n" \
@@ -529,27 +592,36 @@ def build(app_dir, project_dir, resource_dir=c.resource_dir, repo_url='',
             sys.exit(exit_code.INVALID_REPORT)
 
         # Context: generate context metadata.
-        logger.debug('Generate report context.')
-        context = Context(project_dir, server=server)
-        context.set_extra_context(repo_url=repo_url, site_description=site_description,
-                                  site_author=site_author, copyright=copyright, site_name=site_name,
-                                  extra_css_lst=parser.extra_css_lst, extra_js_lst=parser.extra_js_lst)
+        logger.info('\n2. Generate report context.')
+        ctx_instance = Context(project_dir, server=server)
+        ctx_instance.set_extra_context(repo_url=repo_url, site_description=site_description,
+                                       site_author=site_author, copyright=copyright, site_name=site_name,
+                                       theme_name=theme_name, extra_css_lst=parser.extra_css_lst,
+                                       extra_js_lst=parser.extra_js_lst)
+        logger.info('Context: %s' % ctx_instance.context)
+        logger.info(BashColors.get_color_msg('SUCCESS', 'Context: generate report context successfully.'))
 
         # Renderer: render report markdown files.
-        logger.debug('Render report markdown files.')
-        renderer = Renderer(app_dir, project_dir, resource_dir=resource_dir)
-        renderer.batch_render(report_dir, context=context)
+        logger.info('\n3. Render report markdown files.')
+        # Fix bug: Renderer need to get template file from temporary report directory.
+        renderer = Renderer(tmp_report_dir, project_dir, context=ctx_instance, resource_dir=resource_dir)
+        renderer.batch_render(report_dir)
+        logger.info(BashColors.get_color_msg('SUCCESS', 'Render report markdown files successfully.'))
 
-    # Report: m
+    # Report: build markdown files to html.
     report = Report(project_dir)
     if mode == 'build':
-        logger.debug('Build %s by mkdocs' % report_dir)
+        logger.info('\n4. Build %s by mkdocs' % report_dir)
         report.build()
+        site_dir = os.path.join(project_dir, 'report_html')
+        color_msg = BashColors.get_color_msg('SUCCESS', 'Build markdown files successfully. '
+                                                        '(Files in %s)' % site_dir)
+        logger.info(color_msg)
     elif mode == 'livereload':
-        logger.debug('Serve %s in livereload mode by mkdocs' % report_dir)
+        logger.info('\n4. Serve %s in livereload mode by mkdocs' % report_dir)
         report.server(dev_addr=dev_addr, livereload='livereload')
     elif mode == 'server':
-        logger.debug('Serve %s by mkdocs' % report_dir)
+        logger.info('\n4. Serve %s by mkdocs' % report_dir)
         report.server(dev_addr=dev_addr, livereload='no-livereload')
 
 

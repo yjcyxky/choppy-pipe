@@ -129,8 +129,8 @@ def check_dir(path, skip=False, force=True):
     """
     Check whether path exists.
     :param path: directory path.
-    :param skip: Boolean, Raise exception when skip is True and directory doesn't exist.
-    :param force: Boolean, Force to make directory when directory doesn't exist.
+    :param skip: Boolean, Raise exception when skip is False and directory exists.
+    :param force: Boolean, Force to make directory when directory doesn't exist?
     :return:
     """
     if not os.path.isdir(path):
@@ -150,7 +150,7 @@ def is_valid(path):
     """
     if not os.path.exists(path):
         raise argparse.ArgumentTypeError(
-            ("{} is not a valid file path.\n".format(path)))
+            ("{} is not a valid file/directory path.\n".format(path)))
     else:
         return path
 

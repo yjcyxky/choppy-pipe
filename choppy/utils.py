@@ -1,12 +1,15 @@
 # -*- coding:utf-8 -*-
 from __future__ import unicode_literals
+import os
+import shutil
 from datetime import datetime
 
 
 def get_copyright(site_author='choppy'):
     year = datetime.now().year
-    copyright = 'Copyright &copy; %s %s,' \
-                'Maintained by the <a href="http://choppy.3steps.cn">Choppy Community</a>.'.format(year, site_author)
+    copyright = 'Copyright &copy; {} {}, ' \
+                'Maintained by the <a href="http://choppy.3steps.cn">' \
+                'Choppy Community</a>.'.format(year, site_author.title())
     return copyright
 
 
@@ -40,4 +43,34 @@ class BashColors:
 
     @classmethod
     def print_color(cls, color_name, msg):
-        print(color_name + msg + BashColors.ENDC)
+        print(cls._get_color(color_name) + msg + BashColors.ENDC)
+
+
+def copy_and_overwrite(from_path, to_path, is_file=False):
+    if os.path.isfile(to_path):
+        os.remove(to_path)
+
+    if os.path.isdir(to_path):
+        shutil.rmtree(to_path)
+
+    if is_file and os.path.isfile(from_path):
+        shutil.copy2(from_path, to_path)
+    elif os.path.isdir(from_path):
+        shutil.copytree(from_path, to_path)
+
+
+class ReportTheme:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def get_theme_lst(cls):
+        theme_lst = ('mkdocs', 'readthedocs')
+        return theme_lst
+
+
+def print_obj(str):
+    try:  # For Python2.7
+        print(unicode(str).encode('utf8'))
+    except NameError:  # For Python3
+        print(str)

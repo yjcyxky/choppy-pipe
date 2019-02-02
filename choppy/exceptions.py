@@ -12,3 +12,31 @@ class UnFoundException(Exception):
 
 class BadRequestException(Exception):
     pass
+
+
+class InValidDefaults(Exception):
+    pass
+
+
+class InValidReport(Exception):
+    pass
+
+
+class NoSuchDirectory(Exception):
+    pass
+
+
+class NoSuchFile(Exception):
+    pass
+
+
+class InValidApp(Exception):
+    pass
+
+
+class NotFoundApp(Exception):
+    pass
+
+
+class WrongAppDir(Exception):
+    pass

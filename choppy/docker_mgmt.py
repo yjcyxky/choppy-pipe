@@ -14,8 +14,22 @@ from choppy.check_utils import check_dir
 from choppy.utils import BashColors
 
 
+IMAGES = [
+    'choppydocker/alpine-miniconda3:python3.6',
+    'choppydocker/alpine-miniconda3:python3.5'
+]
+
+
 def get_parser():
     return ('r', 'python', 'bash')
+
+
+def get_default_image():
+    return 'choppydocker/alpine-miniconda3:python3.5'
+
+
+def get_base_images():
+    return IMAGES
 
 
 def overwrite_dockerfile(dockerfile):

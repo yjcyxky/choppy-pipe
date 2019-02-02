@@ -4,10 +4,11 @@ import csv
 import os
 import logging
 from choppy.check_utils import check_dir, is_valid_label
-from choppy.app_utils import (parse_samples, render_app, write, copy_and_overwrite,
+from choppy.app_utils import (parse_samples, render_app, write,
                               generate_dependencies_zip, submit_workflow,
                               AppDefaultVar, is_valid_app)
 from choppy.json_checker import check_json
+from choppy.utils import copy_and_overwrite
 
 logger = logging.getLogger('choppy')
 

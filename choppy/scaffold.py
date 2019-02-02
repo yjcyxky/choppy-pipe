@@ -4,15 +4,8 @@ import os
 import logging
 from jinja2 import Environment, FileSystemLoader
 import choppy.config as c
-from choppy.app_utils import copy_and_overwrite
-
-
-class NoSuchDirectory(Exception):
-    pass
-
-
-class NoSuchFile(Exception):
-    pass
+from choppy.utils import BashColors, copy_and_overwrite
+from choppy.exceptions import NoSuchDirectory, NoSuchFile
 
 
 class Scaffold:
@@ -152,4 +145,7 @@ class Scaffold:
         workflow = os.path.join(self.output_dir, 'workflow.wdl')
         self._gen_workflow(workflow)
 
-        self.logger.info('Generate scaffold directory successfully. (All files in %s)' % self.output_dir)
+        color_msg = BashColors.get_color_msg('SUCCESS',
+                                             'Generate scaffold directory successfully. '
+                                             '(All files in %s)' % self.output_dir)
+        self.logger.info(color_msg)

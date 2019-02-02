@@ -25,18 +25,31 @@
 #   }
 # ]
 # 
-docs_dir: .
+docs_dir: {{ context.docs_dir }}
 site_name: {{ context.site_name }}
 repo_url: {{ context.repo_url }}
 site_description: {{ context.site_description }}
 site_author: {{ context.site_author }}
 copyright: {{ context.copyright }}
+use_directory_urls: false
 
 markdown_extensions:
     - toc:
         permalink: 
     - admonition
     - def_list
+
+plugins:
+    - search
+
+theme:
+    name: {{ context.theme_name }}
+    highlightjs: true
+    hljs_languages:
+        - yaml
+        - django
+        - bash
+        - python
 
 {% if context.extra_css_lst | length > 0 -%}
 extra_css:
@@ -45,24 +58,12 @@ extra_css:
     {%- endfor %}
 {%- endif %}
 
-{% if context.extra_css_lst | length > 0 -%}
+{% if context.extra_js_lst | length > 0 -%}
 extra_javascript:
     {% for js in context.extra_js_lst -%}
     - {{ js }}
     {%- endfor %}
 {%- endif %}
-
-plugins:
-    - search
-
-theme:
-    name: mkdocs
-    highlightjs: true
-    hljs_languages:
-        - yaml
-        - django
-        - bash
-        - python
 
 nav:
     {% for menu in context.report_menu -%}
@@ -70,7 +71,7 @@ nav:
     - {{ menu.key }}:
         {% for submenu in menu.value -%}
         - {{ submenu.key }}: {{ submenu.value }}
-        {%- endfor %}
+        {% endfor %}
     {% else -%}
     - {{ menu.key }}: {{ menu.value }}
     {% endif -%}

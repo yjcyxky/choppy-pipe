@@ -16,6 +16,7 @@ import choppy.config as c
 from choppy.utils import BashColors
 from choppy.cromwell import Cromwell
 from choppy import exit_code
+from choppy.exceptions import InValidApp
 
 logger = logging.getLogger('choppy')
 
@@ -96,8 +97,8 @@ def is_valid_app(path):
     pathlist = [path, inputs_path, wdl_path, dependencies]
     for fpath in pathlist:
         if not os.path.exists(fpath):
-            raise Exception("%s is not a valid app.\n" %
-                            os.path.basename(path))
+            raise InValidApp("%s is not a valid app.\n" %
+                             os.path.basename(path))
     return True
 
 
@@ -118,13 +119,6 @@ def parse_app_name(app_name):
         }
     else:
         return False
-
-
-def print_obj(str):
-    try:  # For Python2.7
-        print(unicode(str).encode('utf8'))
-    except NameError:  # For Python3
-        print(str)
 
 
 def dfs_get_zip_file(input_path, result):
@@ -253,7 +247,7 @@ def install_app(app_dir, choppy_app):
             choppy_app_handler.extractall(app_dir, dest_namelist)
             print("Install %s successfully." % app_name)
         else:
-            raise Exception("Not a valid app.")
+            raise InValidApp("Not a valid app.")
 
 
 def uninstall_app(app_dir):
@@ -396,16 +390,3 @@ def parse_json(instance):
             instance[idx] = parse_json(value)
 
     return instance
-
-
-def copy_and_overwrite(from_path, to_path, is_file=False):
-    if os.path.isfile(to_path):
-        os.remove(to_path)
-
-    if os.path.isdir(to_path):
-        shutil.rmtree(to_path)
-
-    if is_file and os.path.isfile(from_path):
-        shutil.copy2(from_path, to_path)
-    elif os.path.isdir(from_path):
-        shutil.copytree(from_path, to_path)

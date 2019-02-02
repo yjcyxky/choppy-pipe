@@ -25,7 +25,7 @@ import choppy.config as c
 from choppy import exit_code
 from choppy.app_utils import (kv_list_to_dict, install_app, uninstall_app,
                               parse_json, get_header, parse_app_name, listapps,
-                              render_readme, print_obj, generate_dependencies_zip,
+                              render_readme, generate_dependencies_zip,
                               AppDefaultVar, is_valid_app)
 from choppy.check_utils import (is_valid_label, is_valid_project_name, is_valid,
                                 is_valid_oss_link, check_dir, check_identifier,
@@ -40,10 +40,12 @@ from choppy.cromwell import Cromwell, print_log_exit
 from choppy.monitor import Monitor
 from choppy.validator import Validator
 from choppy.server import run_server as call_server
-from choppy.docker_mgmt import Docker, get_parser
+from choppy.docker_mgmt import Docker, get_parser, get_default_image, get_base_images
 from choppy.report_mgmt import build as build_report
 from choppy.report_mgmt import get_mode
-from choppy.utils import get_copyright, BashColors
+from choppy.utils import get_copyright, BashColors, ReportTheme, print_obj
+from choppy.exceptions import NotFoundApp, WrongAppDir
+from choppy.oss import run_copy_files
 
 __author__ = "Jingcheng Yang"
 __copyright__ = "Copyright 2018, The Genius Medicine Consortium."
@@ -445,7 +447,7 @@ def call_list_apps(args):
         files = os.listdir(c.app_dir)
         logger.info(files)
     else:
-        raise Exception("choppy.conf.general.app_dir is wrong.")
+        raise WrongAppDir("choppy.conf.general.app_dir is wrong.")
 
 
 def call_batch(args):
@@ -519,7 +521,7 @@ def call_installapp(args):
 def call_uninstallapp(args):
     app_dir = os.path.join(c.app_dir, args.app_name)
     if not os.path.isdir(app_dir):
-        raise Exception("The %s doesn't exist" % args.app_name)
+        raise NotFoundApp("The %s doesn't exist" % args.app_name)
 
     uninstall_app(app_dir)
 
@@ -545,38 +547,6 @@ def call_list_files(args):
                 print_obj("%s" % i)
                 sys.stdout.flush()
     except CalledProcessError:
-        logger.critical("access_key/access_secret or oss_link is not valid.")
-
-
-def run_copy_files(first_path, second_path, include=None, exclude=None, recursive=True, silent=False):  # noqa
-    output_dir = os.path.join(c.log_dir, 'oss_outputs')
-    checkpoint_dir = os.path.join(c.log_dir, 'oss_checkpoint')
-
-    try:
-        shell_cmd = [c.oss_bin, "cp", "-u", "-i", c.access_key, "-k", c.access_secret,  # noqa
-                     "--output-dir=%s" % output_dir, "--checkpoint-dir=%s" % checkpoint_dir,  # noqa
-                     "-e", c.endpoint]
-        if include:
-            shell_cmd.extend(["--include", include])
-
-        if exclude:
-            shell_cmd.extend(["--exclude", exclude])
-
-        if recursive:
-            shell_cmd.extend(["-r"])
-
-        shell_cmd.extend([first_path, second_path])
-        process = Popen(shell_cmd, stdout=PIPE)
-        while process.poll() is None:
-            output = process.stdout.readline()
-            if output == '' and process.poll() is not None:
-                break
-            if output and not silent:
-                print_obj(output.strip())
-                sys.stdout.flush()
-            process.poll()
-    except CalledProcessError as e:
-        logger.critical(e)
         logger.critical("access_key/access_secret or oss_link is not valid.")
 
 
@@ -784,9 +754,17 @@ def call_docker_builder(args):
     raw_deps = args.dep
     parser = args.parser
     dry_run = args.dry_run
+    base_image = args.base_image
 
     deps = [{'name': dep.split(':')[0], 'version': dep.split(':')[1]}
             for dep in raw_deps if re.match(r'^[-\w.]+:[-\w.]+$', dep)]
+
+    if len(raw_deps) != len(deps):
+        BashColors.print_color('DANGER',
+                               'Choppy parse some deps unsuccessfully.\n'
+                               'Maybe some deps can not match the <software_name>:<version> pattern.'
+                               'The regex pattern is ^[-\\w.]+:[-\\w.]+$')
+        sys.exit(exit_code.VALIDATE_ERROR)
 
     BashColors.print_color('BLUE',
                            "dependences: %s, parser: %s, main_program: %s, channels: %s" %
@@ -819,7 +797,7 @@ def call_docker_builder(args):
     success = docker_instance.build(software_name, software_version, tag, summary=summary,
                                     home=home, software_doc=software_doc, tags=software_tags,
                                     channels=channels, parser=parser, main_program_lst=main_program_lst,
-                                    deps=deps, dry_run=dry_run)
+                                    deps=deps, dry_run=dry_run, base_image=base_image)
 
     if success:
         BashColors.print_color('SUCCESS', 'Dockerfile Path: %s/Dockerfile' % success)
@@ -842,6 +820,7 @@ def call_report(args):
     site_description = args.site_description
     site_author = args.site_author
     copyright = get_copyright(site_author)
+    theme = args.theme
 
     server = args.server
     project_dir = args.project_dir
@@ -852,7 +831,8 @@ def call_report(args):
 
     build_report(app_dir, project_dir, repo_url=repo_url, site_description=site_description,
                  site_author=site_author, copyright=copyright, site_name=site_name,
-                 mode=mode, dev_addr=dev_addr, force=force, server=server)
+                 mode=mode, dev_addr=dev_addr, force=force, server=server,
+                 theme_name=theme)
 
 
 description = """Global Management:
@@ -1305,6 +1285,8 @@ docker_builder.add_argument('--channel', action='append', default=[], help='Add 
 docker_builder.add_argument('--dep', action='append', default=[], help='Add dependencie, be similar as software:version.')
 docker_builder.add_argument('--main-program', action='append', default=[], help='Your main script, may be several.')
 docker_builder.add_argument('--parser', action='store', help='What script language.', choices=get_parser())
+docker_builder.add_argument('--base-image', action='store', default=get_default_image(), choices=get_base_images(),
+                            help='Base docker image, MUST BE based on alpine linux.')
 docker_builder.add_argument('--dry-run', action='store_true', default=False, help='Generate all related files but skipping running.')
 docker_builder.add_argument('--no-clean', action='store_true', default=False,
                             help='NOT clean containers and images.')
@@ -1333,6 +1315,8 @@ report.add_argument('--dev-addr', action='store', default='127.0.0.1:8000', help
 report.add_argument('-f', '--force', action='store_true', default=False, help='Force to regenerate files.')
 report.add_argument('--project-dir', action='store', required=True, help='Your project directory',
                     type=is_valid)
+report.add_argument('--theme', action='store', default='mkdocs', choices=ReportTheme.get_theme_lst(),
+                    help='Theming your report by using the specified theme.')
 report.add_argument('--repo-url', action='store', help='Your project repo url', type=is_valid_url)
 report.add_argument('--site-name', action='store', help='The site name for your report website', default='Choppy Report')
 report.add_argument('--site-author', action='store', help='The site author', default='choppy')
