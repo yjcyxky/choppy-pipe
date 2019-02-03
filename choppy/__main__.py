@@ -20,7 +20,6 @@ import pytz
 import datetime
 import getpass
 import coloredlogs
-from subprocess import CalledProcessError, check_output, PIPE, Popen, call as subprocess_call # noqa
 import choppy.config as c
 from choppy import exit_code
 from choppy.app_utils import (kv_list_to_dict, install_app, uninstall_app,
@@ -31,21 +30,11 @@ from choppy.check_utils import (is_valid_label, is_valid_project_name, is_valid,
                                 is_valid_oss_link, check_dir, check_identifier,
                                 is_valid_zip_or_dir, is_valid_app_name,
                                 get_all_variables, check_variables, is_valid_url)
-from choppy.json_checker import check_json
-from choppy.workflow import run_batch
-from choppy.scaffold import Scaffold
-from choppy.project_revision import Git
 from choppy.version import get_version
-from choppy.cromwell import Cromwell, print_log_exit
-from choppy.monitor import Monitor
-from choppy.validator import Validator
-from choppy.server import run_server as call_server
-from choppy.docker_mgmt import Docker, get_parser, get_default_image, get_base_images
-from choppy.report_mgmt import build as build_report
+from choppy.docker_mgmt import get_parser, get_default_image, get_base_images
 from choppy.report_mgmt import get_mode
 from choppy.utils import get_copyright, BashColors, ReportTheme, print_obj
 from choppy.exceptions import NotFoundApp, WrongAppDir
-from choppy.oss import run_copy_files
 
 __author__ = "Jingcheng Yang"
 __copyright__ = "Copyright 2018, The Genius Medicine Consortium."
@@ -98,6 +87,9 @@ def call_submit(args):
     :param args: submit subparser arguments.
     :return: JSON response with Cromwell workflow ID.
     """
+    from choppy.json_checker import check_json
+    from choppy.cromwell import Cromwell
+
     dependencies = args.dependencies
     if os.path.isdir(dependencies):
         dependencies = generate_dependencies_zip(dependencies)
@@ -147,6 +139,8 @@ def call_query(args):
     :param args:  query subparser arguments.
     :return: A list of json responses based on queries selected by the user.
     """
+    from choppy.cromwell import Cromwell
+
     host, port, auth = c.get_conn_info(args.server)
     cromwell = Cromwell(host, port, auth)
     responses = []
@@ -180,6 +174,8 @@ def call_validate(args):
     :param args: validation subparser arguments.
     :return:
     """
+    from choppy.validator import Validator
+
     logger.info("Validation requested.")
     validator = Validator(wdl=args.wdl, json=args.json)
     result = validator.validate_json()
@@ -199,6 +195,8 @@ def call_abort(args):
     :param args: abort subparser args.
     :return: JSON containing abort response.
     """
+    from choppy.cromwell import Cromwell
+
     host, port, auth = c.get_conn_info(args.server)
     cromwell = Cromwell(host, port, auth)
     logger.info("Abort requested")
@@ -211,6 +209,9 @@ def call_monitor(args):
     :param args: 'monitor' subparser arguments.
     :return:
     """
+    from choppy.cromwell import print_log_exit
+    from choppy.monitor import Monitor
+
     logger.info("Monitoring requested")
 
     logger.info("-------------Monitoring Workflow-------------")
@@ -237,6 +238,8 @@ def call_restart(args):
     :param args: restart subparser arguments.
     :return:
     """
+    from choppy.cromwell import Cromwell
+
     logger.info("Restart requested")
     host, port, auth = c.get_conn_info(args.server)
     cromwell = Cromwell(host, port, auth)
@@ -264,6 +267,8 @@ def get_cromwell_links(server, workflow_id, port):
 
 
 def call_explain(args):
+    from choppy.cromwell import Cromwell
+
     logger.info("Explain requested")
     host, port, auth = c.get_conn_info(args.server)
     cromwell = Cromwell(host, port, auth)
@@ -313,6 +318,8 @@ def call_explain(args):
 
 
 def call_list(args):
+    from choppy.monitor import Monitor
+
     username = "*" if args.all else args.username.lower()
     m = Monitor(host=args.server, user=username, no_notify=True, verbose=True,
                 interval=None)
@@ -359,6 +366,8 @@ def call_label(args):
     :param args: label subparser arguments
     :return:
     """
+    from choppy.cromwell import Cromwell
+
     host, port, auth = c.get_conn_info(args.server)
     cromwell = Cromwell(host, port, auth)
     labels_dict = kv_list_to_dict(args.label)
@@ -375,6 +384,9 @@ def call_log(args):
     :param args: log subparser arguments.
     :return:
     """
+    from choppy.cromwell import Cromwell
+    from choppy.oss import run_copy_files
+
     matchedWorkflowId = re.match(r'^[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}$',  # noqa
                                  args.workflow_id, re.M | re.I)
 
@@ -415,6 +427,8 @@ def call_log(args):
 
 
 def call_cat_remote_file(args):
+    from choppy.oss import run_copy_files
+
     remote_file = args.oss_link
     fuuid = uuid.uuid1()
     dest_file = "/tmp/choppy/%s" % fuuid
@@ -451,6 +465,8 @@ def call_list_apps(args):
 
 
 def call_batch(args):
+    from choppy.workflow import run_batch
+
     app_dir = os.path.join(c.app_dir, args.app_name)
     project_name = args.project_name
     samples = args.samples
@@ -464,6 +480,8 @@ def call_batch(args):
 
 
 def call_test(args):
+    from choppy.workflow import run_batch
+
     app_dir = os.path.join(c.app_dir, args.app_name)
     project_name = args.project_name
     samples = os.path.join(c.app_dir, 'test', 'samples')
@@ -480,6 +498,8 @@ def call_test(args):
 
 
 def call_testapp(args):
+    from choppy.workflow import run_batch
+
     # app_dir is not same with call_batch.
     app_dir = args.app_dir
     project_name = args.project_name
@@ -527,6 +547,8 @@ def call_uninstallapp(args):
 
 
 def call_list_files(args):
+    from subprocess import CalledProcessError, check_output
+
     oss_link = args.oss_link
     recursive = args.recursive
     long_format = args.long_format
@@ -551,6 +573,8 @@ def call_list_files(args):
 
 
 def call_upload_files(args):
+    from choppy.oss import run_copy_files
+
     oss_link = args.oss_link
     local_path = args.local_path
     include = args.include
@@ -559,6 +583,8 @@ def call_upload_files(args):
 
 
 def call_download_files(args):
+    from choppy.oss import run_copy_files
+
     oss_link = args.oss_link
     local_path = args.local_path
     include = args.include
@@ -567,6 +593,8 @@ def call_download_files(args):
 
 
 def call_cp_remote_files(args):
+    from choppy.oss import run_copy_files
+
     src_oss_link = args.src_oss_link
     dest_oss_link = args.dest_oss_link
     include = args.include
@@ -575,6 +603,8 @@ def call_cp_remote_files(args):
 
 
 def call_search(args):
+    from choppy.cromwell import Cromwell
+
     status = args.status
     project_name = args.project_name
     username = args.username.lower()
@@ -686,6 +716,8 @@ def call_readme(args):
 
 
 def call_save(args):
+    from choppy.project_revision import Git
+
     project_path = args.project_path
     url = args.url  # remote git repo
     username = args.username
@@ -711,6 +743,8 @@ def call_save(args):
 
 
 def call_clone(args):
+    from choppy.project_revision import Git
+
     username = args.username
     url = args.url
     dest_path = args.dest_path
@@ -729,6 +763,8 @@ def call_archive(args):
 
 
 def call_status(args):
+    from choppy.project_revision import Git
+
     project_path = args.project_path
 
     check_dir(project_path, skip=True)
@@ -741,6 +777,8 @@ def call_status(args):
 
 
 def call_docker_builder(args):
+    from choppy.docker_mgmt import Docker
+
     software_name = args.software_name
     software_version = args.software_version
     summary = args.summary
@@ -807,12 +845,22 @@ def call_docker_builder(args):
 
 
 def call_scaffold(args):
+    from choppy.scaffold import Scaffold
+
     output_dir = args.output_dir
     scaffold = Scaffold(output_dir=output_dir)
     scaffold.generate()
 
 
+def call_server(args):
+    from choppy.server import run_server
+
+    run_server(args)
+
+
 def call_report(args):
+    from choppy.report_mgmt import build as build_report
+
     app_name = args.app_name
     app_dir = os.path.join(c.app_dir, app_name)
     repo_url = args.repo_url
