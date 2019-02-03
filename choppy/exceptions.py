@@ -40,3 +40,11 @@ class NotFoundApp(Exception):
 
 class WrongAppDir(Exception):
     pass
+
+
+class PluginSyntaxError(Exception):
+    pass
+
+
+class ValidationError(Exception):
+    pass

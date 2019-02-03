@@ -6,6 +6,7 @@ import uuid
 import json
 import requests
 import logging
+import pkg_resources
 from bokeh.embed import json_item
 from choppy.check_utils import check_dir
 from choppy.utils import copy_and_overwrite
@@ -13,16 +14,15 @@ from choppy.oss import run_copy_files
 from choppy.utils import BashColors
 
 
-class Plugin:
+class BasePlugin:
     """
-    Plugin class is initialized by project_dir and plugin args from markdown.
+    Plugin class is initialized by plugin args from markdown.
     Plugin args: @plugin_name(arg1=value, arg2=value, arg3=value)
-    :param project_dir: The first argument must be project_dir.
     """
-    def __init__(self, project_dir, **kwargs):
+    def __init__(self, context):
         self.logger = logging.getLogger(__name__)
-        self.prefix = os.path.join(self.project_dir, 'report_html')
-        self.plugin_data_dir = os.path.join(self.project_dir, 'report_html', 'plugin')
+        self.tmp_plugin_dir = str(uuid.uuid1())
+        self.plugin_data_dir = os.path.join(self.tmp_plugin_dir, 'plugin')
         self.type2dir = {
             'css': os.path.join(self.plugin_data_dir, 'css'),
             'javascript': os.path.join(self.plugin_data_dir, 'js'),
@@ -37,7 +37,7 @@ class Plugin:
         # Parse args from markdown new syntax. e.g.
         # @scatter_plot(a=1, b=2, c=3)
         # kwargs = {'a': 1, 'b': 2, 'c': 3}
-        self._context = {}.update(kwargs)
+        self._context = {}.update(context)
 
         # The target_id will help to index html component position.
         self.target_id = str(uuid.uuid1())
@@ -86,6 +86,28 @@ class Plugin:
         Return index db's records.
         """
         return self._index_db
+
+    def get_index(self, key):
+        """
+        Get record index from index db.
+        """
+        for idx, dic in enumerate(self._index_db):
+            if dic['key'] == key:
+                return idx
+        return -1
+
+    def get_value_by_idx(self, idx):
+        """
+        Get value by using record index from index db.
+        """
+        if idx >= 0:
+            return self._index_db[idx].get('value')
+
+    def set_value_by_idx(self, idx, value):
+        if idx >= 0 and idx < len(self._index_db):
+            self._index_db[idx].update({
+                'value': value
+            })
 
     def search(self, key):
         """
@@ -254,18 +276,37 @@ class Plugin:
         self.transform()
         self._wrapper_render()
 
-    def get_virtual_path(self, filename):
-        record = self.search(filename)
-        if record:
-            file_path = record.get('value')
-            return file_path.replace(self.prefix, '')
+    def get_net_path(self, filename, net_dir=''):
+        """
+        Get virtual network path for mkdocs server.
+        """
+        record_idx = self.get_index(filename)
+        if record_idx >= 0:
+            file_path = self.get_value_by_idx(record_idx)
+            virtual_path = file_path.replace(self.tmp_plugin_dir, '')
+            if net_dir:
+                dest_path = os.path.join(net_dir, virtual_path)
+                copy_and_overwrite(file_path, dest_path, is_file=True)
+                self.set_value_by_idx(record_idx, dest_path)
+            return virtual_path
         else:
             return ''
 
     def get_real_path(self, filename):
+        """
+        Get real path in local file system.
+        """
         record = self.search(filename)
         if record:
             real_file_path = record.get('value')
             return real_file_path
         else:
             return ''
+
+
+def get_plugins():
+    """ Return a dict of all installed Plugins by name. """
+
+    plugins = pkg_resources.iter_entry_points(group='choppy.plugins')
+
+    return dict((plugin.name, plugin) for plugin in plugins)
