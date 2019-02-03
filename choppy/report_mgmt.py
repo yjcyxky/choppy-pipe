@@ -439,6 +439,22 @@ class Renderer:
         default_var = ReportDefaultVar(defaults)
         return default_var.default_vars
 
+    def get_dependent_files(self):
+        dependent_files = []
+        for root, dirnames, filenames in os.walk(self.template_dir):
+            for filename in filenames:
+                if not re.match(r'.*.md$', filename):
+                    dependent_files.append(os.path.join(root, filename))
+        self.logger.info('Markdown dependent files: %s' % str(dependent_files))
+        return dependent_files
+
+    def copy_dependent_files(self, dest_dir):
+        dependent_files = self.get_dependent_files()
+        for file in dependent_files:
+            # copy process may be wrong when filename start with '/'
+            filename = file.replace(self.template_dir, '').strip('/')
+            copy_and_overwrite(file, os.path.join(dest_dir, filename), is_file=True)
+
     def get_template_files(self):
         template_files = []
         for root, dirnames, filenames in os.walk(self.template_dir):
@@ -462,7 +478,7 @@ class Renderer:
             f.write(template.render(context=self.context_dict, **kwargs))
 
 
-class Parser:
+class Preprocessor:
     def __init__(self, app_dir):
         self.app_dir = app_dir
         self.app_report_dir = os.path.join(self.app_dir, 'report')
@@ -484,9 +500,8 @@ class Parser:
     def _copy_app_templates(self, dest_dir):
         copy_and_overwrite(self.app_report_dir, dest_dir)
 
-    def parse(self, dest_dir):
-        # Fix bug: template files exist when all markdown files don't need to parse.
-        #          so Parser need to parse markdown file from dest_dir
+    def process(self, dest_dir):
+        # TODO: Need to parse report and prepare all dependencies.
         self._copy_app_templates(dest_dir)
 
     def _check_report(self):
@@ -575,13 +590,13 @@ def build(app_dir, project_dir, resource_dir=c.resource_dir, repo_url='',
         tmp_report_dir = os.path.join('/tmp', 'choppy', tmp_report_dir_uuid)
         check_dir(tmp_report_dir, skip=True, force=True)
 
-        # Parser: translate markdown new tag to js code.
+        # Preprocessor: translate markdown new tag to js code.
         logger.debug('Temporary report directory: %s' % tmp_report_dir)
-        logger.info('1. Try parse new markdown syntax.')
+        logger.info('1. Try to preprocess an app report.')
         try:
-            parser = Parser(app_dir)
-            parser.parse(tmp_report_dir)
-            logger.info(BashColors.get_color_msg('SUCCESS', 'Parse markdown successfully.'))
+            preprocessor = Preprocessor(app_dir)
+            preprocessor.process(tmp_report_dir)
+            logger.info(BashColors.get_color_msg('SUCCESS', 'Preprocess app report successfully.'))
         except InValidReport as err:
             logger.debug('Warning: %s' % str(err))
             message = "The app %s doesn't support report.\n" \
@@ -596,8 +611,8 @@ def build(app_dir, project_dir, resource_dir=c.resource_dir, repo_url='',
         ctx_instance = Context(project_dir, server=server)
         ctx_instance.set_extra_context(repo_url=repo_url, site_description=site_description,
                                        site_author=site_author, copyright=copyright, site_name=site_name,
-                                       theme_name=theme_name, extra_css_lst=parser.extra_css_lst,
-                                       extra_js_lst=parser.extra_js_lst)
+                                       theme_name=theme_name, extra_css_lst=preprocessor.extra_css_lst,
+                                       extra_js_lst=preprocessor.extra_js_lst)
         logger.info('Context: %s' % ctx_instance.context)
         logger.info(BashColors.get_color_msg('SUCCESS', 'Context: generate report context successfully.'))
 
@@ -606,6 +621,7 @@ def build(app_dir, project_dir, resource_dir=c.resource_dir, repo_url='',
         # Fix bug: Renderer need to get template file from temporary report directory.
         renderer = Renderer(tmp_report_dir, project_dir, context=ctx_instance, resource_dir=resource_dir)
         renderer.batch_render(report_dir)
+        renderer.copy_dependent_files(report_dir)
         logger.info(BashColors.get_color_msg('SUCCESS', 'Render report markdown files successfully.'))
 
     # Report: build markdown files to html.

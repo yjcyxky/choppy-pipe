@@ -54,6 +54,9 @@ def copy_and_overwrite(from_path, to_path, is_file=False):
         shutil.rmtree(to_path)
 
     if is_file and os.path.isfile(from_path):
+        parent_dir = os.path.dirname(to_path)
+        # Force to make directory when parent directory doesn't exist
+        os.makedirs(parent_dir, exist_ok=True)
         shutil.copy2(from_path, to_path)
     elif os.path.isdir(from_path):
         shutil.copytree(from_path, to_path)
