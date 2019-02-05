@@ -15,16 +15,20 @@ ONE_MINUTE = 60
 
 
 class ChoppyStore:
-    """ Module to interact with Choppy App Store. Example usage:
-        choppy_store = ChoppyStore()
-        choppy_store.listapps()
-        choppy_store.query()
+    """
+    Module to interact with Choppy App Store.
 
-        Generated json payload:
-        {
-            "message": "Success",
-            "data": []
-        }
+    :Example
+    Usage:
+    choppy_store = ChoppyStore()
+    choppy_store.listapps()
+    choppy_store.query()
+
+    Generated json payload:
+    {
+        "message": "Success",
+        "data": []
+    }
     """
 
     def __init__(self, choppy_web_api, username=None, password=None):
@@ -49,6 +53,7 @@ class ChoppyStore:
     def get(self, endpoint, params=None, headers=None, v2=False):
         """
         A generic get request function.
+
         :param params: choppy web api parammeters
         :param endpoint: choppy web api endpoint.
         :param headers: Optional headers for request.
@@ -81,6 +86,7 @@ class ChoppyStore:
     def post(self, endpoint, params=None, headers=None, v2=False):
         """
         A generic post request function.
+
         :param params: choppy web api parammeters
         :param endpoint: choppy web api endpoint.
         :param headers: Optional headers for request.
@@ -113,6 +119,7 @@ class ChoppyStore:
     def patch(self, endpoint, payload, headers=None, v2=False):
         """
         Make a patch request to the Cromwell server.
+
         :param endpoint: choppy web api endpoint.
         :param params: choppy web api parammeters
         :param payload: the json data to patch.
@@ -144,6 +151,7 @@ class ChoppyStore:
                sort='created', order='asc'):
         """
         Search apps from choppy app store.
+
         :param q_str: query string.
         :param page: page number of results to return (1-based).
         :param limit: page size of results, maximum page size is 50.
@@ -181,6 +189,7 @@ class ChoppyStore:
     def list_releases(self, owner, repo_name):
         """
         List a repo's releases.
+
         :param owner: owner of the repo.
         :param repo_name: name of the repo.
         :return: request result
@@ -209,6 +218,7 @@ class ChoppyStore:
 def print_log_exit(msg, sys_exit=True, ple_logger=module_logger):
     """
     Function for standard print/log/exit routine for fatal errors.
+
     :param msg: error message to print/log.
     :param sys_exit: Cause choppy to exit.
     :param ple_logger: Logger to use when logging message.

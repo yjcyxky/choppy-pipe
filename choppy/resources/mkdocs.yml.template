@@ -28,6 +28,7 @@
 docs_dir: {{ context.docs_dir }}
 site_name: {{ context.site_name }}
 repo_url: {{ context.repo_url }}
+editable: {{ context.editable }}
 site_description: {{ context.site_description }}
 site_author: {{ context.site_author }}
 copyright: {{ context.copyright }}
@@ -40,7 +41,8 @@ markdown_extensions:
     - def_list
 
 plugins:
-    - search
+    - search:
+        lang: en
 
 theme:
     name: {{ context.theme_name }}

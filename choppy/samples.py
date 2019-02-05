@@ -1,6 +1,8 @@
 # -*- coding:utf-8 -*-
 # Choppy JSON Schema
 """
+Handle samples information from web frontend.
+
 {
     # submit模式 / result模式
     # submit模式: sample信息

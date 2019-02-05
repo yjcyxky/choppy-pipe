@@ -58,7 +58,7 @@ class Validator:
             else:
                 d = json.loads(run)
                 ds = json.dumps(
-                    {k: v for k, v in d.iteritems() if "optional" not in v})
+                    {k: v for k, v in d.items() if "optional" not in v})
                 return json.loads(ds)
         except ValueError:
             print("Something went wrong with getting args. Note that if using validation, unzipped WDL dependencies "  # noqa

@@ -39,6 +39,7 @@ except Exception:  # For Python2.7
 def parse_error(err):
     """
     "Parse" error string (formats) raised by (simple)json:
+
     '%s: line %d column %d (char %d)'
     '%s: line %d column %d - line %d column %d (char %d - %d)'
     """

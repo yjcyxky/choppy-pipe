@@ -862,7 +862,6 @@ def call_report(args):
     from choppy.report_mgmt import build as build_report
 
     app_name = args.app_name
-    app_dir = os.path.join(c.app_dir, app_name)
     repo_url = args.repo_url
     site_name = args.site_name
     site_description = args.site_description
@@ -876,11 +875,12 @@ def call_report(args):
     dev_addr = args.dev_addr
     force = args.force
     mode = args.mode
+    editable = mode == 'livereload'
 
-    build_report(app_dir, project_dir, repo_url=repo_url, site_description=site_description,
+    build_report(app_name, project_dir, repo_url=repo_url, site_description=site_description,
                  site_author=site_author, copyright=copyright, site_name=site_name,
                  mode=mode, dev_addr=dev_addr, force=force, server=server,
-                 theme_name=theme)
+                 theme_name=theme, editable=editable)
 
 
 description = """Global Management:

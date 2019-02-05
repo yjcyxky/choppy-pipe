@@ -92,6 +92,8 @@ setup(
         'gevent == 1.4.0',
         'flask-restplus==0.12.1',
         'docker==3.7.0',
-        'mkdocs==1.0.4',
+        'mkdocs>=1.0.4',
+        'mkdocs-material==3.3.0',
+        'mkdocs-cinder==0.16.1',
     ]
 )

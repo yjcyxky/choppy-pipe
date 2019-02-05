@@ -375,7 +375,7 @@ def kv_list_to_dict(kv_list):
 
 def parse_json(instance):
     if isinstance(instance, dict):
-        for key, value in instance.iteritems():
+        for key, value in instance.items():
             # str is not supported by python2.7+
             # basestring is not supported by python3+
             if isinstance(value, basestring):

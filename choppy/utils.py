@@ -68,7 +68,7 @@ class ReportTheme:
 
     @classmethod
     def get_theme_lst(cls):
-        theme_lst = ('mkdocs', 'readthedocs')
+        theme_lst = ('mkdocs', 'readthedocs', 'material', 'cinder')
         return theme_lst
 
 

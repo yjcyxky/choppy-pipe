@@ -143,16 +143,27 @@ class ReportDefaultVar:
 
 
 class Context:
-    def __init__(self, project_dir, server='localhost'):
+    """
+    The context class maintain a context database that store metadata related with project
+     and provide a set of manipulation functions.
+    """
+    def __init__(self, app_name, project_dir, server='localhost', editable=True,
+                 sample_id_pattern='', cached_metadata=True,
+                 by_workflow=True):
         self.logger = logging.getLogger(__name__)
-        self.project_dir = project_dir
         host, port, auth = c.get_conn_info(server)
         self.cromwell = Cromwell(host, port, auth)
 
         self._context = {
             # Mkdocs
+            'app_name': app_name,
+            'app_installation_dir': c.app_dir,
+            'current_app_dir': os.path.join(c.app_dir, app_name),
+            'editable': editable,
+            'project_dir': project_dir,
             'docs_dir': 'report_markdown',
-            'project_name': os.path.basename(self.project_dir),
+            'html_dir': 'report_html',
+            'project_name': os.path.basename(project_dir),
             'site_name': 'Choppy Report',
             'repo_url': 'http://choppy.3steps.cn',
             'site_description': 'Choppy is a painless reproducibility manager.',
@@ -160,6 +171,8 @@ class Context:
             'copyright': get_copyright(),
             'extra_css_lst': ['http://kancloud.nordata.cn/2019-02-01-choppy-extra.css'],
             'extra_js_lst': [],
+            'theme_name': 'mkdocs',
+            # Workflow
             'report_menu': [
                 {
                     'key': 'Home',
@@ -191,37 +204,179 @@ class Context:
                     ]
                 }
             ],
-            # Workflow
+            'cached_metadata': cached_metadata,
             'submitted_jobs': self.get_submitted_jobs(),
             'failed_jobs': self.get_failed_jobs(),
-            'project_dir': self.project_dir,
             'workflow_metadata': [],
             'workflow_log': [],
             'workflow_status': [],
             'sample_id_lst': [],
             'workflow_id_lst': [],
-            'defaults': {},
-            'theme_name': 'mkdocs',
+            'ids': {},  # All sample_id: workflow_id key value pairs.
+            'defaults': {},  # report defaults file.
+            'cached_files': {}
         }
 
         self.logger.debug('Report Context: %s' % str(self._context))
+
+        default_file = os.path.join(self._context.get('current_app_dir'), 'defaults')
+        default_vars = self.get_default_vars(default_file)
+        self.set_defaults({
+            'defaults': default_vars
+        })
 
         # Must be after self.get_submitted_jobs() and self.get_failed_jobs().
         self.set_sample_id_lst()
         # Must be after self.get_submitted_jobs().
         self.set_workflow_id_lst()
+        # Set id dict.
+        self.set_id_dict()
+
+        # Allow user specify a sample id pattern to get a subset of samples
+        pattern = r'%s' % sample_id_pattern
+        sample_id_set = [sample_id for sample_id in self._context['sample_id_lst']
+                         if re.match(pattern, sample_id)]
 
         # Must be after self.set_sample_id_lst()
-        self.set_project_menu(self._context['sample_id_lst'])
+        sample_id_lst = sample_id_set if sample_id_pattern else self.get_successed_sample_ids()
+        self.set_project_menu(sample_id_lst)
 
         # Must be after self.set_sample_id_lst() and self.set_workflow_id_lst().
-        self.set_workflow_metadata()
-        self.set_workflow_log()
-        self.set_workflow_status()
+        self.set_workflow_log(sample_id_lst)
+        self.set_workflow_status(sample_id_lst)
+
+        # Cached files that user want to save, sample_id as key and workflow's outputs as value
+        # _set_cached_files function will:
+        # 1. cache workflow metadata simultaneously when by_workflow is True.
+        # 2. set file links what were related with sample ids. sample ids can be specified by users, otherwise all sample ids.
+        # 3. files that defined in workflow output block or report defaults file (cached_file_list field).
+        self._set_cached_files(sample_id_lst=sample_id_set, workflow=by_workflow)
 
     @property
     def context(self):
         return self._context
+
+    def _parse_task_outputs(self, metadata):
+        """
+        Parse task outputs from cromwell metadata.
+        """
+        # TODO: four level for loop is too bad, how to improve it?
+        outputs = {}
+        # TODO: whether is it necessary to hold all workflow metadata?
+        calls = metadata.get('calls')
+        # serveral tasks in calls
+        for task_name in calls.keys():
+            task_lst = calls.get(task_name)
+            # may be several tasks have same task name.
+            for task in task_lst:
+                task_outputs = task.get('outputs')
+                # one task have sevaral outputs.
+                for output_key in task_outputs.keys():
+                    key = '%s.%s' % (task_name, output_key)
+                    output = outputs[key] = task_outputs.get(output_key)
+                    # handle output directory
+                    if isinstance(output, list):
+                        pattern = r'^([-\w/:.]+%s).*$' % output_key
+                        # MUST BE matched. Need assert or more friendly way?
+                        matched = re.match(pattern, output[0])
+                        output_dir = matched.groups()[0]
+                        outputs[key] = output_dir
+
+                stderr = '%s.stderr' % task_name
+                stdout = '%s.stdout' % task_name
+                outputs[stderr] = task.get('stderr')
+                outputs[stdout] = task.get('stdout')
+        return outputs
+
+    def _parse_workflow_outputs(self, metadata):
+        """
+        Parse workflow outputs from cromwell metadata.
+        """
+        outputs = {}
+        workflow_outputs = metadata.get('outputs')
+        for output_key in workflow_outputs.keys():
+            output = outputs[output_key] = workflow_outputs.get(output_key)
+            # handle output directory
+            if isinstance(output, list):
+                pattern = r'^([-\w/:.]+%s).*$' % output_key
+                # MUST BE matched. Need assert or more friendly way?
+                matched = re.match(pattern, output[0])
+                output_dir = matched.groups()[0]
+                outputs[output_key] = output_dir
+
+        return outputs
+
+    def _get_file_links(self, workflow_id, workflow=True):
+        metadata = self._get_workflow_metadata(workflow_id=workflow_id)
+        if self._context['cached_metadata']:
+            self._context['workflow_metadata'].append(metadata)
+
+        if workflow:
+            # syntax: [workflow].[output]
+            # e.g.: test_rna_seq.read_2p
+            workflow_outputs_dict = self._parse_workflow_outputs(metadata)
+            return workflow_outputs_dict
+        else:
+            task_outputs = self._parse_task_outputs(metadata)
+            file_links_dict = {}
+            defaults = self._context.get('defaults')
+            cached_file_list = defaults.get('cached_file_list', [])
+            for cached_file_key in cached_file_list:
+                # syntax: [workflow].[task].[output]
+                # e.g.: test_rna_seq.trimmomatic.read_2p
+                cached_file = task_outputs.get(cached_file_key)
+                if cached_file:
+                    file_links_dict.update({
+                        cached_file_key: cached_file
+                    })
+                else:
+                    color_msg = BashColors.get_color_msg('No such key in project outputs: %s.' % cached_file_key)
+                    self.logger.warning(color_msg)
+            return file_links_dict
+
+    def _get_sample_id(self, workflow_id):
+        """
+        Get sample id by workflow id.
+
+        :return: sample_id
+        """
+        return self._context['ids'].get(workflow_id)
+
+    def _get_workflow_id(self, sample_id):
+        """
+        Get workflow id by sample_id
+
+        :param: sample_id: sample id in a project samples file that is setting by user.
+        """
+        # key -- workflow_id, value -- sample_id
+        for key, value in self._context['ids'].items():
+            if value == sample_id:
+                return key
+
+    def _set_cached_files(self, workflow_id_lst=None, sample_id_lst=None,
+                          workflow=True):
+        """
+        Get real link of files that list in cached_file_list.
+
+        Example
+        "sample_id": {
+            "test_rna_seq.bam": "oss://pgx-cromwell-rna-seq/test_rna_seq/ec30ad38-bc22-4c46-9693-7e9321d3e8ae/call-samtools/FUSCCTNBC007_1P.sorted.bam"
+        }
+        """
+        if workflow_id_lst:
+            self._context['cached_files'] = {
+                self._get_sample_id(workflow_id): self._get_file_links(workflow_id, workflow=workflow)
+                for workflow_id in workflow_id_lst
+            }
+        elif sample_id_lst:
+            self._context['cached_files'] = {
+                sample_id: self._get_file_links(self._get_workflow_id(sample_id), workflow=workflow)
+                for sample_id in sample_id_lst
+            }
+
+    def get_default_vars(self, default_file):
+        default_var = ReportDefaultVar(default_file)
+        return default_var.default_vars
 
     def set_theme_name(self, theme_name):
         if isinstance(theme_name, str):
@@ -232,6 +387,19 @@ class Context:
     def set_defaults(self, defaults):
         if isinstance(defaults, dict):
             self._context.update(defaults)
+
+    def set_id_dict(self):
+        """
+        Generate workflow_id: sample_id dict.
+
+        :return:
+        """
+        raw_workflow_id_lst = self._context['workflow_id_lst']
+        if len(raw_workflow_id_lst) > 0:
+            submitted_jobs = self._context['submitted_jobs']
+            workflow_id_lst = [row.get('workflow_id') for row in submitted_jobs]
+            sample_id_lst = [row.get('sample_id') for row in submitted_jobs]
+            self._context['ids'] = dict(zip(workflow_id_lst, sample_id_lst))
 
     def set_workflow_id_lst(self):
         raw_workflow_id_lst = self._context['workflow_id_lst']
@@ -247,8 +415,17 @@ class Context:
             failed_jobs = self._context['failed_jobs']
             sample_id_lst = [row.get('sample_id') for row in submitted_jobs] + [row.get('sample_id') for row in failed_jobs]
 
-            if len(sample_id_lst) > 0:
-                self._context['sample_id_lst'] = sample_id_lst
+            self._context['sample_id_lst'] = sample_id_lst
+
+    def get_successed_sample_ids(self):
+        submitted_jobs = self._context['submitted_jobs']
+        sample_id_lst = [row.get('sample_id') for row in submitted_jobs]
+        return sample_id_lst
+
+    def get_failed_sample_ids(self):
+        failed_jobs = self._context['failed_jobs']
+        sample_id_lst = [row.get('sample_id') for row in failed_jobs]
+        return sample_id_lst
 
     def set_repo_url(self, repo_url):
         if repo_url:
@@ -291,7 +468,7 @@ class Context:
             self._context['report_menu'][1]['value'] = project_menu
 
     def get_submitted_jobs(self):
-        submitted_file = os.path.join(self.project_dir, 'submitted.csv')
+        submitted_file = os.path.join(self._context.get('project_dir'), 'submitted.csv')
 
         if os.path.exists(submitted_file):
             reader = csv.DictReader(open(submitted_file, 'rt'))
@@ -303,7 +480,7 @@ class Context:
             return dict_list
 
     def get_failed_jobs(self):
-        failed_file = os.path.join(self.project_dir, 'failed.csv')
+        failed_file = os.path.join(self._context.get('project_dir'), 'failed.csv')
 
         if os.path.exists(failed_file):
             reader = csv.DictReader(open(failed_file, 'rt'))
@@ -314,38 +491,48 @@ class Context:
 
             return dict_list
 
-    def set_workflow_metadata(self):
+    def _get_workflow_metadata(self, workflow_id=None):
         """
         Get workflow metadata.
-        The order may be different with self._context['sample_id_lst']
         """
-        # TODO: async加速
-        workflow_metadata = []
-        workflow_id_lst = self._context['workflow_id_lst']
-        for workflow_id in workflow_id_lst:
-            workflow_metadata.append(self.cromwell.query_metadata(workflow_id))
+        if workflow_id:
+            return self.cromwell.query_metadata(workflow_id)
+        else:
+            # TODO: async加速?
+            # The order may be different with self._context['sample_id_lst']
+            workflow_id_lst = self._context['workflow_id_lst']
+            for workflow_id in workflow_id_lst:
+                # TODO: handle network error.
+                yield self.cromwell.query_metadata(workflow_id)
 
-        self._context['workflow_metadata'] = workflow_metadata
-
-    def set_workflow_status(self):
+    def set_workflow_status(self, sample_id_lst=None):
         """
         Get all workflow's status.
         """
-        # TODO: async加速
         workflow_status = []
-        workflow_id_lst = self._context['workflow_id_lst']
+        if sample_id_lst:
+            workflow_id_lst = [self._get_workflow_id(sample_id) for sample_id in sample_id_lst]
+        else:
+            # TODO: async加速
+            workflow_id_lst = self._context['workflow_id_lst']
+
         for workflow_id in workflow_id_lst:
             workflow_status.append(self.cromwell.query_status(workflow_id))
 
         self._context['workflow_status'] = workflow_status
 
-    def set_workflow_log(self):
+    def set_workflow_log(self, sample_id_lst=None):
         """
         Get all workflow's log.
         """
         # TODO: async加速
         workflow_log = []
-        workflow_id_lst = self._context['workflow_id_lst']
+
+        if sample_id_lst:
+            workflow_id_lst = [self._get_workflow_id(sample_id) for sample_id in sample_id_lst]
+        else:
+            workflow_id_lst = self._context['workflow_id_lst']
+
         for workflow_id in workflow_id_lst:
             workflow_log.append(self.cromwell.query_logs(workflow_id))
 
@@ -366,27 +553,26 @@ class Context:
 
 
 class Renderer:
-    def __init__(self, template_dir, project_dir, context, resource_dir=c.resource_dir):
+    """
+    Report renderer class that render all templates related with a specified app and copy
+     all dependent files to destination directory.
+    """
+    def __init__(self, template_dir, dest_dir, context, resource_dir=c.resource_dir):
         """
+        :param template_dir: a directory that contains app template files.
         :param context: a report context.
         """
         self.logger = logging.getLogger(__name__)
         self.template_dir = template_dir
-        self.project_dir = project_dir
         self.context = context
         self.context_dict = self.context.context
 
-        self.default_file = os.path.join(self.template_dir, 'defaults')
-        self.default_vars = self.get_default_vars()
-        self.context.set_defaults({
-            'defaults': self.default_vars
-        })
+        self.dest_dir = dest_dir
+        self.project_report_dir = os.path.join(dest_dir, 'report_markdown')
 
-        self.project_report_dir = os.path.join(self.project_dir, 'report_markdown')
-        check_dir(self.project_report_dir, skip=True, force=True)
-
-        # For mkdocs.yml.template
+        # For mkdocs.yml.template?
         self.resource_dir = resource_dir
+        # To validate template files?
         self.template_list = self.get_template_files()
 
     def render(self, template, output_file, **kwargs):
@@ -402,10 +588,9 @@ class Renderer:
         with open(output_file, 'w') as f:
             f.write(template.render(context=self.context_dict, **kwargs))
 
-    def batch_render(self, dest_dir, **kwargs):
+    def batch_render(self, **kwargs):
         """
         Batch render template files.
-        :param dest_dir: destination directory.
         """
         # All variables from mkdocs.yml must be same with context and kwargs.
         self._gen_docs_config(**kwargs)
@@ -416,7 +601,7 @@ class Renderer:
         output_file_lst = []
         for template in markdown_templates:
             templ_file = os.path.join(self.template_dir, template)
-            output_file = os.path.join(dest_dir, template)
+            output_file = os.path.join(self.project_report_dir, template)
             templ_dir = os.path.dirname(output_file)
             if not os.path.exists(templ_dir):
                 os.makedirs(templ_dir)
@@ -434,11 +619,6 @@ class Renderer:
         """
         pass
 
-    def get_default_vars(self):
-        defaults = os.path.join(self.template_dir, 'defaults')
-        default_var = ReportDefaultVar(defaults)
-        return default_var.default_vars
-
     def get_dependent_files(self):
         dependent_files = []
         for root, dirnames, filenames in os.walk(self.template_dir):
@@ -448,12 +628,12 @@ class Renderer:
         self.logger.info('Markdown dependent files: %s' % str(dependent_files))
         return dependent_files
 
-    def copy_dependent_files(self, dest_dir):
+    def copy_dependent_files(self):
         dependent_files = self.get_dependent_files()
         for file in dependent_files:
             # copy process may be wrong when filename start with '/'
             filename = file.replace(self.template_dir, '').strip('/')
-            copy_and_overwrite(file, os.path.join(dest_dir, filename), is_file=True)
+            copy_and_overwrite(file, os.path.join(self.project_report_dir, filename), is_file=True)
 
     def get_template_files(self):
         template_files = []
@@ -468,7 +648,7 @@ class Renderer:
         Generate mkdocs.yml
         """
         mkdocs_templ = os.path.join(self.resource_dir, 'mkdocs.yml.template')
-        output_file = os.path.join(self.project_dir, '.mkdocs.yml')
+        output_file = os.path.join(self.dest_dir, '.mkdocs.yml')
         self.logger.debug('Mkdocs config template: %s' % mkdocs_templ)
         self.logger.info('Generate mkdocs config: %s' % output_file)
 
@@ -479,23 +659,15 @@ class Renderer:
 
 
 class Preprocessor:
-    def __init__(self, app_dir):
+    """
+    Report preprocessor for prepare rendering and report building environment.
+    """
+    def __init__(self, app_dir, context):
         self.app_dir = app_dir
         self.app_report_dir = os.path.join(self.app_dir, 'report')
         # Check whether report templates is valid in an app.
         self._check_report()
-        # Need to set extra_css_lst and extra_js_lst
-        self._extra_css_lst = []
-        self._extra_js_lst = []
-        pass
-
-    @property
-    def extra_css_lst(self):
-        return self._extra_css_lst
-
-    @property
-    def extra_js_lst(self):
-        return self._extra_js_lst
+        self._context = context
 
     def _copy_app_templates(self, dest_dir):
         copy_and_overwrite(self.app_report_dir, dest_dir)
@@ -578,23 +750,58 @@ class Report:
         serve_docs(config_file=self.config_file, dev_addr=dev_addr, livereload=livereload)
 
 
-def build(app_dir, project_dir, resource_dir=c.resource_dir, repo_url='',
+def build(app_name, project_dir, resource_dir=c.resource_dir, repo_url='',
           site_description='', site_author='choppy', copyright=get_copyright(),
           site_name='Choppy Report', server='localhost', dev_addr='127.0.0.1:8000',
-          theme_name='mkdocs', mode='build', force=False):
+          theme_name='mkdocs', mode='build', force=False, editable=True,
+          sample_id_pattern='', cached_metadata=True, by_workflow=True):
+    """
+    Build an app report.
+
+    :param: app_name: an app name, like rna-seq-v1.0.0
+    :param: project_dir: a project output directory.
+    :param: resource_dir: a directory that host template files.
+    :param: repo_url: a repo url and its prefix is 'http://choppy.3steps.cn/'.
+    :param: site_decription:
+    :param: site_author:
+    :param: copyright:
+    :param: site_name: it will show as website logo.
+    :param: server: a cromwell server name
+    :param: dev_addr:
+    :param: theme_name:
+    :param: mode: mkdocs be ran as which mode, build, livereload or server.
+    :param: force: force to renew the mkdocs outputs.
+    :param: editable: whether the report can be edited by users.
+    :param: sample_id_pattern: which samples were selected by user.
+    :param: cached_metadata: whether cache related workflow metadata.
+    :param: by_workflow: whether treat workflow output block as the source of cached file list.
+    :return:
+    """
     report_dir = os.path.join(project_dir, 'report_markdown')
     if os.path.exists(report_dir) and not force:
         logger.info('Skip generate context and render markdown.')
     else:
+        # Context: generate context metadata.
+        logger.info('\n1. Generate report context.')
+        ctx_instance = Context(project_dir, server=server, editable=editable,
+                               sample_id_pattern='', cached_metadata=cached_metadata,
+                               by_workflow=by_workflow)
+        ctx_instance.set_extra_context(repo_url=repo_url, site_description=site_description,
+                                       site_author=site_author, copyright=copyright, site_name=site_name,
+                                       theme_name=theme_name)
+        logger.info('Context: %s' % ctx_instance.context)
+        logger.info(BashColors.get_color_msg('SUCCESS', 'Context: generate report context successfully.'))
+
+        # Preprocessor: check app whether support report and cache files that be required by report rendering.
+        app_dir = os.path.join(c.app_dir, app_name)
         tmp_report_dir_uuid = str(uuid.uuid1())
         tmp_report_dir = os.path.join('/tmp', 'choppy', tmp_report_dir_uuid)
         check_dir(tmp_report_dir, skip=True, force=True)
 
-        # Preprocessor: translate markdown new tag to js code.
         logger.debug('Temporary report directory: %s' % tmp_report_dir)
-        logger.info('1. Try to preprocess an app report.')
+        logger.info('2. Try to preprocess an app report.')
         try:
-            preprocessor = Preprocessor(app_dir)
+            preprocessor = Preprocessor(app_dir, ctx_instance)
             preprocessor.process(tmp_report_dir)
             logger.info(BashColors.get_color_msg('SUCCESS', 'Preprocess app report successfully.'))
         except InValidReport as err:
@@ -606,22 +813,12 @@ def build(app_dir, project_dir, resource_dir=c.resource_dir, repo_url='',
             # TODO: How to deal with exit way when choppy run as web api mode.
             sys.exit(exit_code.INVALID_REPORT)
 
-        # Context: generate context metadata.
-        logger.info('\n2. Generate report context.')
-        ctx_instance = Context(project_dir, server=server)
-        ctx_instance.set_extra_context(repo_url=repo_url, site_description=site_description,
-                                       site_author=site_author, copyright=copyright, site_name=site_name,
-                                       theme_name=theme_name, extra_css_lst=preprocessor.extra_css_lst,
-                                       extra_js_lst=preprocessor.extra_js_lst)
-        logger.info('Context: %s' % ctx_instance.context)
-        logger.info(BashColors.get_color_msg('SUCCESS', 'Context: generate report context successfully.'))
-
         # Renderer: render report markdown files.
         logger.info('\n3. Render report markdown files.')
         # Fix bug: Renderer need to get template file from temporary report directory.
         renderer = Renderer(tmp_report_dir, project_dir, context=ctx_instance, resource_dir=resource_dir)
-        renderer.batch_render(report_dir)
-        renderer.copy_dependent_files(report_dir)
+        renderer.batch_render()
+        renderer.copy_dependent_files()
         logger.info(BashColors.get_color_msg('SUCCESS', 'Render report markdown files successfully.'))
 
     # Report: build markdown files to html.
