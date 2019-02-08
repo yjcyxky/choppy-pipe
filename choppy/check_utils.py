@@ -42,7 +42,7 @@ def is_valid_app_name(app_name):
 def get_all_variables(app_dir, no_default=False):
     inputs_variables = get_vars_from_app(app_dir, 'inputs', no_default=no_default)
     workflow_variables = get_vars_from_app(app_dir, 'workflow.wdl', no_default=no_default)
-    variables = list(set(list(inputs_variables) + list(workflow_variables) + ['sample_id', ]))  # noqa
+    variables = list(set(list(inputs_variables) + list(workflow_variables) + ['sample_id', ]))
     if 'project_name' in variables:
         variables.remove('project_name')
 

@@ -49,7 +49,7 @@ class Validator:
         try:
             run = subprocess.check_output(cmd).decode("utf-8")
         except subprocess.CalledProcessError:
-            print("Unable to execute womtool command. Make sure any subworkflow wdl files are present and try again.")  # noqa
+            print("Unable to execute womtool command. Make sure any subworkflow wdl files are present and try again.")
             sys.exit(exit_code.WOMTOOL_CAN_NOT_EXECUTE)
 
         try:
@@ -61,9 +61,9 @@ class Validator:
                     {k: v for k, v in d.items() if "optional" not in v})
                 return json.loads(ds)
         except ValueError:
-            print("Something went wrong with getting args. Note that if using validation, unzipped WDL dependencies "  # noqa
+            print("Something went wrong with getting args. Note that if using validation, unzipped WDL dependencies "
                   "must be in same directory as main WDL.\n "
-                  "Alternatively, turn off validation or use choppy.py validate")  # noqa
+                  "Alternatively, turn off validation or use choppy.py validate")
             sys.exit(exit_code.VALIDATE_ERROR)
 
     def validate_json(self):
@@ -85,15 +85,15 @@ class Validator:
                         for f in val:
                             if not self.validate_file(f):
                                 errors.append(
-                                    '{}: {} is not a valid file path.'.format(param, f))  # noqa
+                                    '{}: {} is not a valid file path.'.format(param, f))
                     else:
                         if not self.validate_file(val):
                             errors.append(
-                                '{}: {} is not a valid file path.'.format(param, val))  # noqa
+                                '{}: {} is not a valid file path.'.format(param, val))
                 elif 'Array' in wdict[param]:
                     if not self.validate_array(val):
                         errors.append(
-                            '{}: {} is not a valid array/list.'.format(param, val))  # noqa
+                            '{}: {} is not a valid array/list.'.format(param, val))
                 elif 'String' in wdict[param]:
                     if not self.validate_string(val):
                         errors.append(
@@ -108,12 +108,12 @@ class Validator:
                             '{}: {} is not a valid Float.'.format(param, val))
                 elif 'Boolean' in wdict[param]:
                     if not self.validate_boolean(val):
-                        msg = "Note that JSON boolean values must not be quoted."  # noqa
+                        msg = "Note that JSON boolean values must not be quoted."
                         errors.append(
-                            '{}: {} is not a valid Boolean. {}'.format(param, val, msg))  # noqa
+                            '{}: {} is not a valid Boolean. {}'.format(param, val, msg))
                 else:
                     errors.append(
-                        '{}: {} is not a recognized parameter value'.format(param, val))  # noqa
+                        '{}: {} is not a recognized parameter value'.format(param, val))
                 if 'samples_file' in param:
                     try:
                         fh = open(val, 'r')
@@ -130,7 +130,7 @@ class Validator:
         for k, v in wdict.items():
             if 'optional' not in v:
                 errors.append(
-                    'Required parameter {} is missing from input json.'.format(k))  # noqa
+                    'Required parameter {} is missing from input json.'.format(k))
         return errors
 
     def validate_samples_array(self, samples_array):
@@ -144,7 +144,7 @@ class Validator:
         for row in samples_array:
             if not self.validate_file(row[-1]):
                 errors.append(
-                    'File path {} found in samples file does not exist.'.format(row[-1]))  # noqa
+                    'File path {} found in samples file does not exist.'.format(row[-1]))
         return errors
 
     @staticmethod

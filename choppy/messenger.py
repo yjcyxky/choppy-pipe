@@ -37,7 +37,7 @@ class Messenger(object):
         """
         subject = "Workflow ({}) {}".format(
             content_dict['workflow_id'], content_dict['status'])
-        msg = MIMEMultipart(From=self.sender, To=self.user_email, Date=formatdate(localtime=True),  # noqa
+        msg = MIMEMultipart(From=self.sender, To=self.user_email, Date=formatdate(localtime=True),
                             Subject=subject)
         msg["Subject"] = subject
         template = open(os.path.join(c.resource_dir, 'email.template'), 'r')

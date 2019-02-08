@@ -27,7 +27,7 @@ class Workflow(Base):
         if dt_str.endswith("Z"):
             dt_str = dt_str[:-1]
 
-        return datetime.datetime.strptime(dt_str.split(".")[0], "%Y-%m-%dT%H:%M:%S") if dt_str else None  # noqa
+        return datetime.datetime.strptime(dt_str.split(".")[0], "%Y-%m-%dT%H:%M:%S") if dt_str else None
 
     @staticmethod
     def get_or_none(field, dict):
@@ -38,9 +38,9 @@ class Workflow(Base):
         if 'labels' in metadata and 'username' in metadata['labels']:
             return metadata['labels']['username']
         else:
-            if 'submittedFiles' in metadata and 'labels' in metadata['submittedFiles']:  # noqa
-                if 'username' in json.loads(metadata['submittedFiles']['labels']):  # noqa
-                    return json.loads(metadata['submittedFiles']['labels'])['username']  # noqa
+            if 'submittedFiles' in metadata and 'labels' in metadata['submittedFiles']:
+                if 'username' in json.loads(metadata['submittedFiles']['labels']):
+                    return json.loads(metadata['submittedFiles']['labels'])['username']
 
         return None
 

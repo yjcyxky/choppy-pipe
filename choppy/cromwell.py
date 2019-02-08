@@ -129,7 +129,7 @@ class Cromwell:
                 'Workflow restarting with inputs: {}'.format(workflow_input))
             restarted_wf = self.jstart_workflow(wdl, workflow_input,
                                                 wdl_string=True, v2=True,
-                                                disable_caching=disable_caching,  # noqa
+                                                disable_caching=disable_caching,
                                                 custom_labels=processed_labels)
             return restarted_wf
         except KeyError:
@@ -139,7 +139,7 @@ class Cromwell:
     def getCalls(status, call_arr, full_logs=False, limit_n=3):
 
         filteredCalls = list(
-            filter(lambda c: c[1][0]['executionStatus'] == status, call_arr.items()))  # noqa
+            filter(lambda c: c[1][0]['executionStatus'] == status, call_arr.items()))
         filteredCalls = map(lambda c: (c[0], c[1][0]), filteredCalls)
 
         def parse_logs(call_tuple):
@@ -149,12 +149,12 @@ class Cromwell:
             log = {}
             try:
                 log['stdout'] = {
-                    'name': call['stdout'], 'label': task + "." + str(call["shardIndex"]) + ".stdout"}  # noqa
+                    'name': call['stdout'], 'label': task + "." + str(call["shardIndex"]) + ".stdout"}
             except KeyError as e:
                 log['stddout'] = e
             try:
                 log['stderr'] = {
-                    'name': call['stderr'], 'label': task + "." + str(call["shardIndex"]) + ".stderr"}  # noqa
+                    'name': call['stderr'], 'label': task + "." + str(call["shardIndex"]) + ".stderr"}
             except KeyError as e:
                 log['stderr'] = e
             if full_logs:
@@ -189,7 +189,7 @@ class Cromwell:
             assign(result, explain_res, 'id')
             assign(result, explain_res, 'workflowRoot')
             if explain_res["status"] == "Failed":
-                stdout_res["failed_jobs"] = Cromwell.getCalls('Failed', result['calls'],  # noqa
+                stdout_res["failed_jobs"] = Cromwell.getCalls('Failed', result['calls'],
                                                               full_logs=True)
 
             elif explain_res["status"] == "Running":
@@ -203,7 +203,7 @@ class Cromwell:
 
         return (explain_res, additional_res, stdout_res)
 
-    def start_workflow(self, wdl_file, workflow_name, workflow_args, dependencies=None):  # noqa
+    def start_workflow(self, wdl_file, workflow_name, workflow_args, dependencies=None):
         """
         Start a workflow using a dictionary of arguments.
         :param wdl_file: workflow description file.
@@ -221,8 +221,8 @@ class Cromwell:
         print("args_string:")
         print(args_string)
 
-        files = {'wdlSource': (wdl_file, open(wdl_file, 'rb'), 'application/octet-stream'),  # noqa
-                 'workflowInputs': ('report.csv', args_string, 'application/json')}  # noqa
+        files = {'wdlSource': (wdl_file, open(wdl_file, 'rb'), 'application/octet-stream'),
+                 'workflowInputs': ('report.csv', args_string, 'application/json')}
 
         if dependencies:
             # add dependency as zip file
@@ -259,11 +259,11 @@ class Cromwell:
         j_args = json.dumps(args)
 
         if not wdl_string:
-            files = {'wdlSource': (wdl_file, open(wdl_file, 'rb'), 'application/octet-stream'),  # noqa
-                     'workflowInputs': ('report.csv', j_args, 'application/json')}  # noqa
+            files = {'wdlSource': (wdl_file, open(wdl_file, 'rb'), 'application/octet-stream'),
+                     'workflowInputs': ('report.csv', j_args, 'application/json')}
         else:
-            files = {'wdlSource': ('workflow.wdl', wdl_file, 'application/text-plain'),  # noqa
-                     'workflowInputs': ('report.csv', j_args, 'application/json')}  # noqa
+            files = {'wdlSource': ('workflow.wdl', wdl_file, 'application/text-plain'),
+                     'workflowInputs': ('report.csv', j_args, 'application/json')}
         if custom_labels:
             if self.short_version >= 30:
                 label_key = "labels"
@@ -311,8 +311,8 @@ class Cromwell:
         :return: Request response json
         """
         if workflow_id in self.cached_metadata:
-            datetime = datetime.datetime.now() - datetime.timedelta(seconds=15)  # noqa
-            if self.cached_metadata[workflow_id]["timestamp"] > datetime:
+            date_time = datetime.datetime.now() - datetime.timedelta(seconds=15)
+            if self.cached_metadata[workflow_id]["timestamp"] > date_time:
                 return self.cached_metadata[workflow_id]
 
         metadata = self.query_metadata(workflow_id, v2=True)
@@ -348,7 +348,7 @@ class Cromwell:
             processed_labels['username'] = c.getuser()
         except KeyError as e:
             logging.debug(
-                "{}. No cromwell-workflow-id in old labels.".format(str(e.message)))  # noqa
+                "{}. No cromwell-workflow-id in old labels.".format(str(e.message)))
 
         return processed_labels
 
@@ -383,7 +383,7 @@ class Cromwell:
                 status_query += "status={}&".format(status)
 
         url = self.build_query_url(
-            self.url + '/query?' + "&".join([time_query, status_query]).lstrip("&"), label_dict, "%3A")  # noqa
+            self.url + '/query?' + "&".join([time_query, status_query]).lstrip("&"), label_dict, "%3A")
         url = url + 'status=Running' if running_jobs else url
 
         # In some cases we can get a dangling & so this removed that.

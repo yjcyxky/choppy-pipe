@@ -39,18 +39,18 @@ class EmailNotification(object):
         for log in failed_jobs:
             stdout_attachment = MIMEText(str(log["stdout"]['log']))
             stdout_attachment.add_header(
-                'Content-Disposition', 'attachment', filename=log["stdout"]["label"])  # noqa
+                'Content-Disposition', 'attachment', filename=log["stdout"]["label"])
             msg.attach(stdout_attachment)
 
             stderr_attachment = MIMEText(str(log["stderr"]['log']))
             stderr_attachment.add_header(
-                'Content-Disposition', 'attachment', filename=log["stderr"]["label"])  # noqa
+                'Content-Disposition', 'attachment', filename=log["stderr"]["label"])
             msg.attach(stderr_attachment)
 
         metadata_attachment = MIMEText(
-            str(json.dumps(metadata, indent=4, default=EmailNotification.json_serializer)))  # noqa
+            str(json.dumps(metadata, indent=4, default=EmailNotification.json_serializer)))
         metadata_attachment.add_header(
-            'Content-Disposition', 'attachment', filename=metadata["id"] + ".metadata")  # noqa
+            'Content-Disposition', 'attachment', filename=metadata["id"] + ".metadata")
         msg.attach(metadata_attachment)
 
     @staticmethod
@@ -59,12 +59,13 @@ class EmailNotification(object):
         if isinstance(obj, datetime.datetime):
             if obj.utcoffset() is not None:
                 obj = obj - obj.utcoffset()
-                return int(calendar.timegm(obj.timetuple()) * 1000 + obj.microsecond / 1000)  # noqa
+                return int(calendar.timegm(obj.timetuple()) * 1000 + obj.microsecond / 1000)
         raise TypeError('Not sure how to serialize %s' % (obj,))
 
     def generate_content(self, metadata, user, host, port):
         """
-        a method for generating the email content to be sent to user.
+        A method for generating the email content to be sent to user.
+
         :param metadata: The metadata of the workflow (optional).
         :return: a dictionary containing the email contents for the template.
         """
@@ -80,7 +81,7 @@ class EmailNotification(object):
             duration = (end - start)
             hours, remainder = divmod(duration.seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
-            summary += '<br><b>Duration:</b> {} hours, {} minutes, {} seconds'.format(  # noqa
+            summary += '<br><b>Duration:</b> {} hours, {} minutes, {} seconds'.format(
                 hours, minutes, seconds)
         if 'Failed' in jdata['status']:
             fail_summary = "<br><b>Failures:</b> {}".format(
@@ -94,7 +95,7 @@ class EmailNotification(object):
             summary += "<br><b>workflowRoot:</b> {}".format(
                 jdata['workflowRoot'])
 
-        summary += "<br><b>Timing graph:</b> http://{}:{}/api/workflows/v2/{}/timing".format(  # noqa
+        summary += "<br><b>Timing graph:</b> http://{}:{}/api/workflows/v2/{}/timing".format(
             host, port, jdata['id'])
         email_content = {
             'user': user,

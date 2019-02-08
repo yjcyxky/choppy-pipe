@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 # PYTHON_ARGCOMPLETE_OK
 """
-Choppy is a tool for submitting workflows via command-line to the cromwell execution engine servers. # noqa
+Choppy is a tool for submitting workflows via command-line to the cromwell execution engine servers.
 """
 from __future__ import unicode_literals, absolute_import
 import argcomplete
@@ -52,14 +52,14 @@ def set_logger(log_name, subdir="project_logs"):
     global logger
     # Logging setup
     logger.setLevel(c.log_level)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s') # noqa
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     # create file handler which logs even debug messages
     if subdir:
         project_logs = os.path.join(c.log_dir, "project_logs")
         check_dir(project_logs, skip=True)
         logfile = os.path.join(project_logs, '{}_choppy.log'.format(log_name))
     else:
-        logfile = os.path.join(c.log_dir, '{}_{}_choppy.log'.format(str(time.strftime("%Y-%m-%d")), log_name))  # noqa
+        logfile = os.path.join(c.log_dir, '{}_{}_choppy.log'.format(str(time.strftime("%Y-%m-%d")), log_name))
     fh = logging.FileHandler(logfile)
     fh.setLevel(c.log_level)
     fh.setFormatter(formatter)
@@ -69,7 +69,7 @@ def set_logger(log_name, subdir="project_logs"):
 def set_ch_logger(ch_log_level):
     # create console handler with a higher log level
     if ch_log_level == logging.DEBUG:
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')  # noqa
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     else:
         formatter = logging.Formatter('%(message)s')
     ch = logging.StreamHandler()
@@ -82,8 +82,9 @@ def set_ch_logger(ch_log_level):
 
 def call_submit(args):
     """
-    Optionally validates inputs and starts a workflow on the Cromwell execution engine if validation passes. Validator # noqa
+    Optionally validates inputs and starts a workflow on the Cromwell execution engine if validation passes. Validator
     returns an empty list if valid, otherwise, a list of errors discovered.
+
     :param args: submit subparser arguments.
     :return: JSON response with Cromwell workflow ID.
     """
@@ -98,7 +99,7 @@ def call_submit(args):
         call_validate(args)
 
     # prep labels and add user
-    labels_dict = kv_list_to_dict(args.label) if kv_list_to_dict(args.label) is not None else {}  # noqa
+    labels_dict = kv_list_to_dict(args.label) if kv_list_to_dict(args.label) is not None else {}
     labels_dict['username'] = args.username.lower()
     host, port, auth = c.get_conn_info(args.server)
     cromwell = Cromwell(host, port, auth)
@@ -106,7 +107,7 @@ def call_submit(args):
     result = cromwell.jstart_workflow(wdl_file=args.wdl, json_file=args.json,
                                       dependencies=dependencies,
                                       disable_caching=args.disable_caching,
-                                      extra_options=kv_list_to_dict(args.extra_options),  # noqa
+                                      extra_options=kv_list_to_dict(args.extra_options),
                                       custom_labels=labels_dict)
 
     logger.info("-------------Cromwell Links-------------")
@@ -122,7 +123,7 @@ def call_submit(args):
         # Probably better ways to do this but for now this works.
         time.sleep(5)
 
-        logger.info("These will also be e-mailed to you when the workflow completes.")  # noqa
+        logger.info("These will also be e-mailed to you when the workflow completes.")
         retry = 4
         while retry != 0:
             try:
@@ -144,7 +145,7 @@ def call_query(args):
     host, port, auth = c.get_conn_info(args.server)
     cromwell = Cromwell(host, port, auth)
     responses = []
-    if args.workflow_id is None or args.workflow_id == "None" and not args.label:  # noqa
+    if args.workflow_id is None or args.workflow_id == "None" and not args.label:
         return call_list(args)
     if args.label:
         logger.debug("Label query requested.")
@@ -162,7 +163,7 @@ def call_query(args):
         logger.debug("Logs requested.")
         logs = cromwell.query_logs(args.workflow_id)
         responses.append(logs)
-    print_obj("\n%s\n" % json.dumps(parse_json(responses), indent=2, sort_keys=True))  # noqa
+    print_obj("\n%s\n" % json.dumps(parse_json(responses), indent=2, sort_keys=True))
     sys.stdout.flush()
     return responses
 
@@ -180,7 +181,7 @@ def call_validate(args):
     validator = Validator(wdl=args.wdl, json=args.json)
     result = validator.validate_json()
     if len(result) != 0:
-        e = "{} input file contains the following errors:\n{}".format(args.json, "\n".join(result))  # noqa
+        e = "{} input file contains the following errors:\n{}".format(args.json, "\n".join(result))
         # This will also print to stdout so no need for a print statement
         logger.critical(e)
         sys.exit(exit_code.VALIDATE_ERROR)
@@ -205,7 +206,7 @@ def call_abort(args):
 
 def call_monitor(args):
     """
-    Calls Monitoring to report to user the status of their workflow at regular intervals.  # noqa
+    Calls Monitoring to report to user the status of their workflow at regular intervals.
     :param args: 'monitor' subparser arguments.
     :return:
     """
@@ -247,10 +248,10 @@ def call_restart(args):
                                        disable_caching=args.disable_caching)
 
     if result is not None and "id" in result:
-        msg = "Workflow restarted successfully; new workflow-id: " + str(result['id'])  # noqa
+        msg = "Workflow restarted successfully; new workflow-id: " + str(result['id'])
         logger.info(msg)
     else:
-        msg = "Workflow was not restarted successfully; server response: " + str(result)  # noqa
+        msg = "Workflow was not restarted successfully; server response: " + str(result)
         logger.critical(msg)
 
 
@@ -262,8 +263,8 @@ def get_cromwell_links(server, workflow_id, port):
     :param port: port for cromwell server of interest
     :return: Dictionary containing useful links
     """
-    return {'metadata': 'http://{}:{}/api/workflows/v1/{}/metadata'.format(server, port, workflow_id),  # noqa
-            'timing': 'http://{}:{}/api/workflows/v1/{}/timing'.format(server, port, workflow_id)}  # noqa
+    return {'metadata': 'http://{}:{}/api/workflows/v1/{}/metadata'.format(server, port, workflow_id),
+            'timing': 'http://{}:{}/api/workflows/v1/{}/timing'.format(server, port, workflow_id)}
 
 
 def call_explain(args):
@@ -272,8 +273,8 @@ def call_explain(args):
     logger.info("Explain requested")
     host, port, auth = c.get_conn_info(args.server)
     cromwell = Cromwell(host, port, auth)
-    (result, additional_res, stdout_res) = cromwell.explain_workflow(workflow_id=args.workflow_id,  # noqa
-                                                                     include_inputs=args.input)  # noqa
+    (result, additional_res, stdout_res) = cromwell.explain_workflow(workflow_id=args.workflow_id,
+                                                                     include_inputs=args.input)
 
     def my_safe_repr(object, context, maxlevels, level):
         typ = pprint._type(object)
@@ -343,7 +344,7 @@ def call_list(args):
             pass
         return pprint._safe_repr(object, context, maxlevels, level)
 
-    start_date_str = get_iso_date(datetime.datetime.now() - datetime.timedelta(days=int(args.days)))  # noqa
+    start_date_str = get_iso_date(datetime.datetime.now() - datetime.timedelta(days=int(args.days)))
     q = m.get_user_workflows(raw=True, start_time=start_date_str)
     try:
         result = q["results"]
@@ -371,11 +372,11 @@ def call_label(args):
     host, port, auth = c.get_conn_info(args.server)
     cromwell = Cromwell(host, port, auth)
     labels_dict = kv_list_to_dict(args.label)
-    response = cromwell.label_workflow(workflow_id=args.workflow_id, labels=labels_dict)  # noqa
+    response = cromwell.label_workflow(workflow_id=args.workflow_id, labels=labels_dict)
     if response.status_code == 200:
-        logger.info("Labels successfully applied:\n{}".format(response.content))  # noqa
+        logger.info("Labels successfully applied:\n{}".format(response.content))
     else:
-        logger.critical("Unable to apply specified labels:\n{}".format(response.content))  # noqa
+        logger.critical("Unable to apply specified labels:\n{}".format(response.content))
 
 
 def call_log(args):
@@ -387,7 +388,7 @@ def call_log(args):
     from choppy.cromwell import Cromwell
     from choppy.oss import run_copy_files
 
-    matchedWorkflowId = re.match(r'^[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}$',  # noqa
+    matchedWorkflowId = re.match(r'^[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}$',
                                  args.workflow_id, re.M | re.I)
 
     if matchedWorkflowId:
@@ -395,7 +396,7 @@ def call_log(args):
         cromwell = Cromwell(host, port, auth)
         res = cromwell.get('logs', args.workflow_id)
         if res.get('calls'):
-            logger.info("\n%s\n" % json.dumps(parse_json(res["calls"]), indent=2, sort_keys=True))  # noqa
+            logger.info("\n%s\n" % json.dumps(parse_json(res["calls"]), indent=2, sort_keys=True))
 
             logger.info("-------------Commands-------------")
             # for each task, extract the command used
@@ -404,7 +405,7 @@ def call_log(args):
                 script = "/".join(stderr.split("/")[:-1]) + "/script"
                 fuuid = uuid.uuid1()
                 dest_script = "/tmp/choppy/%s/%s" % (fuuid, "script")
-                run_copy_files(script, dest_script, recursive=False, silent=True)  # noqa
+                run_copy_files(script, dest_script, recursive=False, silent=True)
                 with open(dest_script, 'r') as f:
                     command_log = f.read()
 
@@ -414,11 +415,11 @@ def call_log(args):
             return None
         else:
             metadata = cromwell.query_metadata(args.workflow_id)
-            logger.info("\n%s\n" % json.dumps(parse_json(metadata), indent=2, sort_keys=True))  # noqa
+            logger.info("\n%s\n" % json.dumps(parse_json(metadata), indent=2, sort_keys=True))
     else:
         project_logs = os.path.join(c.log_dir, "project_logs")
         check_dir(project_logs, skip=True)
-        logfile = os.path.join(project_logs, '{}_choppy.log'.format(args.workflow_id))  # noqa
+        logfile = os.path.join(project_logs, '{}_choppy.log'.format(args.workflow_id))
         if os.path.isfile(logfile):
             with open(logfile, 'r') as f:
                 logger.info(f.read())
@@ -476,7 +477,7 @@ def call_batch(args):
     username = args.username.lower()
     force = args.force
     is_valid_app(app_dir)
-    run_batch(project_name, app_dir, samples, label, server, username, dry_run, force)  # noqa
+    run_batch(project_name, app_dir, samples, label, server, username, dry_run, force)
 
 
 def call_test(args):
@@ -494,7 +495,7 @@ def call_test(args):
     dry_run = args.dry_run
     username = args.username.lower()
     force = args.force
-    run_batch(project_name, app_dir, samples, label, server, username, dry_run, force)  # noqa
+    run_batch(project_name, app_dir, samples, label, server, username, dry_run, force)
 
 
 def call_testapp(args):
@@ -509,7 +510,7 @@ def call_testapp(args):
     dry_run = args.dry_run
     username = args.username.lower()
     force = args.force
-    run_batch(project_name, app_dir, samples, label, server, username, dry_run, force=force)  # noqa
+    run_batch(project_name, app_dir, samples, label, server, username, dry_run, force=force)
 
 
 def call_installapp(args):
@@ -532,7 +533,7 @@ def call_installapp(args):
             if force:
                 shutil.rmtree(app_path, ignore_errors=True)
             else:
-                print("%s is installed. If you want to reinstall, you can specify a --force flag." % app_name)  # noqa
+                print("%s is installed. If you want to reinstall, you can specify a --force flag." % app_name)
                 sys.exit(exit_code.APP_IS_INSTALLED)
 
     install_app(c.app_dir, choppy_app)
@@ -633,7 +634,7 @@ def call_search(args):
 
             logger.info("%s\t%s" % (result.get('id'), sample_id.upper()))
     else:
-        logger.info(json.dumps(parse_json(res['results']), indent=2, sort_keys=True))  # noqa
+        logger.info(json.dumps(parse_json(res['results']), indent=2, sort_keys=True))
 
 
 def call_samples(args):

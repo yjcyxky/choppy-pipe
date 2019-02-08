@@ -24,7 +24,7 @@ choppy_store = ChoppyStore(c.base_url, username=c.username,
                            password=c.password)
 flask_app = Flask(__name__)
 api = Api(flask_app, version=api_version, title="Choppy API",
-          description="Choppy for Reproducible Omics Pipeline", prefix=api_prefix)  # noqa
+          description="Choppy for Reproducible Omics Pipeline", prefix=api_prefix)
 
 
 @flask_app.errorhandler(404)
@@ -88,24 +88,24 @@ class Repo(Resource):
         'q': 'keyword',
         'page': 'page number of results to return (1-based).',
         'limit': 'page size of results, maximum page size is 50.',
-        'mode': 'type of repository to search for. Supported values are "fork", "source", "mirror" and "collaborative".',  # noqa
-        'sort': 'sort repos by attribute. Supported values are "alpha", "created", "updated", "size", and "id". Default is "alpha".',  # noqa
-        'order': 'sort order, either "asc" (ascending) or "desc" (descending). Default is "asc", ignored if "sort" is not specified.'  # noqa
+        'mode': 'type of repository to search for. Supported values are "fork", "source", "mirror" and "collaborative".',
+        'sort': 'sort repos by attribute. Supported values are "alpha", "created", "updated", "size", and "id". Default is "alpha".',
+        'order': 'sort order, either "asc" (ascending) or "desc" (descending). Default is "asc", ignored if "sort" is not specified.'
     })
     def get(self):
         repo_parser.add_argument('q', default='')
-        repo_parser.add_argument('page', type=int, help='Bad Type: {error_msg}',  # noqa
+        repo_parser.add_argument('page', type=int, help='Bad Type: {error_msg}',
                                  default=1)
         repo_parser.add_argument('limit', type=int, default=10)
-        repo_parser.add_argument('mode', choices=("fork", "source", "mirror", "collaborative"),  # noqa
-                                 help='Bad choice: {error_msg}', default="source")  # noqa
-        repo_parser.add_argument('sort', choices=("alpha", "created", "updated", "size", "id"),  # noqa
-                                 help='Bad choice: {error_msg}', default="updated")  # noqa
-        repo_parser.add_argument('order', choices=('asc', 'desc'), default="asc",  # noqa
+        repo_parser.add_argument('mode', choices=("fork", "source", "mirror", "collaborative"),
+                                 help='Bad choice: {error_msg}', default="source")
+        repo_parser.add_argument('sort', choices=("alpha", "created", "updated", "size", "id"),
+                                 help='Bad choice: {error_msg}', default="updated")
+        repo_parser.add_argument('order', choices=('asc', 'desc'), default="asc",
                                  help='Bad choice: {error_msg}')
         args = repo_parser.parse_args()
-        return choppy_store.search(args.get('q'), page=args.get('page'), limit=args.get('limit'),  # noqa
-                                   mode=args.get('mode'), sort=args.get('sort'), order=args.get('order'))  # noqa
+        return choppy_store.search(args.get('q'), page=args.get('page'), limit=args.get('limit'),
+                                   mode=args.get('mode'), sort=args.get('sort'), order=args.get('order'))
 
 
 @api.route('/<owner>/<app_name>/releases')

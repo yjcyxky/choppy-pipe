@@ -97,8 +97,8 @@ class QueryUnitTests(unittest.TestCase):
         from choppy import call_list
         wf = self._initiate_workflow()
         wfid = wf['id']
-        result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,  # noqa
-                                     username="*", days=1, filter=['Succeeded', 'Failed']))  # noqa
+        result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,
+                                     username="*", days=1, filter=['Succeeded', 'Failed']))
         statuses = set(d['status'] for d in result)
         self.assertEqual(len(statuses), 2)
         self.assertIn('Succeeded', statuses)
@@ -108,10 +108,10 @@ class QueryUnitTests(unittest.TestCase):
     def test_query_filter_by_name(self):
         from argparse import Namespace
         from choppy import call_list
-        user_result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,  # noqa
+        user_result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,
                                           username="amr", days=1, filter=None))
         user_wfids = set(d['id'] for d in user_result)
-        all_result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,  # noqa
+        all_result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,
                                          username="*", days=1, filter=None))
         all_wfids = set(d['id'] for d in all_result)
         self.assertGreater(len(all_wfids), len(user_wfids))
@@ -119,7 +119,7 @@ class QueryUnitTests(unittest.TestCase):
     def test_query_filter_by_days(self):
         from argparse import Namespace
         from choppy import call_list
-        result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,  # noqa
+        result = call_list(Namespace(server="btl-cromwell", all=False, no_notify=True, verbose=True, interval=None,
                                      username="*", days=1, filter=None))
         all_dates = set(d['start'].split('T')[0] for d in result)
         self.assertEqual(len(all_dates), 1)

@@ -16,8 +16,8 @@ class ValidatorUnitTests(unittest.TestCase):
     def setUpClass(self):
         resources = c.resource_dir
         self.logger = logging.getLogger('test_validator')
-        hdlr = logging.FileHandler(os.path.join(c.log_dir, 'test_validator.log'))  # noqa
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')  # noqa
+        hdlr = logging.FileHandler(os.path.join(c.log_dir, 'test_validator.log'))
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         hdlr.setFormatter(formatter)
         self.logger.addHandler(hdlr)
         self.logger.setLevel(logging.INFO)
@@ -35,7 +35,7 @@ class ValidatorUnitTests(unittest.TestCase):
         foo.close()
         sb.upload_file("validation_test.txt", "validation_test.txt")
         result = self.validator.validate_gs_url(
-            "gs://broad-cil-devel-bucket/broad-file-inputs/validation_test.txt")  # noqa
+            "gs://broad-cil-devel-bucket/broad-file-inputs/validation_test.txt")
         self.assertTrue(result)
 
     def test_get_wdl_args(self):
@@ -128,7 +128,7 @@ class ValidatorUnitTestsBad(unittest.TestCase):
     def test_validate_param_json(self):
         self.logger.info("Testing validate_param_json...")
         ref_dict = {
-            "gatk.samples_file": "/cil/shed/sandboxes/amr/dev/gatk_pipeline/data/pfal_5.tsv"}  # noqa
+            "gatk.samples_file": "/cil/shed/sandboxes/amr/dev/gatk_pipeline/data/pfal_5.tsv"}
         for k, v in self.json_args.items():
             self.assertIs(self.validator.validate_param(k, ref_dict), False)
 

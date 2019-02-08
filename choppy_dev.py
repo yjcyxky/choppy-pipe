@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 """
-Choppy is a tool for submitting workflows via command-line to the cromwell execution engine servers. # noqa
+Choppy is a tool for submitting workflows via command-line to the cromwell execution engine servers.
 """
 import os
 import sys

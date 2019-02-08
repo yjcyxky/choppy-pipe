@@ -10,13 +10,31 @@ from choppy.utils import print_obj
 logger = logging.getLogger(__name__)
 
 
-def run_copy_files(first_path, second_path, include=None, exclude=None, recursive=True, silent=False):  # noqa
+def run_copy_files(first_path, second_path, include=None, exclude=None,
+                   recursive=True, silent=False):
+    """
+    Call ossutil and copy files from one place to anothers.
+
+    :param: first_path: source path.
+    :type: first_path: str
+    :param: second_path: destination path.
+    :type: second_path: str
+    :param: include: include which files.
+    :type: include: list
+    :param: exclude: which files.
+    :type: exclude: list
+    :param: recursive: copy files recursively or not.
+    :type: recursive: bool
+    :param: silent: no any exception and warning, just let it go.
+    :type: silent: bool
+    :return:
+    """
     output_dir = os.path.join(c.log_dir, 'oss_outputs')
     checkpoint_dir = os.path.join(c.log_dir, 'oss_checkpoint')
 
     try:
-        shell_cmd = [c.oss_bin, "cp", "-u", "-i", c.access_key, "-k", c.access_secret,  # noqa
-                     "--output-dir=%s" % output_dir, "--checkpoint-dir=%s" % checkpoint_dir,  # noqa
+        shell_cmd = [c.oss_bin, "cp", "-u", "-i", c.access_key, "-k", c.access_secret,
+                     "--output-dir=%s" % output_dir, "--checkpoint-dir=%s" % checkpoint_dir,
                      "-e", c.endpoint]
         if include:
             shell_cmd.extend(["--include", include])

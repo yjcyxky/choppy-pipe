@@ -47,7 +47,7 @@ def get_packages(package):
 setup(
     name='choppy',
     version=get_version(),
-    description='A command-line tool for executing WDL workflows on Cromwell servers.',  # noqa
+    description='A command-line tool for executing WDL workflows on Cromwell servers.',
     long_description=open('README.md').read(),
     author='Jingcheng Yang',
     author_email='yjcyxky@163.com',

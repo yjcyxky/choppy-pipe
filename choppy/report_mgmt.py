@@ -1,4 +1,16 @@
 # coding: utf-8
+"""
+Report management module:
+1. Building report contains four stages: context stage, preprocessor stage, renderer stage, and report stage.
+2. Context will get all environment variables in context stage, these variables will be used for remaining stages.
+3. Preprocessor will check the app's report whether is valid or not and copy all template files from app directory to temporary report directory in preprocessor stage.
+4. Renderer will render all template files in temporary report directory and write to report markdown directory of a project, and then copy all dependency files of markdown files to the same directory.
+5. Report will call mkdocs to build markdown files as html files. mkdocs will run a series of plugins, such as plot plugins, format conversion plugins, and evaluation plugins, to parse new markdown syntax. and then build markdown files.
+
+Plot plugin for generate dynamic interactive plot or static image.
+Format conversion plugin for converting one format to another.
+Evaluation plugin for get value from the expression.
+"""
 from __future__ import unicode_literals
 
 import logging
@@ -24,6 +36,7 @@ from choppy.exceptions import InValidDefaults, InValidReport
 
 logger = logging.getLogger(__name__)
 
+# Any app report MUST have these template files.
 TEMPLATE_FILES = [
     'about/app_store.md',
     'about/app.md',
@@ -37,7 +50,7 @@ TEMPLATE_FILES = [
 
 class ReportDefaultVar:
     """
-    Report Default File Management.
+    Report defaults file management interface. App developer can set default variable in the defaults file and ReportDefaultVar will maintain all variables in the memory from defaults file. Moreover user can modify the default value in the defaults file by using ReportDefaultVar's methods.
     """
     def __init__(self, defaults):
         self.defaults = defaults
@@ -46,6 +59,7 @@ class ReportDefaultVar:
     def _parse(self):
         """
         Parse defaults file and convert it to a dict.
+
         :return: a dict.
         """
         if os.path.isfile(self.defaults):
@@ -61,6 +75,7 @@ class ReportDefaultVar:
     def get(self, key):
         """
         Get value from defaults file by using key.
+
         :param key: a string
         :return: value that is related with the key.
         """
@@ -69,6 +84,7 @@ class ReportDefaultVar:
     def has_key(self, key):
         """
         Whether the key is in defaults file.
+
         :param key: a string
         :return: boolean(True or False)
         """
@@ -80,6 +96,7 @@ class ReportDefaultVar:
     def diff(self, key_list):
         """
         Get difference set between default variables and key_list.
+
         :param key_list: a list that contains all you wanted variable key.
         :return: a set that contains all different keys.
         """
@@ -91,6 +108,7 @@ class ReportDefaultVar:
     def set_default_value(self, key, value):
         """
         Update a default variable by using key:value mode.
+
         :param key: variable name.
         :param value: variable value.
         :return:
@@ -100,6 +118,7 @@ class ReportDefaultVar:
     def set_default_vars(self, vars_dict):
         """
         Update default vars by using dict update method.
+
         :param vars_dict: a dict that is waiting for update.
         :return:
         """
@@ -108,6 +127,7 @@ class ReportDefaultVar:
     def get_default_vars(self, key_list):
         """
         Get all keys that are default variables and are in key_list.
+
         :param key_list: a list that contains all you wanted variable key.
         :return: a list that contains all intersection keys.
         """
@@ -118,6 +138,7 @@ class ReportDefaultVar:
     def show_default_value(self, key_list=list()):
         """
         Show default variables and values that defined in defaults file.
+
         :param key_list: a list that contains all you wanted variable key.
         :return: a dict, just like defaults json file.
         """
@@ -144,8 +165,7 @@ class ReportDefaultVar:
 
 class Context:
     """
-    The context class maintain a context database that store metadata related with project
-     and provide a set of manipulation functions.
+    The context class maintain a context database that store metadata related with project and provide a set of manipulation functions.
     """
     def __init__(self, app_name, project_dir, server='localhost', editable=True,
                  sample_id_pattern='', cached_metadata=True,
@@ -153,17 +173,18 @@ class Context:
         self.logger = logging.getLogger(__name__)
         host, port, auth = c.get_conn_info(server)
         self.cromwell = Cromwell(host, port, auth)
+        self.project_dir = project_dir
 
         self._context = {
-            # Mkdocs
+            # For Mkdocs
             'app_name': app_name,
             'app_installation_dir': c.app_dir,
             'current_app_dir': os.path.join(c.app_dir, app_name),
             'editable': editable,
-            'project_dir': project_dir,
+            'project_dir': self.project_dir,
             'docs_dir': 'report_markdown',
             'html_dir': 'report_html',
-            'project_name': os.path.basename(project_dir),
+            'project_name': os.path.basename(self.project_dir),
             'site_name': 'Choppy Report',
             'repo_url': 'http://choppy.3steps.cn',
             'site_description': 'Choppy is a painless reproducibility manager.',
@@ -172,7 +193,8 @@ class Context:
             'extra_css_lst': ['http://kancloud.nordata.cn/2019-02-01-choppy-extra.css'],
             'extra_js_lst': [],
             'theme_name': 'mkdocs',
-            # Workflow
+
+            # For App
             'report_menu': [
                 {
                     'key': 'Home',
@@ -213,7 +235,7 @@ class Context:
             'sample_id_lst': [],
             'workflow_id_lst': [],
             'ids': {},  # All sample_id: workflow_id key value pairs.
-            'defaults': {},  # report defaults file.
+            'defaults': {},  # from report defaults file.
             'cached_files': {}
         }
 
@@ -254,6 +276,9 @@ class Context:
 
     @property
     def context(self):
+        """
+        Return the context's value.
+        """
         return self._context
 
     def _parse_task_outputs(self, metadata):
@@ -468,28 +493,34 @@ class Context:
             self._context['report_menu'][1]['value'] = project_menu
 
     def get_submitted_jobs(self):
-        submitted_file = os.path.join(self._context.get('project_dir'), 'submitted.csv')
+        # Fix bug: can not get project_dir by self._context.get('project_dir')
+        # self._context doesn't exist when get_submmitted_jobs is called.
+        submitted_file = os.path.join(self.project_dir, 'submitted.csv')
 
+        dict_list = []
         if os.path.exists(submitted_file):
             reader = csv.DictReader(open(submitted_file, 'rt'))
-            dict_list = []
 
             for line in reader:
                 dict_list.append(line)
 
-            return dict_list
+        return dict_list
 
     def get_failed_jobs(self):
-        failed_file = os.path.join(self._context.get('project_dir'), 'failed.csv')
+        # Fix bug: can not get project_dir by self._context.get('project_dir')
+        # self._context doesn't exist when get_failed_jobs is called.
+        failed_file = os.path.join(self.project_dir, 'failed.csv')
 
+        # Fix bug: failed_jobs must be iterable nor None
+        # so we need return empty list when failed.csv doesn't exist.
+        dict_list = []
         if os.path.exists(failed_file):
             reader = csv.DictReader(open(failed_file, 'rt'))
-            dict_list = []
 
             for line in reader:
                 dict_list.append(line)
 
-            return dict_list
+        return dict_list
 
     def _get_workflow_metadata(self, workflow_id=None):
         """
@@ -620,6 +651,9 @@ class Renderer:
         pass
 
     def get_dependent_files(self):
+        """
+        Get all dependent files from temporary report directory except markdown template files. e.g. images, data etc. Maybe these files is generated by Preprocessor class.
+        """
         dependent_files = []
         for root, dirnames, filenames in os.walk(self.template_dir):
             for filename in filenames:
@@ -670,6 +704,9 @@ class Preprocessor:
         self._context = context
 
     def _copy_app_templates(self, dest_dir):
+        """
+        Copy app templates from app directory to temporary report directory.
+        """
         copy_and_overwrite(self.app_report_dir, dest_dir)
 
     def process(self, dest_dir):
@@ -782,8 +819,8 @@ def build(app_name, project_dir, resource_dir=c.resource_dir, repo_url='',
         logger.info('Skip generate context and render markdown.')
     else:
         # Context: generate context metadata.
-        logger.info('\n1. Generate report context.')
-        ctx_instance = Context(project_dir, server=server, editable=editable,
+        logger.info('1. Generate report context.')
+        ctx_instance = Context(app_name, project_dir, server=server, editable=editable,
                                sample_id_pattern='', cached_metadata=cached_metadata,
                                by_workflow=by_workflow)
         ctx_instance.set_extra_context(repo_url=repo_url, site_description=site_description,
@@ -799,7 +836,7 @@ def build(app_name, project_dir, resource_dir=c.resource_dir, repo_url='',
         check_dir(tmp_report_dir, skip=True, force=True)
 
         logger.debug('Temporary report directory: %s' % tmp_report_dir)
-        logger.info('2. Try to preprocess an app report.')
+        logger.info('\n2. Try to preprocess an app report.')
         try:
             preprocessor = Preprocessor(app_dir, ctx_instance)
             preprocessor.process(tmp_report_dir)
