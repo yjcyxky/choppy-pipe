@@ -184,6 +184,7 @@ class Context:
             'project_dir': self.project_dir,
             'docs_dir': 'report_markdown',
             'html_dir': 'report_html',
+            'plugin_dir': os.path.join(self.project_dir, 'report_html'),
             'project_name': os.path.basename(self.project_dir),
             'site_name': 'Choppy Report',
             'repo_url': 'http://choppy.3steps.cn',
@@ -784,7 +785,8 @@ class Report:
     def server(self, dev_addr=None, livereload='livereload'):
         self._check_config("Attempting to serve docs but the mkdocs.yml doesn't exist."
                            " You need to call render/new firstly.", load_config=False)
-        serve_docs(config_file=self.config_file, dev_addr=dev_addr, livereload=livereload)
+        serve_docs(config_file=self.config_file, dev_addr=dev_addr, livereload=livereload,
+                   site_dir=self.site_dir)
 
 
 def build(app_name, project_dir, resource_dir=c.resource_dir, repo_url='',

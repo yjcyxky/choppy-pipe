@@ -33,7 +33,8 @@ from choppy.check_utils import (is_valid_label, is_valid_project_name, is_valid,
 from choppy.version import get_version
 from choppy.docker_mgmt import get_parser, get_default_image, get_base_images
 from choppy.report_mgmt import get_mode
-from choppy.utils import get_copyright, BashColors, ReportTheme, print_obj
+from choppy.utils import (get_copyright, BashColors, ReportTheme, print_obj,
+                          clean_temp_dir)
 from choppy.exceptions import NotFoundApp, WrongAppDir
 
 __author__ = "Jingcheng Yang"
@@ -45,39 +46,29 @@ __maintainer__ = "Jingcheng Yang"
 __email__ = "yjcyxky@163.com"
 __status__ = "Production"
 
+
 logger = logging.getLogger('choppy')
 
 
-def set_logger(log_name, subdir="project_logs"):
-    global logger
-    # Logging setup
-    logger.setLevel(c.log_level)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    # create file handler which logs even debug messages
+def set_logger(log_name, loglevel, handler='stream', subdir="project_logs"):
     if subdir:
         project_logs = os.path.join(c.log_dir, "project_logs")
         check_dir(project_logs, skip=True)
         logfile = os.path.join(project_logs, '{}_choppy.log'.format(log_name))
     else:
         logfile = os.path.join(c.log_dir, '{}_{}_choppy.log'.format(str(time.strftime("%Y-%m-%d")), log_name))
-    fh = logging.FileHandler(logfile)
-    fh.setLevel(c.log_level)
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
 
-
-def set_ch_logger(ch_log_level):
-    # create console handler with a higher log level
-    if ch_log_level == logging.DEBUG:
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    if handler != 'stream':
+        fhandler = logging.FileHandler(logfile)
     else:
-        formatter = logging.Formatter('%(message)s')
-    ch = logging.StreamHandler()
-    ch.setLevel(ch_log_level)
-    ch.setFormatter(formatter)
+        fhandler = None
 
-    # add the handlers to the logger
-    logger.addHandler(ch)
+    if loglevel == logging.DEBUG:
+        fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        coloredlogs.install(level=loglevel, fmt=fmt, stream=fhandler)
+    else:
+        fmt = '%(message)s'
+        coloredlogs.install(level=loglevel, fmt=fmt, stream=fhandler)
 
 
 def call_submit(args):
@@ -939,6 +930,8 @@ parser = argparse.ArgumentParser(
     usage='choppy <positional argument> [<args>]',
     formatter_class=argparse.RawDescriptionHelpFormatter)
 
+parser.add_argument('--handler', action='store', default='stream', choices=('stream', 'file'),
+                    help="Log handler, stream or file?")
 parser.add_argument('--debug', action='store_true', default=False, help="Debug mode.")
 
 sub = parser.add_subparsers(title='commands', description=description)
@@ -1387,26 +1380,23 @@ def main():
         sys.exit(exit_code.CONFIG_FILE_NOT_EXIST)
 
     user = c.getuser()
-    # Get user's username so we can tag workflows and logs for them.
-    if not args.debug:
-        set_ch_logger(logging.INFO)
-    else:
-        coloredlogs.install(level='DEBUG')
 
+    if args.debug:
+        loglevel = logging.DEBUG
+    else:
+        loglevel = c.log_level
+
+    # Get user's username so we can tag workflows and logs for them.
     if hasattr(args, 'project_name'):
         check_identifier(args.project_name)
-        set_logger(args.project_name)
+        set_logger(args.project_name, loglevel=loglevel, handler=args.handler)
     else:
-        set_logger(user, subdir=None)
+        set_logger(user, loglevel=loglevel, handler=args.handler, subdir=None)
 
-    if args.debug:
-        logger.debug("\n-------------New Choppy Execution by {}-------------\n".format(user))
-        logger.debug("Parameters chosen: {}".format(vars(args)))
+    # Clean up the temp directory
+    clean_temp_dir('/tmp/choppy/')
 
     args.func(args)
-
-    if args.debug:
-        logger.debug("\n-------------End Choppy Execution by {}-------------\n".format(user))
 
 
 if __name__ == "__main__":

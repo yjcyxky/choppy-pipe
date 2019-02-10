@@ -128,6 +128,7 @@ def is_valid_oss_link(path):
 def check_dir(path, skip=False, force=True):
     """
     Check whether path exists.
+
     :param path: directory path.
     :param skip: Boolean, Raise exception when skip is False and directory exists.
     :param force: Boolean, Force to make directory when directory doesn't exist?
@@ -145,6 +146,7 @@ def check_dir(path, skip=False, force=True):
 def is_valid(path):
     """
     Integrates with ArgParse to validate a file path.
+
     :param path: Path to a file.
     :return: The path if it exists, otherwise raises an error.
     """
@@ -157,9 +159,10 @@ def is_valid(path):
 
 def is_valid_zip(path):
     """
-    Integrates with argparse to validate a file path and verify that the file is a zip file. # noqa
+    Integrates with argparse to validate a file path and verify that the file is a zip file.
+
     :param path: Path to a file.
-    :return: The path if it exists and is a zip file, otherwise raises an error. # noqa
+    :return: The path if it exists and is a zip file, otherwise raises an error.
     """
     is_valid(path)
     if not zipfile.is_zipfile(path):
@@ -171,9 +174,10 @@ def is_valid_zip(path):
 
 def is_valid_zip_or_dir(path):
     """
-    Integrates with argparse to validate a file path and verify that the file is a zip file. # noqa
+    Integrates with argparse to validate a file path and verify that the file is a zip file.
+
     :param path: Path to a file.
-    :return: The path if it exists and is a zip file, otherwise raises an error. # noqa
+    :return: The path if it exists and is a zip file, otherwise raises an error.
     """
     if os.path.isdir(path):
         return path

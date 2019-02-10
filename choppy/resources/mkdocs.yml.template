@@ -36,9 +36,11 @@ use_directory_urls: false
 
 markdown_extensions:
     - toc:
-        permalink: 
+        permalink: True
     - admonition
     - def_list
+    - mk_media_extension:
+        net_dir: {{ context.plugin_dir }}
 
 plugins:
     - search:

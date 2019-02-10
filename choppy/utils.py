@@ -77,3 +77,8 @@ def print_obj(str):
         print(unicode(str).encode('utf8'))
     except NameError:  # For Python3
         print(str)
+
+
+def clean_temp_dir(temp_dir):
+    # Clean temp directory
+    shutil.rmtree(temp_dir, ignore_errors=True)
