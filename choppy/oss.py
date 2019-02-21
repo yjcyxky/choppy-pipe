@@ -12,6 +12,18 @@ logger = logging.getLogger(__name__)
 
 def run_copy_files(first_path, second_path, include=None, exclude=None,
                    recursive=True, silent=False):
+    if isinstance(first_path, list):
+        for path in first_path:
+            logger.info('\nDownloading %s' % path)
+            oss_copy_func(path, second_path, include=include, exclude=exclude,
+                          recursive=recursive, silent=silent)
+    elif isinstance(first_path, str):
+        oss_copy_func(first_path, second_path, include=include, exclude=exclude,
+                      recursive=recursive, silent=silent)
+
+
+def oss_copy_func(first_path, second_path, include=None, exclude=None,
+                  recursive=True, silent=False):
     """
     Call ossutil and copy files from one place to anothers.
 
@@ -46,13 +58,15 @@ def run_copy_files(first_path, second_path, include=None, exclude=None,
             shell_cmd.extend(["-r"])
 
         shell_cmd.extend([first_path, second_path])
+
+        logger.debug('Running Command: %s' % ' '.join(shell_cmd))
         process = Popen(shell_cmd, stdout=PIPE)
         while process.poll() is None:
             output = process.stdout.readline()
             if output == '' and process.poll() is not None:
                 break
             if output and not silent:
-                print_obj(output.strip())
+                print_obj(output.strip().decode())
                 sys.stdout.flush()
             process.poll()
     except CalledProcessError as e:

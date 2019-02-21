@@ -18,7 +18,10 @@ Invalid JSON
 from __future__ import unicode_literals
 import re
 import sys
+import logging
 from choppy import exit_code
+
+logger = logging.getLogger(__name__)
 
 try:
     import json
@@ -36,6 +39,11 @@ except Exception:  # For Python2.7
     JSONDecodeError = ValueError
 
 
+class DictStruct:
+    def __init__(self, **entries):
+        self.__dict__.update(entries)
+
+
 def parse_error(err):
     """
     "Parse" error string (formats) raised by (simple)json:
@@ -44,57 +52,53 @@ def parse_error(err):
     '%s: line %d column %d - line %d column %d (char %d - %d)'
     """
     return re.match(r"""^
-      (?P<msg>[^:]+):\s+
+      (?P<msg>.+):\s+
       line\ (?P<lineno>\d+)\s+
       column\ (?P<colno>\d+)\s+
       (?:-\s+
         line\ (?P<endlineno>\d+)\s+
         column\ (?P<endcolno>\d+)\s+
       )?
-      \(char\ (?P<pos>\d+)(?:\ -\ (?P<end>\d+))?\)
-  $""", err, re.VERBOSE)
+      \(char\ (?P<pos>\d+)(?:\ -\ (?P<end>\d+))?\)$""", err, re.VERBOSE)
 
 
-def check_json(json_file=None, str=''):
+def check_json(json_file=None, string=''):
     try:
         if json_file:
             with open(json_file) as f:
                 json.load(f)
         else:
-            json.loads(str)
-    except JSONDecodeError as err:
+            json.loads(string)
+    except JSONDecodeError as error:
         if json_file:
-            print("Invalid JSON: %s\n" % json_file)
+            logger.error("Invalid JSON: %s" % json_file)
         else:
-            print("Invalid JSON\n")
+            logger.error("Invalid JSON")
 
         if json_file:
             with open(json_file) as f:
-                str = f.read()
+                string = f.read()
 
-        str = StringIO(str)
+        string = StringIO(string)
 
         try:  # For Python2.7
-            msg = err.message
-            err = parse_error(msg).groupdict()
-            # cast int captures to int
-            for k, v in err.items():
-                if v and v.isdigit():
-                    err[k] = int(v)
-
-            for ii, line in enumerate(str.readlines()):
-                if ii == err["lineno"] - 1:
-                    break
-            print("%s\n%s\n%s^-- %s\n" % (msg, line.replace("\n", ""),
-                                          " " * (err["colno"] - 1),
-                                          err["msg"]))
+            err_msg = error.message
+            err_dict = parse_error(err_msg).groupdict()
+        # Python3 AttributeError: 'JSONDecodeError' object has no attribute 'message'
         except Exception:  # For Python3
-            for ii, line in enumerate(str.readlines()):
-                if ii == err.lineno - 1:
-                    break
+            err_msg = str(error)
+            err_dict = parse_error(err_msg).groupdict()
 
-            print("%s\n%s\n%s^-- %s\n" % (err.msg, line.replace("\n", ""),
-                                          " " * (err.colno - 1),
-                                          err.msg))
+        # cast int captures to int
+        for k, v in err_dict.items():
+            if v and v.isdigit():
+                err_dict[k] = int(v)
+
+        err = DictStruct(**err_dict)
+        for ii, line in enumerate(string.readlines()):
+            if ii == err.lineno - 1:
+                logger.error("%s\n\n%s\n%s^-- %s\n" % (err_msg, line.replace("\n", ""),
+                             " " * (err.colno - 1),
+                             err.msg))
 
         sys.exit(exit_code.JSON_NOT_VALID)

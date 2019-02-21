@@ -30,7 +30,7 @@ from choppy.app_utils import (kv_list_to_dict, install_app, uninstall_app,
 from choppy.check_utils import (is_valid_label, is_valid_project_name, is_valid,
                                 is_valid_oss_link, check_dir, check_identifier,
                                 is_valid_zip_or_dir, is_valid_app_name,
-                                get_all_variables, check_variables, is_valid_url)
+                                get_all_variables, check_variables, is_valid_url,)
 from choppy.version import get_version
 from choppy.docker_mgmt import get_parser, get_default_image, get_base_images
 from choppy.report_mgmt import get_mode
@@ -83,8 +83,10 @@ def call_submit(args):
     from choppy.cromwell import Cromwell
 
     dependencies = args.dependencies
-    if os.path.isdir(dependencies):
+    if dependencies and os.path.isdir(dependencies):
         dependencies = generate_dependencies_zip(dependencies)
+
+    check_json(json_file=args.json)
 
     if args.validate:
         call_validate(args)
@@ -94,7 +96,6 @@ def call_submit(args):
     labels_dict['username'] = args.username.lower()
     host, port, auth = c.get_conn_info(args.server)
     cromwell = Cromwell(host, port, auth)
-    check_json(json_file=args.json)
     result = cromwell.jstart_workflow(wdl_file=args.wdl, json_file=args.json,
                                       dependencies=dependencies,
                                       disable_caching=args.disable_caching,
@@ -210,11 +211,11 @@ def call_monitor(args):
     try:
         if args.daemon:
             m = Monitor(host=args.server, user="*", no_notify=args.no_notify,
-                        verbose=args.verbose, interval=args.interval)
+                        verbose=args.verbosity, interval=args.interval)
             m.run()
         else:
             m = Monitor(host=args.server, user=args.username.lower(),
-                        no_notify=args.no_notify, verbose=args.verbose,
+                        no_notify=args.no_notify, verbose=args.verbosity,
                         interval=args.interval)
             if args.workflow_id:
                 m.monitor_workflow(args.workflow_id)
@@ -554,14 +555,16 @@ def call_list_files(args):
             else:
                 shell_cmd.append('-s')
 
-        output = check_output(shell_cmd).splitlines()
+        logger.debug('Running command: %s' % ' '.join(shell_cmd))
+        output = check_output(shell_cmd).decode().splitlines()
 
         if len(output) > 2:
             for i in output[0:-2]:
                 print_obj("%s" % i)
                 sys.stdout.flush()
-    except CalledProcessError:
+    except (CalledProcessError, TypeError) as err:
         logger.critical("access_key/access_secret or oss_link is not valid.")
+        logger.debug("Error msg: %s" % str(err))
 
 
 def call_upload_files(args):
@@ -578,10 +581,19 @@ def call_download_files(args):
     from choppy.oss import run_copy_files
 
     oss_link = args.oss_link
-    local_path = args.local_path
+    oss_link_file = args.input_file
+    local_path = args.output_dir
     include = args.include
     exclude = args.exclude
-    run_copy_files(oss_link, local_path, include, exclude)
+    recursive = args.recursive
+
+    if oss_link_file:
+        with open(oss_link_file, 'r') as f:
+            oss_links = [line.strip() for line in f.readlines() if line.strip()]
+    else:
+        is_valid_oss_link(oss_link)
+        oss_links = oss_link
+    run_copy_files(oss_links, local_path, include, exclude, recursive=recursive)
 
 
 def call_cp_remote_files(args):
@@ -655,7 +667,7 @@ def call_samples(args):
 
 
 def call_version(args):
-    logger.info("Choppy %s" % get_version())
+    print("Choppy %s" % get_version())
 
 
 def call_config(args):
@@ -1002,7 +1014,7 @@ monitor.add_argument('-u', '--username', action='store', default=c.getuser(), ty
                      help='Owner of workflows to monitor.')
 monitor.add_argument('-i', '--interval', action='store', default=30, type=int,
                      help='Amount of time in seconds to elapse between status checks.')
-monitor.add_argument('-V', '--verbose', action='store_true', default=False,
+monitor.add_argument('-V', '--verbosity', action='store_true', default=False,
                      help='When selected, choppy will write the current status to STDOUT until completion.')
 monitor.add_argument('-n', '--no_notify', action='store_true', default=False,
                      help='When selected, disable choppy e-mail notification of workflow completion.')
@@ -1050,7 +1062,7 @@ submit.add_argument('-o', '--extra_options', action='append',
                     help='Additional workflow options to pass to Cromwell. Specify as k:v pairs. May be specified multiple'
                          'times for multiple options. See https://github.com/broadinstitute/cromwell#workflow-options'
                          'for available options.')
-submit.add_argument('-V', '--verbose', action='store_true', default=False,
+submit.add_argument('-V', '--verbosity', action='store_true', default=False,
                     help='If selected, choppy will write the current status to STDOUT until completion while monitoring.')
 submit.add_argument('-n', '--no_notify', action='store_true', default=False,
                     help='When selected, disable choppy e-mail notification of workflow completion.')
@@ -1196,13 +1208,15 @@ upload_files.add_argument('--exclude', action='store', help='Exclude Pattern of 
 upload_files.set_defaults(func=call_upload_files)
 
 download_files = sub.add_parser(name="download",
-                                description="Download file/directory to the specified bucket.",
-                                usage="choppy download <oss_link> <local_path> [<args>]",
+                                description="Download file/directory from the specified bucket.",
+                                usage="choppy download <oss_link>/<oss_link_file> <local_path> [<args>]",
                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-download_files.add_argument('oss_link', action='store', type=is_valid_oss_link, help='OSS Link.')
-download_files.add_argument('local_path', action='store', type=is_valid, help='local_path.')
+download_files.add_argument('oss_link', action='store', help='OSS Link.', nargs='?', default=None)
+download_files.add_argument('-i', '--input-file', action='store', type=is_valid, help='OSS link file.')
+download_files.add_argument('-o', '--output-dir', action='store', default='.', type=is_valid, help='local_path.')
 download_files.add_argument('--include', action='store', help='Include Pattern of key, e.g., *.jpg')
 download_files.add_argument('--exclude', action='store', help='Exclude Pattern of key, e.g., *.txt')
+download_files.add_argument('-r', '--recursive', action='store_true', default=False, help='Operate recursively')
 download_files.set_defaults(func=call_download_files)
 
 copy_files = sub.add_parser(name="copy",
@@ -1397,8 +1411,6 @@ def main():
                         % c.CONFIG_FILES)
         sys.exit(exit_code.CONFIG_FILE_NOT_EXIST)
 
-    user = c.getuser()
-
     if args.debug:
         loglevel = logging.DEBUG
     elif args.verbose:
@@ -1417,6 +1429,7 @@ def main():
     else:
         loglevel = c.log_level
 
+    user = c.getuser()
     # Get user's username so we can tag workflows and logs for them.
     if hasattr(args, 'project_name'):
         check_identifier(args.project_name)

@@ -39,11 +39,11 @@ class ReportTheme:
         return theme_lst
 
 
-def print_obj(str):
+def print_obj(string):
     try:  # For Python2.7
-        print(unicode(str).encode('utf8'))
+        print(unicode(string).encode('utf8'))
     except NameError:  # For Python3
-        print(str.decode('utf-8'))
+        print(string)
 
 
 def clean_tmp_dir(tmp_dir):

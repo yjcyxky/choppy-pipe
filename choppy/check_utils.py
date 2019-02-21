@@ -125,6 +125,12 @@ def is_valid_oss_link(path):
             "%s is not a valid oss link.\n" % path)
 
 
+def is_valid_oss_links(oss_link_lst):
+    if isinstance(oss_link_lst, list):
+        for oss_link in oss_link_lst:
+            is_valid_oss_link(oss_link)
+
+
 def check_dir(path, skip=False, force=True):
     """
     Check whether path exists.

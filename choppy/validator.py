@@ -28,6 +28,7 @@ class Validator:
     def get_json(self):
         """
         Get a dict representation of the json file.
+
         :return: dict
         """
         fh = open(self.json)
@@ -38,18 +39,20 @@ class Validator:
     def get_wdl_args(self, optional=True):
         """
         Uses wdl-tool to get the expected arguments from the WDL file.
+
         :param optional: Include optional arguments if true.
         :return: Returns a dictionary of wdl arguments as keys and expected type as as value. # noqa
         """
         try:
             os.chdir(os.path.dirname(self.wdl))
         except OSError:
-            print('Warning: Could not navigate to WDL directory.')
+            self.logger.warn('Warning: Could not navigate to WDL directory.')
         cmd = ['java', '-jar', self.wdl_tool, 'inputs', self.wdl]
         try:
-            run = subprocess.check_output(cmd).decode("utf-8")
+            run = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode("utf-8")
         except subprocess.CalledProcessError:
-            print("Unable to execute womtool command. Make sure any subworkflow wdl files are present and try again.")
+            self.logger.warn("Unable to execute womtool command. "
+                             "Make sure any subworkflow wdl files are present and try again.")
             sys.exit(exit_code.WOMTOOL_CAN_NOT_EXECUTE)
 
         try:
@@ -61,14 +64,16 @@ class Validator:
                     {k: v for k, v in d.items() if "optional" not in v})
                 return json.loads(ds)
         except ValueError:
-            print("Something went wrong with getting args. Note that if using validation, unzipped WDL dependencies "
-                  "must be in same directory as main WDL.\n "
-                  "Alternatively, turn off validation or use choppy.py validate")
+            self.logger.error("Something went wrong with getting args. "
+                              "Note that if using validation, unzipped WDL dependencies "
+                              "must be in same directory as main WDL.\n "
+                              "Alternatively, turn off validation or use choppy.py validate")
             sys.exit(exit_code.VALIDATE_ERROR)
 
     def validate_json(self):
         """
-        A function for validating a json file intended for WDL execution against the WDL file. # noqa
+        A function for validating a json file intended for WDL execution against the WDL file.
+
         :return: A list of errors found with the json file.
         """
         errors = list()
@@ -135,8 +140,8 @@ class Validator:
 
     def validate_samples_array(self, samples_array):
         """
-        Validates a TSV sample file array (passed as an array) used in WDL inputs. # noqa
-        Assumes that last column of each row contains an absolute path to a file.
+        Validates a TSV sample file array (passed as an array) used in WDL inputs. Assumes that last column of each row contains an absolute path to a file.
+
         :param samples_array: an array with the last column of each row containing a file path.
         :return: A list of errors. If list is empty, there were no errors.
         """
@@ -150,8 +155,8 @@ class Validator:
     @staticmethod
     def validate_array(i):
         """
-        Returns true if the input value is of class list, false if not. Note that isinstance does not behave as # noqa
-        expected here, hence why I use type instead.
+        Returns true if the input value is of class list, false if not. Note that isinstance does not behave as expected here, hence why I use type instead.
+
         :param i: input parameter
         :return: Boolean
         """
@@ -164,6 +169,7 @@ class Validator:
     def validate_param(param, wdict):
         """
         Returns true if the param exists in WDL, false if not.
+
         :param param: the param to evaluate
         :param wdict: dictionary of wdl args
         :return: Boolean
@@ -177,6 +183,7 @@ class Validator:
     def validate_string(i):
         """
         Returns true if object is string, false if not.
+
         :param i: input object
         :return: Boolean
         """
@@ -191,6 +198,7 @@ class Validator:
     def validate_file(f):
         """
         Validates that a particular file exists in the file system.
+
         :param f:
         :return: Boolean
         """
@@ -200,6 +208,7 @@ class Validator:
     def validate_boolean(i):
         """
         Returns true if object is a boolean, false if not.
+
         :param i: input object
         :return: Boolean
         """
@@ -209,6 +218,7 @@ class Validator:
     def validate_int(i):
         """
         Returns true if object is an int, false if not.
+
         :param i: input object
         :return: Boolean
         """
@@ -218,6 +228,7 @@ class Validator:
     def validate_float(i):
         """
         Returns true if object is a float, false if not.
+
         :param i: input object
         :return: Boolean
         """
