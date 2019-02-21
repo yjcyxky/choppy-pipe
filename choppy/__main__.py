@@ -1403,14 +1403,6 @@ def main():
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
-    # Fix bug: user need to set choppy.conf before running choppy.
-    if args.func != call_config and c.conf_path == c.conf_file_example:
-        logger.critical("Error: Not Found choppy.conf.\n\n"
-                        "You need to run `choppy config` to generate "
-                        "config template, modify it and copy to the one of directories %s.\n"
-                        % c.CONFIG_FILES)
-        sys.exit(exit_code.CONFIG_FILE_NOT_EXIST)
-
     if args.debug:
         loglevel = logging.DEBUG
     elif args.verbose:
@@ -1425,7 +1417,7 @@ def main():
         elif verbose >= 1:
             loglevel = logging.NOTICE
     elif args.quite:
-        loglevel = logging.CRITICAL
+        loglevel = logging.ERROR
     else:
         loglevel = c.log_level
 
@@ -1436,6 +1428,14 @@ def main():
         set_logger(args.project_name, loglevel=loglevel, handler=args.handler)
     else:
         set_logger(user, loglevel=loglevel, handler=args.handler, subdir=None)
+
+    # Fix bug: user need to set choppy.conf before running choppy.
+    if args.func != call_config and args.func != call_version and c.conf_path == c.conf_file_example:
+        logger.fatal("Error: Not Found choppy.conf.\n\n"
+                     "You need to run `choppy config` to generate "
+                     "config template, modify it and copy to the one of directories %s.\n"
+                     % c.CONFIG_FILES)
+        sys.exit(exit_code.CONFIG_FILE_NOT_EXIST)
 
     # Clean up the temp directory
     clean_tmp_dir(c.tmp_dir)
