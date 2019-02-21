@@ -15,8 +15,8 @@ from choppy.app_utils import listapps
 from choppy.check_utils import check_dir, is_valid_project_name
 from choppy.workflow import run_batch
 from choppy.choppy_store import ChoppyStore
-from choppy.utils import BashColors
 
+logger = logging.getLogger(__name__)
 cromwell_server = 'localhost'
 api_version = 'v1'
 api_prefix = '/api/%s' % api_version
@@ -198,14 +198,12 @@ def run_server(args):
         # efficient.  We should use something better.
         #
         if framework == "GEVENT":
-            BashColors.print_color('SUCCESS', "Starting gevent based server")
-            BashColors.print_color('SUCCESS',
-                                   'Running Server: %s:%s' % get_default_server())
+            logger.success("Starting gevent based server")
+            logger.success('Running Server: %s:%s' % get_default_server())
             svc = WSGIServer(get_default_server(), flask_app)
             svc.serve_forever()
         else:
-            BashColors.print_color('SUCCESS', "Starting bjoern based server")
+            logger.success("Starting bjoern based server")
             host, port = get_default_server()
-            BashColors.print_color('SUCCESS',
-                                   'Running Server: %s:%s' % (host, port))
+            logger.success('Running Server: %s:%s' % (host, port))
             bjoern.run(flask_app, host, port, reuse_port=True)

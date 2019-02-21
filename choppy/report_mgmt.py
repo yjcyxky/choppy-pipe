@@ -24,6 +24,7 @@ import uuid
 
 from mkdocs import config
 from jinja2 import Environment, FileSystemLoader
+from jinja2.exceptions import TemplateSyntaxError
 from mkdocs.commands.build import build as build_docs
 from mkdocs.commands.serve import serve as serve_docs
 
@@ -31,7 +32,7 @@ import choppy.config as c
 import choppy.exit_code as exit_code
 from choppy.cromwell import Cromwell
 from choppy.check_utils import check_dir
-from choppy.utils import BashColors, copy_and_overwrite, get_copyright
+from choppy.utils import copy_and_overwrite, get_copyright
 from choppy.exceptions import InValidDefaults, InValidReport
 
 logger = logging.getLogger(__name__)
@@ -168,15 +169,16 @@ class Context:
     The context class maintain a context database that store metadata related with project and provide a set of manipulation functions.
     """
     def __init__(self, app_name, project_dir, server='localhost', editable=True,
-                 sample_id_pattern='', cached_metadata=True,
-                 by_workflow=True):
-        self.logger = logging.getLogger(__name__)
+                 sample_id_pattern='', cached_metadata=True, by_workflow=True,
+                 enable_media_extension=True):
+        self.logger = logging.getLogger('choppy.report_mgmt.Context')
         host, port, auth = c.get_conn_info(server)
         self.cromwell = Cromwell(host, port, auth)
         self.project_dir = project_dir
 
         self._context = {
             # For Mkdocs
+            'enable_media_extension': enable_media_extension,
             'app_name': app_name,
             'app_installation_dir': c.app_dir,
             'current_app_dir': os.path.join(c.app_dir, app_name),
@@ -240,13 +242,12 @@ class Context:
             'cached_files': {}
         }
 
-        self.logger.debug('Report Context: %s' % str(self._context))
-
-        default_file = os.path.join(self._context.get('current_app_dir'), 'defaults')
+        default_file = os.path.join(self._context.get('current_app_dir'), 'report', 'defaults')
         default_vars = self.get_default_vars(default_file)
         self.set_defaults({
             'defaults': default_vars
         })
+        self.logger.debug('Report Context: %s' % str(self._context))
 
         # Must be after self.get_submitted_jobs() and self.get_failed_jobs().
         self.set_sample_id_lst()
@@ -356,8 +357,7 @@ class Context:
                         cached_file_key: cached_file
                     })
                 else:
-                    color_msg = BashColors.get_color_msg('No such key in project outputs: %s.' % cached_file_key)
-                    self.logger.warning(color_msg)
+                    self.logger.warning('No such key in project outputs: %s.' % cached_file_key)
             return file_links_dict
 
     def _get_sample_id(self, workflow_id):
@@ -594,7 +594,7 @@ class Renderer:
         :param template_dir: a directory that contains app template files.
         :param context: a report context.
         """
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger('choppy.report_mgmt.Renderer')
         self.template_dir = template_dir
         self.context = context
         self.context_dict = self.context.context
@@ -616,9 +616,13 @@ class Renderer:
         """
         self._validate(**kwargs)
         env = Environment(loader=FileSystemLoader(self.template_dir))
-        template = env.get_template(template)
-        with open(output_file, 'w') as f:
-            f.write(template.render(context=self.context_dict, **kwargs))
+        try:
+            template = env.get_template(template)
+            with open(output_file, 'w') as f:
+                f.write(template.render(context=self.context_dict, **kwargs))
+        except TemplateSyntaxError as err:
+            self.logger.warning(str(err))
+            pass
 
     def batch_render(self, **kwargs):
         """
@@ -744,7 +748,7 @@ class Report:
         self.config_file = os.path.join(self.project_dir, '.mkdocs.yml')
         self.config = None
 
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger('choppy.report_mgmt.Report')
         self._get_raw_config()
 
     def _check_config(self, msg, load_config=True):
@@ -793,7 +797,8 @@ def build(app_name, project_dir, resource_dir=c.resource_dir, repo_url='',
           site_description='', site_author='choppy', copyright=get_copyright(),
           site_name='Choppy Report', server='localhost', dev_addr='127.0.0.1:8000',
           theme_name='mkdocs', mode='build', force=False, editable=True,
-          sample_id_pattern='', cached_metadata=True, by_workflow=True):
+          sample_id_pattern='', cached_metadata=True, by_workflow=True,
+          enable_media_extension=True):
     """
     Build an app report.
 
@@ -824,12 +829,12 @@ def build(app_name, project_dir, resource_dir=c.resource_dir, repo_url='',
         logger.info('1. Generate report context.')
         ctx_instance = Context(app_name, project_dir, server=server, editable=editable,
                                sample_id_pattern='', cached_metadata=cached_metadata,
-                               by_workflow=by_workflow)
+                               by_workflow=by_workflow, enable_media_extension=enable_media_extension)
         ctx_instance.set_extra_context(repo_url=repo_url, site_description=site_description,
                                        site_author=site_author, copyright=copyright, site_name=site_name,
                                        theme_name=theme_name)
         logger.info('Context: %s' % ctx_instance.context)
-        logger.info(BashColors.get_color_msg('SUCCESS', 'Context: generate report context successfully.'))
+        logger.success('Context: generate report context successfully.')
 
         # Preprocessor: check app whether support report and cache files that be required by report rendering.
         app_dir = os.path.join(c.app_dir, app_name)
@@ -842,13 +847,12 @@ def build(app_name, project_dir, resource_dir=c.resource_dir, repo_url='',
         try:
             preprocessor = Preprocessor(app_dir, ctx_instance)
             preprocessor.process(tmp_report_dir)
-            logger.info(BashColors.get_color_msg('SUCCESS', 'Preprocess app report successfully.'))
+            logger.success('Preprocess app report successfully.')
         except InValidReport as err:
             logger.debug('Warning: %s' % str(err))
             message = "The app %s doesn't support report.\n" \
                       "Please contact the app maintainer." % os.path.basename(app_dir)
-            color_msg = BashColors.get_color_msg('WARNING', message)
-            logger.info(color_msg)
+            logger.warn(message)
             # TODO: How to deal with exit way when choppy run as web api mode.
             sys.exit(exit_code.INVALID_REPORT)
 
@@ -858,7 +862,7 @@ def build(app_name, project_dir, resource_dir=c.resource_dir, repo_url='',
         renderer = Renderer(tmp_report_dir, project_dir, context=ctx_instance, resource_dir=resource_dir)
         renderer.batch_render()
         renderer.copy_dependent_files()
-        logger.info(BashColors.get_color_msg('SUCCESS', 'Render report markdown files successfully.'))
+        logger.success('Render report markdown files successfully.')
 
     # Report: build markdown files to html.
     report = Report(project_dir)
@@ -866,9 +870,8 @@ def build(app_name, project_dir, resource_dir=c.resource_dir, repo_url='',
         logger.info('\n4. Build %s by mkdocs' % report_dir)
         report.build()
         site_dir = os.path.join(project_dir, 'report_html')
-        color_msg = BashColors.get_color_msg('SUCCESS', 'Build markdown files successfully. '
-                                                        '(Files in %s)' % site_dir)
-        logger.info(color_msg)
+        logger.success('Build markdown files successfully. '
+                       '(Files in %s)' % site_dir)
     elif mode == 'livereload':
         logger.info('\n4. Serve %s in livereload mode by mkdocs' % report_dir)
         report.server(dev_addr=dev_addr, livereload='livereload')

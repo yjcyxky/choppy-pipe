@@ -20,6 +20,7 @@ import pytz
 import datetime
 import getpass
 import coloredlogs
+import verboselogs
 import choppy.config as c
 from choppy import exit_code
 from choppy.app_utils import (kv_list_to_dict, install_app, uninstall_app,
@@ -33,8 +34,7 @@ from choppy.check_utils import (is_valid_label, is_valid_project_name, is_valid,
 from choppy.version import get_version
 from choppy.docker_mgmt import get_parser, get_default_image, get_base_images
 from choppy.report_mgmt import get_mode
-from choppy.utils import (get_copyright, BashColors, ReportTheme, print_obj,
-                          clean_temp_dir)
+from choppy.utils import (get_copyright, ReportTheme, print_obj, clean_tmp_dir)
 from choppy.exceptions import NotFoundApp, WrongAppDir
 
 __author__ = "Jingcheng Yang"
@@ -46,7 +46,7 @@ __maintainer__ = "Jingcheng Yang"
 __email__ = "yjcyxky@163.com"
 __status__ = "Production"
 
-
+logging.setLoggerClass(verboselogs.VerboseLogger)
 logger = logging.getLogger('choppy')
 
 
@@ -395,7 +395,7 @@ def call_log(args):
                 stderr = res["calls"][key][0]["stderr"]
                 script = "/".join(stderr.split("/")[:-1]) + "/script"
                 fuuid = uuid.uuid1()
-                dest_script = "/tmp/choppy/%s/%s" % (fuuid, "script")
+                dest_script = os.path.join(c.tmp_dir, "%s/%s" % (fuuid, "script"))
                 run_copy_files(script, dest_script, recursive=False, silent=True)
                 with open(dest_script, 'r') as f:
                     command_log = f.read()
@@ -423,7 +423,7 @@ def call_cat_remote_file(args):
 
     remote_file = args.oss_link
     fuuid = uuid.uuid1()
-    dest_file = "/tmp/choppy/%s" % fuuid
+    dest_file = os.path.join(c.tmp_dir, fuuid)
     run_copy_files(remote_file, dest_file, recursive=False, silent=True)
 
     if os.path.isfile(dest_file):
@@ -724,14 +724,14 @@ def call_save(args):
         msg = 'Add new files.'
 
     git.commit(msg)
-    BashColors.print_color('SUCCESS', 'Save project files successfully.')
+    logger.success('Save project files successfully.')
 
     if url:
         # Remote Push
         project_name = os.path.basename(project_path)
         git.add_remote(url, name=project_name, username=username)
         git.push()
-        BashColors.print_color('SUCCESS', 'Sync project files successfully.')
+        logger.success('Sync project files successfully.')
 
 
 def call_clone(args):
@@ -790,15 +790,13 @@ def call_docker_builder(args):
             for dep in raw_deps if re.match(r'^[-\w.]+:[-\w.]+$', dep)]
 
     if len(raw_deps) != len(deps):
-        BashColors.print_color('DANGER',
-                               'Choppy parse some deps unsuccessfully.\n'
-                               'Maybe some deps can not match the <software_name>:<version> pattern.'
-                               'The regex pattern is ^[-\\w.]+:[-\\w.]+$')
+        logger.critical('Choppy parse some deps unsuccessfully.\n'
+                        'Maybe some deps can not match the <software_name>:<version> pattern.'
+                        'The regex pattern is ^[-\\w.]+:[-\\w.]+$')
         sys.exit(exit_code.VALIDATE_ERROR)
 
-    BashColors.print_color('BLUE',
-                           "dependences: %s, parser: %s, main_program: %s, channels: %s" %
-                           (str(deps), str(parser), str(main_program_lst), str(channels)))
+    logger.notice("dependences: %s, parser: %s, main_program: %s, channels: %s" %
+                  (str(deps), str(parser), str(main_program_lst), str(channels)))
 
     if len(main_program_lst) > 0:
         for main_program in main_program_lst:
@@ -830,7 +828,7 @@ def call_docker_builder(args):
                                     deps=deps, dry_run=dry_run, base_image=base_image)
 
     if success:
-        BashColors.print_color('SUCCESS', 'Dockerfile Path: %s/Dockerfile' % success)
+        logger.success('Dockerfile Path: %s/Dockerfile' % success)
 
     if not args.no_clean and not success:
         docker_instance.clean_all()
@@ -867,12 +865,22 @@ def call_report(args):
     dev_addr = args.dev_addr
     force = args.force
     mode = args.mode
+    enable_media_extension = args.enable_plugin
+    report_templ = args.templ_dir
+
+    if not (app_name or report_templ):
+        raise argparse.ArgumentTypeError("You need to specify either app_name argument "
+                                         "or --templ-dir argument.")
+    elif app_name or report_templ:
+        logger.warn("The app_name argument will be adopted when you specify app_name"
+                    " argument and --templ-dir argument")
+
     editable = mode == 'livereload'
 
     build_report(app_name, project_dir, repo_url=repo_url, site_description=site_description,
                  site_author=site_author, copyright=copyright, site_name=site_name,
                  mode=mode, dev_addr=dev_addr, force=force, server=server,
-                 theme_name=theme, editable=editable)
+                 theme_name=theme, editable=editable, enable_media_extension=enable_media_extension)
 
 
 description = """Global Management:
@@ -921,7 +929,10 @@ Server Management:
     server      Run server mode.
 
 Docker Management:
-    build       Auto build docker image for a software.
+    build       Build docker image for a software automatically.
+
+Report Management:
+    report      Generate a report for an app or the specified template files automatically.
 """
 
 
@@ -932,7 +943,10 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument('--handler', action='store', default='stream', choices=('stream', 'file'),
                     help="Log handler, stream or file?")
-parser.add_argument('--debug', action='store_true', default=False, help="Debug mode.")
+group = parser.add_mutually_exclusive_group()
+group.add_argument('--debug', action='store_true', default=False, help="Debug mode.")
+group.add_argument('-q', '--quite', action='store_true', default=False, help="Only display key message.")
+group.add_argument('-v', '--verbose', action='count', default=0, help='Increase output verbosity')
 
 sub = parser.add_subparsers(title='commands', description=description)
 restart = sub.add_parser(name='restart',
@@ -1345,7 +1359,7 @@ scaffold.set_defaults(func=call_scaffold)
 
 report = sub.add_parser(name="report",
                         description="Generate report for your app results.",
-                        usage="choppy report <app_name> [<args>]",
+                        usage="choppy report [<app_name>] [<args>]",
                         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 report.add_argument('app_name', action='store', choices=listapps(),
                     help='The app name for your project.', metavar="app_name")
@@ -1355,7 +1369,11 @@ report.add_argument('-S', '--server', action='store', default="localhost", type=
 report.add_argument('--dev-addr', action='store', default='127.0.0.1:8000', help='Development server address.',
                     metavar='<IP:PORT>')
 report.add_argument('-f', '--force', action='store_true', default=False, help='Force to regenerate files.')
+report.add_argument('-e', '--enable-plugin', action='store_true', default=False,
+                    help='Enable to support choppy plugins.')
 report.add_argument('--project-dir', action='store', required=True, help='Your project directory',
+                    type=is_valid)
+report.add_argument('--templ-dir', action='store', help='The directory that contains your report template files.',
                     type=is_valid)
 report.add_argument('--theme', action='store', default='mkdocs', choices=ReportTheme.get_theme_lst(),
                     help='Theming your report by using the specified theme.')
@@ -1373,16 +1391,29 @@ def main():
 
     # Fix bug: user need to set choppy.conf before running choppy.
     if args.func != call_config and c.conf_path == c.conf_file_example:
-        BashColors.print_color('DANGER', "Error: Not Found choppy.conf.\n\n"
-                               "You need to run `choppy config` to generate "
-                               "config template, modify it and copy to the one of directories %s.\n"
-                               % c.CONFIG_FILES)
+        logger.critical("Error: Not Found choppy.conf.\n\n"
+                        "You need to run `choppy config` to generate "
+                        "config template, modify it and copy to the one of directories %s.\n"
+                        % c.CONFIG_FILES)
         sys.exit(exit_code.CONFIG_FILE_NOT_EXIST)
 
     user = c.getuser()
 
     if args.debug:
         loglevel = logging.DEBUG
+    elif args.verbose:
+        verbose = args.verbose
+        # Configure logger for requested verbosity.
+        if verbose >= 4:
+            loglevel = logging.SPAM
+        elif verbose >= 3:
+            loglevel = logging.DEBUG
+        elif verbose >= 2:
+            loglevel = logging.VERBOSE
+        elif verbose >= 1:
+            loglevel = logging.NOTICE
+    elif args.quite:
+        loglevel = logging.CRITICAL
     else:
         loglevel = c.log_level
 
@@ -1394,7 +1425,7 @@ def main():
         set_logger(user, loglevel=loglevel, handler=args.handler, subdir=None)
 
     # Clean up the temp directory
-    clean_temp_dir('/tmp/choppy/')
+    clean_tmp_dir(c.tmp_dir)
 
     args.func(args)
 

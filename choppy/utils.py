@@ -13,39 +13,6 @@ def get_copyright(site_author='choppy'):
     return copyright
 
 
-class BashColors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    SUCCESS = '\033[92m'  # Green
-    WARNING = '\033[93m'  # Yellow
-    DANGER = '\033[91m'   # Red
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-    INFO = '\033[30m'     # Black
-
-    @classmethod
-    def _get_color(cls, color_name):
-        color_dict = {
-            'SUCCESS': BashColors.SUCCESS,
-            'INFO': BashColors.INFO,
-            'WARNING': BashColors.WARNING,
-            'DANGER': BashColors.DANGER,
-            'UNDERLINE': BashColors.UNDERLINE,
-            'BOLD': BashColors.BOLD,
-            'BLUE': BashColors.OKBLUE
-        }
-        return color_dict.get(color_name.upper(), BashColors.INFO)
-
-    @classmethod
-    def get_color_msg(cls, color_name, msg):
-        return cls._get_color(color_name) + msg + BashColors.ENDC
-
-    @classmethod
-    def print_color(cls, color_name, msg):
-        print(cls._get_color(color_name) + msg + BashColors.ENDC)
-
-
 def copy_and_overwrite(from_path, to_path, is_file=False):
     if os.path.isfile(to_path):
         os.remove(to_path)
@@ -76,9 +43,9 @@ def print_obj(str):
     try:  # For Python2.7
         print(unicode(str).encode('utf8'))
     except NameError:  # For Python3
-        print(str)
+        print(str.decode('utf-8'))
 
 
-def clean_temp_dir(temp_dir):
+def clean_tmp_dir(tmp_dir):
     # Clean temp directory
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    shutil.rmtree(tmp_dir, ignore_errors=True)

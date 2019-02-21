@@ -10,7 +10,7 @@ from choppy import exit_code
 from choppy.exceptions import (UnauthorizedException, UnFoundException,
                                BadRequestException)
 
-module_logger = logging.getLogger('choppy.choppy_store')
+module_logger = logging.getLogger(__name__)
 ONE_MINUTE = 60
 
 

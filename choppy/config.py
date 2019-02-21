@@ -7,10 +7,9 @@ import logging
 import getpass
 import configparser
 from choppy import exit_code
-from choppy.utils import BashColors
 
+logger = logging.getLogger(__name__)
 DIRNAME = os.path.split(os.path.abspath(__file__))[0]
-
 
 conf_file_example = os.path.join(os.path.dirname(DIRNAME), 'choppy',
                                  'conf', 'choppy.conf.example')
@@ -40,7 +39,7 @@ def check_oss_config():
     if access_key and access_secret and endpoint:
         return True
     else:
-        BashColors.print_color('DANGER', "You need to config oss section in choppy.conf")
+        logger.critical("You need to config oss section in choppy.conf")
         sys.exit(exit_code.OSS_NOT_CONFIG)
 
 
@@ -48,7 +47,7 @@ def check_server_config(host, port, username=None, password=None):
     if host and port:
         return True
     else:
-        BashColors.print_color('DANGER', "You need to config local/remote_* section in choppy.conf")
+        logger.critical("You need to config local/remote_* section in choppy.conf")
         sys.exit(exit_code.SERVER_NOT_CONFIG)
 
 
@@ -81,7 +80,7 @@ def get_remote_info(section_name):
         password = config.get(section_name, 'password')
         return (remote_host, remote_port, username, password)
     except KeyError:
-        BashColors.print_color('WARNING', 'No such key in %s' % section_name)
+        logger.warn('No such key in %s' % section_name)
         sys.exit(exit_code.NO_SUCH_KEY_IN_SECTION)
 
 
@@ -116,6 +115,10 @@ try:
         config.get('general', 'app_dir')), 'apps')
     app_dir = get_app_dir(app_dir)
     check_dir(app_dir)
+
+    # tmp_dir
+    general_section = config['general']
+    tmp_dir = general_section.get('tmp_dir', '/tmp/choppy')
 
     # Email Config
     email_smtp_server = config.get('email', 'email_smtp_server')
@@ -187,9 +190,9 @@ try:
         log_level == logging.FATAL
     else:
         log_level = logging.DEBUG
-except (configparser.NoSectionError, KeyError) as err:
-    BashColors.print_color('DANGER', 'Parsing config file (%s) error.\n%s' %
-                           (conf_path, str(err)))
+except (configparser.NoSectionError, configparser.NoOptionError, KeyError) as err:
+    logger.critical('Parsing config file (%s) error.\n%s' %
+                    (conf_path, str(err)))
     sys.exit(exit_code.CONFIG_FILE_FAILED)
 
 
@@ -199,7 +202,6 @@ def getuser():
     if matchObj:
         return user
     else:
-        BashColors.print_color('DANGER',
-                               "Your account name is not valid. "
-                               "Did not match the regex ^[a-zA-Z0-9_]+$")
+        logger.critical("Your account name is not valid. "
+                        "Did not match the regex ^[a-zA-Z0-9_]+$")
         sys.exit(exit_code.USERNAME_NOT_VALID)

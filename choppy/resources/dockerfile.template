@@ -63,6 +63,8 @@ RUN apk add --no-cache bash && \
 COPY . /opt/{{ software_name }}-{{ software_version }}
 RUN chmod a+x /opt/{{ software_name }}-{{ software_version }}/{{ software_name }}
 RUN ln -s /opt/{{ software_name }}-{{ software_version }}/{{ software_name }} /bin
+{% else %}
+RUN ln -s /opt/conda/bin/* /bin/
 {% endif %}
 
 WORKDIR /data/

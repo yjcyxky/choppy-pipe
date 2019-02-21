@@ -23,7 +23,7 @@ import traceback
 
 __author__ = "Amr Abouelleil"
 
-module_logger = logging.getLogger('choppy.Monitor')
+module_logger = logging.getLogger(__name__)
 
 
 def is_user_workflow(host, user, workflow_id):

@@ -11,7 +11,8 @@ from choppy.app_utils import parse_json
 from jinja2 import Environment, FileSystemLoader
 import choppy.config as c
 from choppy.check_utils import check_dir
-from choppy.utils import BashColors
+
+logger = logging.getLogger(__name__)
 
 
 IMAGES = [
@@ -58,7 +59,7 @@ class Docker:
     """
 
     def __init__(self, username=None, password=None, base_url='unix://var/run/docker.sock'):
-        self.logger = logging.getLogger('choppy.docker_mgmt')
+        self.logger = logging.getLogger('choppy.docker_mgmt.Docker')
         self.username = username
         self.password = password
         self.base_url = base_url
@@ -126,7 +127,7 @@ class Docker:
             if version_json:
                 print(json.dumps(parse_json(version_json), indent=2, sort_keys=True))
         except Exception as err:
-            BashColors.print_color('DANGER', str(err))
+            logger.critical(str(err))
 
     def clean_containers(self, filters):
         try:
@@ -134,7 +135,7 @@ class Docker:
             for container in containers:
                 container.remove(force=True)
         except (docker.errors.APIError, Exception) as err:
-            BashColors.print_color('DANGER', "Clean Containers: %s" % str(err))
+            logger.critical("Clean Containers: %s" % str(err))
 
     def clean_images(self, filters):
         try:
@@ -142,7 +143,7 @@ class Docker:
             for image in images:
                 self.client.images.remove(image=image.id, force=True)
         except (docker.errors.APIError, Exception) as err:
-            BashColors.print_color('DANGER', "Clean Images: %s" % str(err))
+            logger.critical("Clean Images: %s" % str(err))
 
     def clean_all(self):
         container_filters = {
@@ -197,7 +198,7 @@ class Docker:
             return tmp_dir
         except (docker.errors.APIError, Exception) as err:
             err_msg = "Build docker(%s-%s): %s" % (software_name, software_version, str(err))
-            BashColors.print_color('DANGER', err_msg)
+            logger.critical(err_msg)
             return False
 
 

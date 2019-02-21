@@ -95,5 +95,6 @@ setup(
         'mkdocs>=1.0.4',
         'mkdocs-material==3.3.0',
         'mkdocs-cinder==0.16.1',
+        'verboselogs==1.7'
     ]
 )

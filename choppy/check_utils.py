@@ -9,7 +9,7 @@ from jinja2 import Environment, meta
 from choppy.app_utils import AppDefaultVar
 
 
-logger = logging.getLogger('choppy')
+logger = logging.getLogger(__name__)
 
 
 def is_valid_url(url):

@@ -3,6 +3,7 @@ workflow_db = ~/.choppy/workflow.db
 log_dir = ~/.choppy
 log_level = DEBUG
 app_dir = ~/.choppy
+tmp_dir = /tmp/choppy
 
 [local]
 # localhost port

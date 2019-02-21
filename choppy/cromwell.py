@@ -11,7 +11,7 @@ from choppy import exit_code
 from requests.utils import quote
 from ratelimit import rate_limited
 
-module_logger = logging.getLogger('choppy.cromwell')
+module_logger = logging.getLogger(__name__)
 ONE_MINUTE = 60
 
 
@@ -33,7 +33,7 @@ class Cromwell:
             str(self.port) + '/api/workflows/v1'
         self.url2 = 'http://' + host + ':' + \
             str(self.port) + '/api/workflows/v2'
-        self.logger = logging.getLogger('choppy.cromwell.Cromwell')
+        self.logger = logging.getLogger(__name__)
         self.logger.debug('URL:{}'.format(self.url))
 
         v_url = "http://{}:{}/engine/v1/version".format(host, str(self.port))

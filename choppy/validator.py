@@ -11,7 +11,7 @@ import csv
 import sys
 from choppy import exit_code
 
-module_logger = logging.getLogger('choppy.Validator')
+module_logger = logging.getLogger(__name__)
 
 
 class Validator:

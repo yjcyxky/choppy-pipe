@@ -10,7 +10,7 @@ from choppy.app_utils import (parse_samples, render_app, write,
 from choppy.json_checker import check_json
 from choppy.utils import copy_and_overwrite
 
-logger = logging.getLogger('choppy')
+logger = logging.getLogger(__name__)
 
 
 def run_batch(project_name, app_dir, samples, label, server='localhost',

@@ -28,3 +28,4 @@ docker==3.7.0
 mkdocs>=1.0.4
 mkdocs-material==3.3.0  # New theme material
 mkdocs-cinder==0.16.1  # New theme cinder
+verboselogs==1.7

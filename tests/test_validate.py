@@ -15,7 +15,7 @@ class ValidatorUnitTests(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         resources = c.resource_dir
-        self.logger = logging.getLogger('test_validator')
+        self.logger = logging.getLogger('choppy.test_validate.ValidatorUnitTests')
         hdlr = logging.FileHandler(os.path.join(c.log_dir, 'test_validator.log'))
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         hdlr.setFormatter(formatter)
@@ -110,7 +110,7 @@ class ValidatorUnitTestsBad(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         resources = c.resource_dir
-        self.logger = logging.getLogger('test_validator')
+        self.logger = logging.getLogger('choppy.test_validate.ValidatorUnitTestsBad')
         hdlr = logging.FileHandler(
             os.path.join(c.log_dir, 'test_validator.log'))
         formatter = logging.Formatter(

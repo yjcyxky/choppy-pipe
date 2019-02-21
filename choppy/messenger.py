@@ -15,7 +15,7 @@ from ratelimit import rate_limited
 
 __author__ = "Amr Abouelleil"
 
-logger = logging.getLogger('choppy.messenger')
+logger = logging.getLogger(__name__)
 ONE_MINUTE = 60
 
 
