@@ -850,8 +850,9 @@ def call_scaffold(args):
     from choppy.scaffold import Scaffold
 
     output_dir = args.output_dir
+    template_name = args.templ_name
     scaffold = Scaffold(output_dir=output_dir)
-    scaffold.generate()
+    scaffold.generate(template=template_name)
 
 
 def call_server(args):
@@ -878,21 +879,20 @@ def call_report(args):
     force = args.force
     mode = args.mode
     enable_media_extension = args.enable_plugin
-    report_templ = args.templ_dir
+    templ_dir = args.templ_dir
 
-    if not (app_name or report_templ):
+    # All are False or all are True
+    if not (app_name or templ_dir) or (app_name and templ_dir):
         raise argparse.ArgumentTypeError("You need to specify either app_name argument "
                                          "or --templ-dir argument.")
-    elif app_name or report_templ:
-        logger.warn("The app_name argument will be adopted when you specify app_name"
-                    " argument and --templ-dir argument")
 
     editable = mode == 'livereload'
 
-    build_report(app_name, project_dir, repo_url=repo_url, site_description=site_description,
+    build_report(project_dir, repo_url=repo_url, site_description=site_description,
                  site_author=site_author, copyright=copyright, site_name=site_name,
                  mode=mode, dev_addr=dev_addr, force=force, server=server,
-                 theme_name=theme, editable=editable, enable_media_extension=enable_media_extension)
+                 theme_name=theme, editable=editable, enable_media_extension=enable_media_extension,
+                 templ_dir=templ_dir, app_name=app_name)
 
 
 description = """Global Management:
@@ -1117,8 +1117,8 @@ batch = sub.add_parser(name="batch",
 batch.add_argument('app_name', action='store', choices=listapps(), metavar="app_name",
                    help='The app name for your project.')
 batch.add_argument('samples', action='store', type=is_valid, help='Path the samples file to validate.')
-batch.add_argument('--project-name', action='store', type=is_valid_project_name, required=True, help='Your project name.')
-batch.add_argument('--dry-run', action='store_true', default=False, help='Generate all workflow but skipping running.')
+batch.add_argument('-p', '--project-name', action='store', type=is_valid_project_name, required=True, help='Your project name.')
+batch.add_argument('-D', '--dry-run', action='store_true', default=False, help='Generate all workflow but skipping running.')
 batch.add_argument('-l', '--label', action='append', help='A key:value pair to assign. May be used multiple times.')
 batch.add_argument('-S', '--server', action='store', default='localhost', type=str,
                    help='Choose a cromwell server.', choices=c.servers)
@@ -1133,8 +1133,8 @@ test = sub.add_parser(name="test",
                       formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 test.add_argument('app_name', action='store', choices=listapps(), metavar="app_name",
                   help='The app name for your project.')
-test.add_argument('--project-name', action='store', type=is_valid_project_name, required=True, help='Your project name.')
-test.add_argument('--dry-run', action='store_true', default=False, help='Generate all workflow but skipping running.')
+test.add_argument('-p', '--project-name', action='store', type=is_valid_project_name, required=True, help='Your project name.')
+test.add_argument('-D', '--dry-run', action='store_true', default=False, help='Generate all workflow but skipping running.')
 test.add_argument('-l', '--label', action='append', help='A key:value pair to assign. May be used multiple times.')
 test.add_argument('-S', '--server', action='store', default='localhost', type=str,
                   help='Choose a cromwell server.', choices=c.servers)
@@ -1149,8 +1149,8 @@ testapp = sub.add_parser(name="testapp",
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 testapp.add_argument('app_dir', action='store', type=is_valid, help='The app path for your project.')
 testapp.add_argument('samples', action='store', type=is_valid, help='Path the samples file to validate.')
-testapp.add_argument('--project-name', action='store', type=is_valid_project_name, required=True, help='Your project name.')
-testapp.add_argument('--dry-run', action='store_true', default=False,
+testapp.add_argument('-p', '--project-name', action='store', type=is_valid_project_name, required=True, help='Your project name.')
+testapp.add_argument('-D', '--dry-run', action='store_true', default=False,
                      help='Generate all workflow but skipping running.')
 testapp.add_argument('-l', '--label', action='append',
                      help='A key:value pair to assign. May be used multiple times.')
@@ -1257,8 +1257,8 @@ samples = sub.add_parser(name="samples",
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 samples.add_argument('app_name', action='store', choices=listapps(),
                      help='The app name for your project.', metavar="app_name")
-samples.add_argument('--output', action='store', help='Samples file name.')
-samples.add_argument('--checkfile', action='store', help="Your samples file.")
+samples.add_argument('-o', '--output', action='store', help='Samples file name.')
+samples.add_argument('-c', '--checkfile', action='store', help="Your samples file.")
 samples.add_argument('--no-default', action="store_true", default=False,
                      help="Don't list default keys that have been config in an app.")
 samples.set_defaults(func=call_samples)
@@ -1269,7 +1269,7 @@ search = sub.add_parser(name='search',
                         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 search.add_argument('-s', '--status', action='store', default="Running", choices=c.status_list,
                     help='Print status for workflow to stdout')
-search.add_argument('--project-name', action="store", required=True, help="Project name")
+search.add_argument('-p', '--project-name', action="store", required=True, help="Project name")
 search.add_argument('--short-format', action="store_true", default=False,
                     help="Show by short format, if the option is not specified, show long format by default.")
 search.add_argument('-u', '--username', action='store', default=c.getuser(), type=is_valid_label,
@@ -1345,19 +1345,22 @@ docker_builder = sub.add_parser(name="build",
 docker_builder.add_argument('software_name', action='store', help='Software name.')
 docker_builder.add_argument('software_version', action='store', help='Software version.')
 docker_builder.add_argument('-s', '--summary', action='store', default='', help='The summary about a software.')
-docker_builder.add_argument('--home', action='store', default='', help='Home page for a software.')
+docker_builder.add_argument('-H', '--home', action='store', default='', help='Home page for a software.')
 docker_builder.add_argument('--doc', action='store', default='', help='Doc page for a software. May be a website.')
 docker_builder.add_argument('-t', '--tag', action='store', default='', help="Tag for docker image. Need to follow docker tag's convention.")
 docker_builder.add_argument('--software-tags', action='store', default='', help="Software tag, eg: Genomics, Rlang.")
 docker_builder.add_argument('-u', '--username', action='store', type=is_valid_label,
                             help='Account of docker registry.')
-docker_builder.add_argument('--channel', action='append', default=[], help='Add conda channel url.')
-docker_builder.add_argument('--dep', action='append', default=[], help='Add dependencie, be similar as software:version.')
-docker_builder.add_argument('--main-program', action='append', default=[], help='Your main script, may be several.')
-docker_builder.add_argument('--parser', action='store', help='What script language.', choices=get_parser())
-docker_builder.add_argument('--base-image', action='store', default=get_default_image(), choices=get_base_images(),
+docker_builder.add_argument('-c', '--channel', action='append', default=[], help='Add conda channel url.')
+docker_builder.add_argument('-d', '--dep', action='append', default=[], help='Add dependencie, be similar as software:version.')
+docker_builder.add_argument('-m', '--main-program', action='append', default=[],
+                            help='Your main script, may be several.')
+docker_builder.add_argument('-p', '--parser', action='store', help='What script language.', choices=get_parser())
+docker_builder.add_argument('-b', '--base-image', action='store', default=get_default_image(),
+                            choices=get_base_images(),
                             help='Base docker image, MUST BE based on alpine linux.')
-docker_builder.add_argument('--dry-run', action='store_true', default=False, help='Generate all related files but skipping running.')
+docker_builder.add_argument('-D', '--dry-run', action='store_true', default=False,
+                            help='Generate all related files but skipping running.')
 docker_builder.add_argument('--no-clean', action='store_true', default=False,
                             help='NOT clean containers and images.')
 docker_builder.set_defaults(func=call_docker_builder)
@@ -1367,7 +1370,9 @@ scaffold = sub.add_parser(name="scaffold",
                           description="Generate scaffold for a choppy app.",
                           usage="choppy scaffold",
                           formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-scaffold.add_argument('--output-dir', action='store', default='./', help='Scaffold output directory.')
+scaffold.add_argument('-o', '--output-dir', action='store', default='./', help='Scaffold output directory.')
+scaffold.add_argument('-t', '--templ-name', action='store', choices=('report',),
+                      help='Template name that you want to generate')
 scaffold.set_defaults(func=call_scaffold)
 
 
@@ -1375,9 +1380,9 @@ report = sub.add_parser(name="report",
                         description="Generate report for your app results.",
                         usage="choppy report [<app_name>] [<args>]",
                         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-report.add_argument('app_name', action='store', choices=listapps(),
+report.add_argument('app_name', action='store', choices=listapps(), nargs='?', default=None,
                     help='The app name for your project.', metavar="app_name")
-report.add_argument('--mode', action='store', default='build', choices=get_mode(), help='Which mode for your report.')
+report.add_argument('-m', '--mode', action='store', default='build', choices=get_mode(), help='Which mode for your report.')
 report.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
                     help='Choose a cromwell server from {}'.format(c.servers))
 report.add_argument('--dev-addr', action='store', default='127.0.0.1:8000', help='Development server address.',
@@ -1385,10 +1390,10 @@ report.add_argument('--dev-addr', action='store', default='127.0.0.1:8000', help
 report.add_argument('-f', '--force', action='store_true', default=False, help='Force to regenerate files.')
 report.add_argument('-e', '--enable-plugin', action='store_true', default=False,
                     help='Enable to support choppy plugins.')
-report.add_argument('--project-dir', action='store', required=True, help='Your project directory',
+report.add_argument('-p', '--project-dir', action='store', required=True, help='Your project directory',
                     type=is_valid)
-report.add_argument('--templ-dir', action='store', help='The directory that contains your report template files.',
-                    type=is_valid)
+report.add_argument('-t', '--templ-dir', action='store', type=is_valid,
+                    help='The directory that contains your report template files.')
 report.add_argument('--theme', action='store', default='mkdocs', choices=ReportTheme.get_theme_lst(),
                     help='Theming your report by using the specified theme.')
 report.add_argument('--repo-url', action='store', help='Your project repo url', type=is_valid_url)

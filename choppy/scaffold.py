@@ -127,23 +127,27 @@ class Scaffold:
         dest_dir = os.path.join(self.output_dir, 'report')
         copy_and_overwrite(report_dir, dest_dir)
 
-    def generate(self):
-        self._copy_docker()
-        self._copy_tasks()
-        self._copy_test()
-        self._copy_report()
+    def generate(self, template):
+        if template != 'report':
+            self._copy_docker()
+            self._copy_tasks()
+            self._copy_test()
+            self._copy_report()
 
-        readme = os.path.join(self.output_dir, 'README.md')
-        self._gen_readme(output_file=readme)
+            readme = os.path.join(self.output_dir, 'README.md')
+            self._gen_readme(output_file=readme)
 
-        defaults = os.path.join(self.output_dir, 'defaults')
-        self._gen_defaults(output_file=defaults)
+            defaults = os.path.join(self.output_dir, 'defaults')
+            self._gen_defaults(output_file=defaults)
 
-        inputs = os.path.join(self.output_dir, 'inputs')
-        self._gen_inputs(output_file=inputs)
+            inputs = os.path.join(self.output_dir, 'inputs')
+            self._gen_inputs(output_file=inputs)
 
-        workflow = os.path.join(self.output_dir, 'workflow.wdl')
-        self._gen_workflow(workflow)
+            workflow = os.path.join(self.output_dir, 'workflow.wdl')
+            self._gen_workflow(workflow)
+        else:
+            self._copy_report()
+            self.output_dir = os.path.join(self.output_dir, 'report')
 
         self.logger.success('Generate scaffold directory successfully. '
                             '(All files in %s)' % self.output_dir)

@@ -21,9 +21,11 @@ import json
 import yaml
 import csv
 import uuid
+import verboselogs
 
 from mkdocs import config
-from jinja2 import Environment, FileSystemLoader
+from os.path import join as join_path
+from jinja2 import Environment, FileSystemLoader, BaseLoader
 from jinja2.exceptions import TemplateSyntaxError
 from mkdocs.commands.build import build as build_docs
 from mkdocs.commands.serve import serve as serve_docs
@@ -33,8 +35,9 @@ import choppy.exit_code as exit_code
 from choppy.cromwell import Cromwell
 from choppy.check_utils import check_dir
 from choppy.utils import copy_and_overwrite, get_copyright
-from choppy.exceptions import InValidDefaults, InValidReport
+from choppy.exceptions import InValidReport
 
+logging.setLoggerClass(verboselogs.VerboseLogger)
 logger = logging.getLogger(__name__)
 
 # Any app report MUST have these template files.
@@ -54,6 +57,9 @@ class ReportDefaultVar:
     Report defaults file management interface. App developer can set default variable in the defaults file and ReportDefaultVar will maintain all variables in the memory from defaults file. Moreover user can modify the default value in the defaults file by using ReportDefaultVar's methods.
     """
     def __init__(self, defaults):
+        from choppy.json_checker import check_json
+        check_json(defaults)
+
         self.defaults = defaults
         self.default_vars = self._parse()
 
@@ -64,12 +70,9 @@ class ReportDefaultVar:
         :return: a dict.
         """
         if os.path.isfile(self.defaults):
-            try:
-                with open(self.defaults, 'r') as f:
-                    vars = json.load(f)
-                    return vars
-            except json.decoder.JSONDecodeError:
-                raise InValidDefaults('The defaults file defined in app is not a valid json.')
+            with open(self.defaults, 'r') as f:
+                vars = json.load(f)
+                return vars
         else:
             return dict()
 
@@ -168,12 +171,13 @@ class Context:
     """
     The context class maintain a context database that store metadata related with project and provide a set of manipulation functions.
     """
-    def __init__(self, app_name, project_dir, server='localhost', editable=True,
+    def __init__(self, project_dir, server='localhost', editable=True,
                  sample_id_pattern='', cached_metadata=True, by_workflow=True,
-                 enable_media_extension=True):
+                 enable_media_extension=True, templ_dir=None, app_name=None):
         self.logger = logging.getLogger('choppy.report_mgmt.Context')
-        host, port, auth = c.get_conn_info(server)
-        self.cromwell = Cromwell(host, port, auth)
+        if not (app_name or templ_dir):
+            raise Exception("Either app_name or templ_dir must exits.")
+
         self.project_dir = project_dir
 
         self._context = {
@@ -181,12 +185,12 @@ class Context:
             'enable_media_extension': enable_media_extension,
             'app_name': app_name,
             'app_installation_dir': c.app_dir,
-            'current_app_dir': os.path.join(c.app_dir, app_name),
+            'current_app_dir': None,
             'editable': editable,
             'project_dir': self.project_dir,
             'docs_dir': 'report_markdown',
             'html_dir': 'report_html',
-            'plugin_dir': os.path.join(self.project_dir, 'report_html'),
+            'plugin_dir': join_path(self.project_dir, 'report_html'),
             'project_name': os.path.basename(self.project_dir),
             'site_name': 'Choppy Report',
             'repo_url': 'http://choppy.3steps.cn',
@@ -230,8 +234,8 @@ class Context:
                 }
             ],
             'cached_metadata': cached_metadata,
-            'submitted_jobs': self.get_submitted_jobs(),
-            'failed_jobs': self.get_failed_jobs(),
+            'submitted_jobs': None,
+            'failed_jobs': None,
             'workflow_metadata': [],
             'workflow_log': [],
             'workflow_status': [],
@@ -242,39 +246,54 @@ class Context:
             'cached_files': {}
         }
 
-        default_file = os.path.join(self._context.get('current_app_dir'), 'report', 'defaults')
+        if app_name:
+            default_file = join_path(self._context.get('current_app_dir'), 'report', 'defaults')
+        elif templ_dir:
+            default_file = join_path(templ_dir, 'defaults')
+
         default_vars = self.get_default_vars(default_file)
         self.set_defaults({
             'defaults': default_vars
         })
         self.logger.debug('Report Context: %s' % str(self._context))
 
-        # Must be after self.get_submitted_jobs() and self.get_failed_jobs().
-        self.set_sample_id_lst()
-        # Must be after self.get_submitted_jobs().
-        self.set_workflow_id_lst()
-        # Set id dict.
-        self.set_id_dict()
+        if app_name:
+            self._context['current_app_dir'] = join_path(c.app_dir, app_name)
 
-        # Allow user specify a sample id pattern to get a subset of samples
-        pattern = r'%s' % sample_id_pattern
-        sample_id_set = [sample_id for sample_id in self._context['sample_id_lst']
-                         if re.match(pattern, sample_id)]
+            host, port, auth = c.get_conn_info(server)
+            self.cromwell = Cromwell(host, port, auth)
 
-        # Must be after self.set_sample_id_lst()
-        sample_id_lst = sample_id_set if sample_id_pattern else self.get_successed_sample_ids()
-        self.set_project_menu(sample_id_lst)
+            self._context['submitted_jobs'] = self.get_submitted_jobs()
+            self._context['failed_jobs'] = self.get_failed_jobs()
 
-        # Must be after self.set_sample_id_lst() and self.set_workflow_id_lst().
-        self.set_workflow_log(sample_id_lst)
-        self.set_workflow_status(sample_id_lst)
+            # Must be after self.get_submitted_jobs() and self.get_failed_jobs().
+            self.set_sample_id_lst()
+            # Must be after self.get_submitted_jobs().
+            self.set_workflow_id_lst()
+            # Set id dict.
+            self.set_id_dict()
 
-        # Cached files that user want to save, sample_id as key and workflow's outputs as value
-        # _set_cached_files function will:
-        # 1. cache workflow metadata simultaneously when by_workflow is True.
-        # 2. set file links what were related with sample ids. sample ids can be specified by users, otherwise all sample ids.
-        # 3. files that defined in workflow output block or report defaults file (cached_file_list field).
-        self._set_cached_files(sample_id_lst=sample_id_set, workflow=by_workflow)
+            # Allow user specify a sample id pattern to get a subset of samples
+            pattern = r'%s' % sample_id_pattern
+            sample_id_set = [sample_id for sample_id in self._context['sample_id_lst']
+                             if re.match(pattern, sample_id)]
+
+            # Must be after self.set_sample_id_lst()
+            sample_id_lst = sample_id_set if sample_id_pattern else self.get_successed_sample_ids()
+            self.set_project_menu(sample_id_lst)
+
+            # Must be after self.set_sample_id_lst() and self.set_workflow_id_lst().
+            self.set_workflow_log(sample_id_lst)
+            self.set_workflow_status(sample_id_lst)
+
+            # Cached files that user want to save, sample_id as key and workflow's outputs as value
+            # _set_cached_files function will:
+            # 1. cache workflow metadata simultaneously when by_workflow is True.
+            # 2. set file links what were related with sample ids. sample ids can be specified by users, otherwise all sample ids.
+            # 3. files that defined in workflow output block or report defaults file (cached_file_list field).
+            self._set_cached_files(sample_id_lst=sample_id_set, workflow=by_workflow)
+        else:
+            self.set_project_menu(self.sample_id_lst)
 
     @property
     def context(self):
@@ -282,6 +301,13 @@ class Context:
         Return the context's value.
         """
         return self._context
+
+    @property
+    def sample_id_lst(self):
+        if self._context['app_name']:
+            return self._context['sample_id_lst']
+        else:
+            return self._context['defaults'].get('sample_id_lst', [])
 
     def _parse_task_outputs(self, metadata):
         """
@@ -496,7 +522,7 @@ class Context:
     def get_submitted_jobs(self):
         # Fix bug: can not get project_dir by self._context.get('project_dir')
         # self._context doesn't exist when get_submmitted_jobs is called.
-        submitted_file = os.path.join(self.project_dir, 'submitted.csv')
+        submitted_file = join_path(self.project_dir, 'submitted.csv')
 
         dict_list = []
         if os.path.exists(submitted_file):
@@ -510,7 +536,7 @@ class Context:
     def get_failed_jobs(self):
         # Fix bug: can not get project_dir by self._context.get('project_dir')
         # self._context doesn't exist when get_failed_jobs is called.
-        failed_file = os.path.join(self.project_dir, 'failed.csv')
+        failed_file = join_path(self.project_dir, 'failed.csv')
 
         # Fix bug: failed_jobs must be iterable nor None
         # so we need return empty list when failed.csv doesn't exist.
@@ -600,7 +626,7 @@ class Renderer:
         self.context_dict = self.context.context
 
         self.dest_dir = dest_dir
-        self.project_report_dir = os.path.join(dest_dir, 'report_markdown')
+        self.project_report_dir = join_path(dest_dir, 'report_markdown')
 
         # For mkdocs.yml.template?
         self.resource_dir = resource_dir
@@ -610,6 +636,7 @@ class Renderer:
     def render(self, template, output_file, **kwargs):
         """
         Render template and write to output_file.
+
         :param template: a jinja2 template file and the path must be prefixed with `template_dir`
         :param output_file:
         :return:
@@ -624,6 +651,20 @@ class Renderer:
             self.logger.warning(str(err))
             pass
 
+    def _render_sample_report(self, templ_file, sample_id, output_file, **kwargs):
+        self._validate(**kwargs)
+
+        with open(templ_file, 'r') as f:
+            string = f.read()
+            updated_string = '{% set sample_id = "' + sample_id + '" %}' + string
+            rtemplate = Environment(loader=BaseLoader).from_string(updated_string)
+            print(updated_string, rtemplate.render(context=self.context_dict, **kwargs))
+            try:
+                with open(output_file, 'w') as f:
+                    f.write(rtemplate.render(context=self.context_dict, **kwargs))
+            except TemplateSyntaxError as err:
+                self.logger.warning(str(err))
+
     def batch_render(self, **kwargs):
         """
         Batch render template files.
@@ -636,15 +677,27 @@ class Renderer:
                               if re.match(r'.*.md$', template)]
         output_file_lst = []
         for template in markdown_templates:
-            templ_file = os.path.join(self.template_dir, template)
-            output_file = os.path.join(self.project_report_dir, template)
+            templ_file = join_path(self.template_dir, template)
+            output_file = join_path(self.project_report_dir, template)
             templ_dir = os.path.dirname(output_file)
             if not os.path.exists(templ_dir):
                 os.makedirs(templ_dir)
-            self.logger.info('Render markdown template: %s, Save to %s' % (str(templ_file), output_file))
-            # Fix bug: template file path must be prefixed with self.template_dir
-            self.render(template, output_file, **kwargs)
-            output_file_lst.append(output_file)
+
+            if template == 'project/sample.md':
+                for sample_id in self.context.sample_id_lst:
+                    output_file = join_path(self.project_report_dir, os.path.dirname(template),
+                                            '%s.md' % sample_id)
+                    self.logger.info('Render markdown template: %s, Save to %s'
+                                     % (str(templ_file), output_file))
+                    self._render_sample_report(templ_file, sample_id,
+                                               output_file, **kwargs)
+            else:
+                self.logger.info('Render markdown template: %s, Save to %s'
+                                 % (str(templ_file), output_file))
+                # Fix bug: template file path must be prefixed with self.template_dir
+                # render function have set the FileSystemLoader so we need to pass template instead of templ_file.
+                self.render(template, output_file, **kwargs)
+                output_file_lst.append(output_file)
 
         self.logger.debug('All markdown templates: %s' % str(output_file_lst))
         return output_file_lst
@@ -663,7 +716,7 @@ class Renderer:
         for root, dirnames, filenames in os.walk(self.template_dir):
             for filename in filenames:
                 if not re.match(r'.*.md$', filename):
-                    dependent_files.append(os.path.join(root, filename))
+                    dependent_files.append(join_path(root, filename))
         self.logger.info('Markdown dependent files: %s' % str(dependent_files))
         return dependent_files
 
@@ -672,22 +725,22 @@ class Renderer:
         for file in dependent_files:
             # copy process may be wrong when filename start with '/'
             filename = file.replace(self.template_dir, '').strip('/')
-            copy_and_overwrite(file, os.path.join(self.project_report_dir, filename), is_file=True)
+            copy_and_overwrite(file, join_path(self.project_report_dir, filename), is_file=True)
 
     def get_template_files(self):
         template_files = []
         for root, dirnames, filenames in os.walk(self.template_dir):
             for filename in filenames:
                 if re.match(r'.*.md$', filename):
-                    template_files.append(os.path.join(root, filename))
+                    template_files.append(join_path(root, filename))
         return template_files
 
     def _gen_docs_config(self, **kwargs):
         """
         Generate mkdocs.yml
         """
-        mkdocs_templ = os.path.join(self.resource_dir, 'mkdocs.yml.template')
-        output_file = os.path.join(self.dest_dir, '.mkdocs.yml')
+        mkdocs_templ = join_path(self.resource_dir, 'mkdocs.yml.template')
+        output_file = join_path(self.dest_dir, '.mkdocs.yml')
         self.logger.debug('Mkdocs config template: %s' % mkdocs_templ)
         self.logger.info('Generate mkdocs config: %s' % output_file)
 
@@ -701,9 +754,8 @@ class Preprocessor:
     """
     Report preprocessor for prepare rendering and report building environment.
     """
-    def __init__(self, app_dir, context):
-        self.app_dir = app_dir
-        self.app_report_dir = os.path.join(self.app_dir, 'report')
+    def __init__(self, report_dir, context):
+        self.app_report_dir = report_dir
         # Check whether report templates is valid in an app.
         self._check_report()
         self._context = context
@@ -720,9 +772,9 @@ class Preprocessor:
 
     def _check_report(self):
         current_dir = os.getcwd()
-        app_name = os.path.basename(self.app_dir)
         if not os.path.exists(self.app_report_dir):
-            raise InValidReport('Invalid App Report: Not Found %s in %s' % ('report', app_name))
+            raise InValidReport("Current app doesn't support report. "
+                                "Please contact the app maintainer.")
         else:
             os.chdir(self.app_report_dir)
 
@@ -735,17 +787,18 @@ class Preprocessor:
 
         os.chdir(current_dir)
         if len(not_found_files) > 0:
-            raise InValidReport('Invalid App Report: Not Found %s in %s' % (str(not_found_files), app_name))
+            raise InValidReport('Invalid app report templates: Not Found %s in %s'
+                                % (str(not_found_files), os.path.basename(self.app_report_dir)))
 
 
 class Report:
     def __init__(self, project_dir):
         self.project_dir = project_dir
-        self.report_dir = os.path.join(self.project_dir, 'report_markdown')
-        self.site_dir = os.path.join(self.project_dir, 'report_html')
+        self.report_dir = join_path(self.project_dir, 'report_markdown')
+        self.site_dir = join_path(self.project_dir, 'report_html')
 
         # ${project_dir}/.mkdocs.yml
-        self.config_file = os.path.join(self.project_dir, '.mkdocs.yml')
+        self.config_file = join_path(self.project_dir, '.mkdocs.yml')
         self.config = None
 
         self.logger = logging.getLogger('choppy.report_mgmt.Report')
@@ -793,12 +846,12 @@ class Report:
                    site_dir=self.site_dir)
 
 
-def build(app_name, project_dir, resource_dir=c.resource_dir, repo_url='',
+def build(project_dir, resource_dir=c.resource_dir, repo_url='',
           site_description='', site_author='choppy', copyright=get_copyright(),
           site_name='Choppy Report', server='localhost', dev_addr='127.0.0.1:8000',
           theme_name='mkdocs', mode='build', force=False, editable=True,
           sample_id_pattern='', cached_metadata=True, by_workflow=True,
-          enable_media_extension=True):
+          enable_media_extension=True, templ_dir=None, app_name=None):
     """
     Build an app report.
 
@@ -821,15 +874,20 @@ def build(app_name, project_dir, resource_dir=c.resource_dir, repo_url='',
     :param: by_workflow: whether treat workflow output block as the source of cached file list.
     :return:
     """
-    report_dir = os.path.join(project_dir, 'report_markdown')
+    # When all are False
+    if not (app_name or templ_dir):
+        raise Exception("Either app_name or templ_dir must exits.")
+
+    report_dir = join_path(project_dir, 'report_markdown')
     if os.path.exists(report_dir) and not force:
-        logger.info('Skip generate context and render markdown.')
+        logger.info('Skip 1, 2, 3 generate context and render markdown.')
     else:
         # Context: generate context metadata.
         logger.info('1. Generate report context.')
-        ctx_instance = Context(app_name, project_dir, server=server, editable=editable,
+        ctx_instance = Context(project_dir, server=server, editable=editable,
                                sample_id_pattern='', cached_metadata=cached_metadata,
-                               by_workflow=by_workflow, enable_media_extension=enable_media_extension)
+                               by_workflow=by_workflow, enable_media_extension=enable_media_extension,
+                               app_name=app_name, templ_dir=templ_dir)
         ctx_instance.set_extra_context(repo_url=repo_url, site_description=site_description,
                                        site_author=site_author, copyright=copyright, site_name=site_name,
                                        theme_name=theme_name)
@@ -837,22 +895,23 @@ def build(app_name, project_dir, resource_dir=c.resource_dir, repo_url='',
         logger.success('Context: generate report context successfully.')
 
         # Preprocessor: check app whether support report and cache files that be required by report rendering.
-        app_dir = os.path.join(c.app_dir, app_name)
+        if app_name:
+            report_dir = join_path(c.app_dir, app_name, 'report')
+        elif templ_dir:
+            report_dir = templ_dir
+
         tmp_report_dir_uuid = str(uuid.uuid1())
-        tmp_report_dir = os.path.join('/tmp', 'choppy', tmp_report_dir_uuid)
+        tmp_report_dir = join_path('/tmp', 'choppy', tmp_report_dir_uuid)
         check_dir(tmp_report_dir, skip=True, force=True)
 
         logger.debug('Temporary report directory: %s' % tmp_report_dir)
         logger.info('\n2. Try to preprocess an app report.')
         try:
-            preprocessor = Preprocessor(app_dir, ctx_instance)
+            preprocessor = Preprocessor(report_dir, ctx_instance)
             preprocessor.process(tmp_report_dir)
             logger.success('Preprocess app report successfully.')
         except InValidReport as err:
-            logger.debug('Warning: %s' % str(err))
-            message = "The app %s doesn't support report.\n" \
-                      "Please contact the app maintainer." % os.path.basename(app_dir)
-            logger.warn(message)
+            logger.warn(str(err))
             # TODO: How to deal with exit way when choppy run as web api mode.
             sys.exit(exit_code.INVALID_REPORT)
 
@@ -869,7 +928,7 @@ def build(app_name, project_dir, resource_dir=c.resource_dir, repo_url='',
     if mode == 'build':
         logger.info('\n4. Build %s by mkdocs' % report_dir)
         report.build()
-        site_dir = os.path.join(project_dir, 'report_html')
+        site_dir = join_path(project_dir, 'report_html')
         logger.success('Build markdown files successfully. '
                        '(Files in %s)' % site_dir)
     elif mode == 'livereload':
