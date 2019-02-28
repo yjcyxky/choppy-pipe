@@ -1,5 +1,4 @@
 include README.md
 include requirements.txt
-include choppy/conf/*
-include choppy/lib/*
-include choppy/resources/*
+recursive-include choppy * *.template *.wdl *.md samples defaults Dockerfile
+recursive-exclude choppy .DS_Store __pycache__/*

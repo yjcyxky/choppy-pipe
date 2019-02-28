@@ -247,7 +247,7 @@ class Context:
         }
 
         if app_name:
-            default_file = join_path(self._context.get('current_app_dir'), 'report', 'defaults')
+            default_file = join_path(join_path(c.app_dir, app_name), 'report', 'defaults')
         elif templ_dir:
             default_file = join_path(templ_dir, 'defaults')
 
@@ -658,7 +658,6 @@ class Renderer:
             string = f.read()
             updated_string = '{% set sample_id = "' + sample_id + '" %}' + string
             rtemplate = Environment(loader=BaseLoader).from_string(updated_string)
-            print(updated_string, rtemplate.render(context=self.context_dict, **kwargs))
             try:
                 with open(output_file, 'w') as f:
                     f.write(rtemplate.render(context=self.context_dict, **kwargs))

@@ -30,11 +30,14 @@ from choppy.app_utils import (kv_list_to_dict, install_app, uninstall_app,
 from choppy.check_utils import (is_valid_label, is_valid_project_name, is_valid,
                                 is_valid_oss_link, check_dir, check_identifier,
                                 is_valid_zip_or_dir, is_valid_app_name,
-                                get_all_variables, check_variables, is_valid_url,)
+                                get_all_variables, check_variables, is_valid_url,
+                                is_shiny_app, is_valid_tag, is_valid_deps)
 from choppy.version import get_version
-from choppy.docker_mgmt import get_parser, get_default_image, get_base_images
+from choppy.docker_mgmt import (get_parser, get_default_image, get_base_images,
+                                get_default_shiny_image, get_shiny_images)
 from choppy.report_mgmt import get_mode
-from choppy.utils import (get_copyright, ReportTheme, print_obj, clean_tmp_dir)
+from choppy.utils import (get_copyright, ReportTheme, print_obj, clean_tmp_dir,
+                          clean_temp_files)
 from choppy.exceptions import NotFoundApp, WrongAppDir
 
 __author__ = "Jingcheng Yang"
@@ -780,7 +783,59 @@ def call_status(args):
         print("Nothing to commit, working tree clean")
 
 
+def call_shiny_builder(args):
+    import atexit
+    from choppy.docker_mgmt import Docker
+
+    shiny_app = args.shiny_app
+    app_version = args.app_version
+    packrat_bundle = args.packrat_bundle
+    deps = args.rdeps
+    summary = args.summary
+    home = args.home
+    app_doc = args.doc
+    tags = args.tags
+    tag = args.tag
+    username = args.username
+    base_image = args.base_image
+    dry_run = args.dry_run
+
+    if deps:
+        deps = [dep.strip() for dep in deps.split(',')]
+
+    if username:
+        password = getpass.getpass()
+    else:
+        username = None
+        password = None
+
+    if not tag:
+        app_name = os.path.basename(shiny_app)
+        tag = 'choppy-shiny/%s:%s' % (app_name, app_version)
+
+    docker_instance = Docker(username=username, password=password)
+    atexit.register(docker_instance.clean_all)
+
+    shiny_app = os.path.abspath(shiny_app)
+    current_dir = os.getcwd()
+    tmp_dir = os.path.join(current_dir, 'choppy-docker')
+    check_dir(tmp_dir, skip=True)
+
+    success = docker_instance.build_shiny(shiny_app, tag, summary=summary,
+                                          home=home, app_doc=app_doc, tags=tags,
+                                          base_image=base_image, dry_run=dry_run,
+                                          packrat_bundle_path=packrat_bundle, deps=deps,
+                                          dest_dir=tmp_dir)
+
+    if success:
+        logger.success('Dockerfile Path: %s/Dockerfile' % success)
+
+    if not args.no_clean and not success:
+        docker_instance.clean_all()
+
+
 def call_docker_builder(args):
+    import atexit
     from choppy.docker_mgmt import Docker
 
     software_name = args.software_name
@@ -791,12 +846,14 @@ def call_docker_builder(args):
     software_tags = args.software_tags
     tag = args.tag
     username = args.username
-    channels = args.channel
+
+    base_image = args.base_image
     main_program_lst = args.main_program
+    channels = args.channel
     raw_deps = args.dep
     parser = args.parser
+
     dry_run = args.dry_run
-    base_image = args.base_image
 
     deps = [{'name': dep.split(':')[0], 'version': dep.split(':')[1]}
             for dep in raw_deps if re.match(r'^[-\w.]+:[-\w.]+$', dep)]
@@ -834,6 +891,7 @@ def call_docker_builder(args):
         tag = 'choppy/%s:%s' % (software_name, software_version)
 
     docker_instance = Docker(username=username, password=password)
+    atexit.register(docker_instance.clean_all)
     success = docker_instance.build(software_name, software_version, tag, summary=summary,
                                     home=home, software_doc=software_doc, tags=software_tags,
                                     channels=channels, parser=parser, main_program_lst=main_program_lst,
@@ -862,7 +920,23 @@ def call_server(args):
 
 
 def call_report(args):
+    import atexit
     from choppy.report_mgmt import build as build_report
+    from choppy.utils import Process
+
+    def clean_docker():
+        from choppy.docker_mgmt import Docker
+        docker = Docker()
+        docker.clean_containers(filters={'label': 'choppy_report_plugin'})
+        if os.path.isfile('/tmp/plugin.db'):
+            os.remove('/tmp/plugin.db')
+
+    atexit.register(clean_docker)
+    process = Process()
+    atexit.register(process.clean_processs)
+
+    if not args.debug:
+        atexit.register(clean_temp_files)
 
     app_name = args.app_name
     repo_url = args.repo_url
@@ -942,6 +1016,7 @@ Server Management:
 
 Docker Management:
     build       Build docker image for a software automatically.
+    buildshiny  Build docker image for a shiny app automatically.
 
 Report Management:
     report      Generate a report for an app or the specified template files automatically.
@@ -1338,6 +1413,36 @@ server.add_argument('-f', '--framework', action='store', default='BJOERN',
 server.add_argument('-s', '--swagger', action='store_true', default=False, help="Enable swagger documentation.")
 server.set_defaults(func=call_server)
 
+shiny_builder = sub.add_parser(name="buildshiny",
+                               description="Auto build docker image for a shiny server.",
+                               usage="choppy buildshiny shiny_app app_version [<args>]",
+                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+shiny_builder.add_argument('shiny_app', action='store', type=is_shiny_app,
+                           help='A directory for a shiny app.')
+shiny_builder.add_argument('app_version', action='store', default="latest", nargs='?',
+                           help='A directory for a shiny app.')
+shiny_bgroup = shiny_builder.add_mutually_exclusive_group()
+shiny_bgroup.add_argument('--rdeps', action='store', type=is_valid_deps,
+                          help='Dependencies for a shiny app. Such as --rdeps shiny,devtools. NOTICE: only support r packages.')
+shiny_bgroup.add_argument('-p', '--packrat-bundle', action='store', default='',
+                          help='Packrat bundle file.')
+shiny_builder.add_argument('-s', '--summary', action='store', default='', help='The summary about a software.')
+shiny_builder.add_argument('-H', '--home', action='store', default='', help='Home page for a software.')
+shiny_builder.add_argument('--doc', action='store', default='', help='Doc page for a software. May be a website.')
+shiny_builder.add_argument('-t', '--tag', action='store', type=is_valid_tag,
+                           help="Tag for docker image. Need to follow docker tag's convention.")
+shiny_builder.add_argument('--tags', action='store', default='', help="Shiny app tag, eg: Genomics, Rlang.")
+shiny_builder.add_argument('-u', '--username', action='store', type=is_valid_label,
+                           help='Account of docker registry.')
+shiny_builder.add_argument('-b', '--base-image', action='store', default=get_default_shiny_image(),
+                           choices=get_shiny_images(),
+                           help='Base docker image, MUST BE based on alpine linux.')
+shiny_builder.add_argument('-D', '--dry-run', action='store_true', default=False,
+                           help='Generate all related files but skipping running.')
+shiny_builder.add_argument('--no-clean', action='store_true', default=False,
+                           help='NOT clean containers and images.')
+shiny_builder.set_defaults(func=call_shiny_builder)
+
 docker_builder = sub.add_parser(name="build",
                                 description="Auto build docker image for a software.",
                                 usage="choppy build software_name software_version [<args>]",
@@ -1347,7 +1452,8 @@ docker_builder.add_argument('software_version', action='store', help='Software v
 docker_builder.add_argument('-s', '--summary', action='store', default='', help='The summary about a software.')
 docker_builder.add_argument('-H', '--home', action='store', default='', help='Home page for a software.')
 docker_builder.add_argument('--doc', action='store', default='', help='Doc page for a software. May be a website.')
-docker_builder.add_argument('-t', '--tag', action='store', default='', help="Tag for docker image. Need to follow docker tag's convention.")
+docker_builder.add_argument('-t', '--tag', action='store', default='', type=is_valid_tag,
+                            help="Tag for docker image. Need to follow docker tag's convention.")
 docker_builder.add_argument('--software-tags', action='store', default='', help="Software tag, eg: Genomics, Rlang.")
 docker_builder.add_argument('-u', '--username', action='store', type=is_valid_label,
                             help='Account of docker registry.')

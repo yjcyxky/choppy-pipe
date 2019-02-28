@@ -1,5 +1,7 @@
 # -*- coding:utf-8 -*-
 from __future__ import unicode_literals
+
+import re
 import os
 import uuid
 import logging
@@ -7,10 +9,11 @@ import hashlib
 import requests
 import docker
 import json
+import choppy.config as c
 from choppy.app_utils import parse_json
 from jinja2 import Environment, FileSystemLoader
-import choppy.config as c
 from choppy.check_utils import check_dir
+from choppy.utils import copy_and_overwrite
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +23,26 @@ IMAGES = [
     'choppydocker/alpine-miniconda3:python3.5'
 ]
 
+SHINY_IMAGES = [
+    'rocker/shiny:3.5.2',
+    'choppydocker/choppy-shiny:3.5.2'
+]
+
 
 def get_parser():
-    return ('r', 'python', 'bash')
+    return ('r', 'python', 'bash', 'shiny')
+
+
+def get_default_shiny_image():
+    return 'choppydocker/choppy-shiny:3.5.2'
 
 
 def get_default_image():
     return 'choppydocker/alpine-miniconda3:python3.5'
+
+
+def get_shiny_images():
+    return SHINY_IMAGES
 
 
 def get_base_images():
@@ -102,6 +118,23 @@ class Docker:
         else:
             return rendered_tmpl
 
+    def _gen_shiny_dockerfile(self, shiny_app, output_file, summary='', home='',
+                              app_doc='', tags='', choppy_builder='', base_image='',
+                              packrat_bundle='', deps=[]):
+        """
+        Generate shiny server dockerfile.
+        """
+        env = Environment(loader=FileSystemLoader(c.resource_dir))
+        template = env.get_template('dockerfile-shiny.template')
+        rendered_tmpl = template.render(shiny_app=shiny_app, packrat_bundle=packrat_bundle,
+                                        summary=summary, home=home, app_doc=app_doc,
+                                        tags=tags, choppy_builder=choppy_builder,
+                                        base_image=base_image, deps=deps)
+
+        with open(output_file, 'w') as f:
+            f.write(rendered_tmpl)
+            return output_file
+
     def _gen_wrapper(self, main_program_list, parser='', output_file=None):
         env = Environment(loader=FileSystemLoader(c.resource_dir))
         if len(main_program_list) == 1:
@@ -127,7 +160,7 @@ class Docker:
             if version_json:
                 print(json.dumps(parse_json(version_json), indent=2, sort_keys=True))
         except Exception as err:
-            logger.critical(str(err))
+            self.logger.critical(str(err))
 
     def clean_containers(self, filters):
         try:
@@ -135,26 +168,28 @@ class Docker:
             for container in containers:
                 container.remove(force=True)
         except (docker.errors.APIError, Exception) as err:
-            logger.critical("Clean Containers: %s" % str(err))
+            self.logger.warning("Clean Containers: %s" % str(err))
 
-    def clean_images(self, filters):
+    def clean_images(self, filters=None, dangling=True):
         try:
-            images = self.client.images.list(filters=filters)
-            for image in images:
-                self.client.images.remove(image=image.id, force=True)
+            if dangling:
+                self.client.images.prune(filters={"dangling": dangling})
+
+            if filters:
+                images = self.client.images.list(filters=filters)
+                for image in images:
+                    self.client.images.remove(image=image.id, force=True)
         except (docker.errors.APIError, Exception) as err:
-            logger.critical("Clean Images: %s" % str(err))
+            self.logger.warning("Clean Images: %s" % str(err))
 
     def clean_all(self):
         container_filters = {
             'status': 'exited',
-            'label': 'choppy_tag'
+            'label': 'choppy_builder'
         }
-        image_filters = {
-            'label': 'choppy_tag'
-        }
+
         self.clean_containers(container_filters)
-        self.clean_images(image_filters)
+        self.clean_images(dangling=True)
 
     def build(self, software_name, software_version, tag_name, summary='',
               home='', software_doc='', tags='', channels=list(), base_image=None,
@@ -170,7 +205,8 @@ class Docker:
 
             self._exist_docker()
             if current_dir:
-                tmp_dir = os.getcwd()
+                tmp_dir = os.path.join(current_dir, 'choppy-docker')
+                check_dir(tmp_dir)
             else:
                 tmp_dir = os.path.join('/tmp', 'choppy', str(uuid.uuid1()))
                 check_dir(tmp_dir)
@@ -180,25 +216,91 @@ class Docker:
             if os.path.isfile(tmp_dockerfile):
                 overwrite_dockerfile(tmp_dockerfile)
 
-            choppy_tag = '%s-%s' % (software_name, software_version)
+            choppy_builder = '%s-%s' % (software_name, software_version)
 
             self._gen_dockerfile(software_name, software_version, summary=summary, home=home,
                                  software_doc=software_doc, tags=tags, output_file=tmp_dockerfile,
-                                 choppy_tag=choppy_tag, channels=channels, base_image=base_image,
+                                 choppy_builder=choppy_builder, channels=channels, base_image=base_image,
                                  deps=deps, parser=parser)
             if not dry_run:
                 cli = docker.APIClient(base_url=self.base_url)
                 logs = cli.build(path=tmp_dir, tag=tag_name, decode=True,
                                  nocache=True, rm=True, pull=False)
 
+                lastline = ''
                 for line in logs:
                     streamline = line.get('stream')
                     if streamline:
                         print(streamline.strip())
-            return tmp_dir
+                    lastline = streamline
+
+                if re.match(r'^Successfully tagged .*', str(lastline)):
+                    return tmp_dir
+                else:
+                    self.logger.error('Build docker image error: may be last step have some problems.')
+                    return False
+            else:
+                self.logger.success('All files for %s docker image are located in %s' % (software_name, tmp_dir))
         except (docker.errors.APIError, Exception) as err:
             err_msg = "Build docker(%s-%s): %s" % (software_name, software_version, str(err))
-            logger.critical(err_msg)
+            self.logger.critical(err_msg)
+            return False
+
+    def build_shiny(self, app_dir, tag_name, dest_dir, summary='', deps=[],
+                    packrat_bundle_path='', home='', app_doc='', tags='',
+                    base_image=None, dry_run=False):
+        """
+        Build docker image for shiny.
+        """
+        try:
+            self._exist_docker()
+
+            from_path = os.path.join(c.resource_dir, 'shiny-plugin')
+            copy_and_overwrite(from_path, dest_dir)
+
+            if deps:
+                # Skip packrat if deps exists.
+                packrat_bundle = ''
+            elif packrat_bundle_path:
+                packrat_bundle = os.path.basename(packrat_bundle_path)
+                copy_and_overwrite(packrat_bundle_path, os.path.join(dest_dir, packrat_bundle), is_file=True)
+
+            # if no os.path.basename(app_dir) as argument, dest_dir will be deleted.
+            shiny_app = os.path.basename(app_dir)
+            copy_and_overwrite(app_dir, os.path.join(dest_dir, shiny_app))
+
+            tmp_dockerfile = os.path.join(dest_dir, 'Dockerfile')
+
+            if os.path.isfile(tmp_dockerfile):
+                overwrite_dockerfile(tmp_dockerfile)
+
+            self._gen_shiny_dockerfile(shiny_app, tmp_dockerfile, packrat_bundle=packrat_bundle,
+                                       summary=summary, home=home, app_doc=app_doc, deps=deps,
+                                       choppy_builder=tag_name, tags=tags,
+                                       base_image=base_image)
+            if not dry_run:
+                cli = docker.APIClient(base_url=self.base_url)
+                logs = cli.build(path=dest_dir, tag=tag_name, decode=True,
+                                 nocache=True, rm=True, pull=False)
+
+                lastline = ''
+                for line in logs:
+                    streamline = line.get('stream')
+                    if streamline:
+                        print(streamline.strip())
+
+                    lastline = streamline
+
+                if re.match(r'^Successfully tagged .*', str(lastline)):
+                    return dest_dir
+                else:
+                    self.logger.error('Build docker image error: may be last step have some problems.')
+                    return False
+            else:
+                self.logger.success('All files for %s docker image are located in %s' % (shiny_app, dest_dir))
+        except (docker.errors.APIError, Exception) as err:
+            err_msg = "Build shiny docker(by %s): %s" % (packrat_bundle_path, str(err))
+            self.logger.critical(err_msg)
             return False
 
 

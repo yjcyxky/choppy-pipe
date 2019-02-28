@@ -39,6 +39,28 @@ def is_valid_app_name(app_name):
                 "'^([-\\w]+)/([-\\w]+)(:[-.\\w]+)?$'" % app_name)
 
 
+def is_valid_tag(tag_name):
+    pattern = r'^[-\w]+:[-.\w]+$'
+    match = re.search(pattern, tag_name)
+    if match:
+        return tag_name
+    else:
+        raise argparse.ArgumentTypeError(
+            "Invalid tag_name: %s did not match the regex "
+            "'^[-\\w]+:[-.\\w]+$.'. Such as shiny:0.1.0" % tag_name)
+
+
+def is_valid_deps(deps):
+    pattern = r'^[\w]+(,[-\w]+)*$'
+    match = re.search(pattern, deps)
+    if match:
+        return deps
+    else:
+        raise argparse.ArgumentTypeError(
+            "Invalid tag_name: %s did not match the regex "
+            "'^[\\w]+(,[-\\w]+)*$'. Such as shiny,devtools" % deps)
+
+
 def get_all_variables(app_dir, no_default=False):
     inputs_variables = get_vars_from_app(app_dir, 'inputs', no_default=no_default)
     workflow_variables = get_vars_from_app(app_dir, 'workflow.wdl', no_default=no_default)
@@ -193,3 +215,23 @@ def is_valid_zip_or_dir(path):
         raise argparse.ArgumentTypeError(e)
     else:
         return path
+
+
+def is_shiny_app(path):
+    """
+    Check if path is a valid shiny app.
+    """
+    if os.path.basename(path) == '.':
+        raise argparse.ArgumentTypeError("Shiny app can't be current directory.(%s)" % path)
+    elif not os.path.isdir(path):
+        raise argparse.ArgumentTypeError("Shiny app must be a directory "
+                                         "that contains shiny app files.(%s)" % path)
+
+    app_file = os.path.join(path, 'app.R')
+    ui_file = os.path.join(path, 'ui.R')
+    server_file = os.path.join(path, 'server.R')
+    if not os.path.isfile(app_file) and not (os.path.isfile(ui_file) and os.path.isfile(server_file)):
+        raise argparse.ArgumentTypeError("Shiny app must be a directory that "
+                                         "contains app.R or (ui.R and server.R).")
+
+    return path

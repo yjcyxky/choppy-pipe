@@ -8,12 +8,7 @@ from setuptools.command.install import install
 
 auto_complete_cmd = """
 # Bash Auto Complete for Choppy
-if command -v activate-global-python-argcomplete > /dev/null 2>&1; then
-    activate-global-python-argcomplete --user > /dev/null
-    eval "$(register-python-argcomplete choppy)"
-else
-    echo ''
-fi
+# eval "$(register-python-argcomplete choppy)"
 """
 
 
