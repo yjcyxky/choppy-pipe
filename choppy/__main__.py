@@ -36,8 +36,9 @@ from choppy.version import get_version
 from choppy.docker_mgmt import (get_parser, get_default_image, get_base_images,
                                 get_default_shiny_image, get_shiny_images)
 from choppy.report_mgmt import get_mode
-from choppy.utils import (get_copyright, ReportTheme, print_obj, clean_tmp_dir,
+from choppy.utils import (get_copyright, ReportTheme, print_obj, clean_temp,
                           clean_temp_files)
+from choppy.plugin_utils import (listplugins, getplugins)
 from choppy.exceptions import NotFoundApp, WrongAppDir
 
 __author__ = "Jingcheng Yang"
@@ -111,7 +112,7 @@ def call_submit(args):
     logger.info(links['timing'])
 
     args.workflow_id = result['id']
-    logger.info('workflow_id: %s' % result['id'])
+    print('workflow_id: %s' % result['id'])
 
     if args.monitor:
         # this sleep is to allow job to get started in Cromwell before labeling or monitoring. # noqa
@@ -410,14 +411,14 @@ def call_log(args):
             return None
         else:
             metadata = cromwell.query_metadata(args.workflow_id)
-            logger.info("\n%s\n" % json.dumps(parse_json(metadata), indent=2, sort_keys=True))
+            print("\n%s\n" % json.dumps(parse_json(metadata), indent=2, sort_keys=True))
     else:
         project_logs = os.path.join(c.log_dir, "project_logs")
         check_dir(project_logs, skip=True)
         logfile = os.path.join(project_logs, '{}_choppy.log'.format(args.workflow_id))
         if os.path.isfile(logfile):
             with open(logfile, 'r') as f:
-                logger.info(f.read())
+                print(f.read())
         else:
             logger.warn("No such project: %s" % args.workflow_id)
 
@@ -455,9 +456,17 @@ def call_email(args):
 def call_list_apps(args):
     if os.path.isdir(c.app_dir):
         files = os.listdir(c.app_dir)
-        logger.info(files)
+        print(files)
     else:
         raise WrongAppDir("choppy.conf.general.app_dir is wrong.")
+
+
+def call_list_plugins(args):
+    plugins = listplugins()
+    if plugins:
+        print(plugins)
+    else:
+        logger.warning("No any plugins are installed.")
 
 
 def call_batch(args):
@@ -632,15 +641,15 @@ def call_search(args):
     res = cromwell.query(query_dict)
 
     if short_format:
-        logger.info("workflow-id\tsample-id")
+        print("workflow-id\tsample-id")
         for result in res['results']:
             sample_id = result.get('labels').get('sample-id')
             if not sample_id:
                 sample_id = ""
 
-            logger.info("%s\t%s" % (result.get('id'), sample_id.upper()))
+            print("%s\t%s" % (result.get('id'), sample_id.upper()))
     else:
-        logger.info(json.dumps(parse_json(res['results']), indent=2, sort_keys=True))
+        print(json.dumps(parse_json(res['results']), indent=2, sort_keys=True))
 
 
 def call_samples(args):
@@ -657,7 +666,7 @@ def call_samples(args):
             header_lst = get_header(checkfile)
             if check_variables(app_dir, 'inputs', header_list=header_lst, no_default=no_default) and \
                check_variables(app_dir, 'workflow.wdl', header_list=header_lst, no_default=no_default): # noqa
-                logger.info("%s is valid." % checkfile)
+                print("%s is valid." % checkfile)
     else:
         variables = get_all_variables(app_dir)
 
@@ -710,6 +719,16 @@ def call_config(args):
             with open(choppy_conf, 'r') as f:
                 print_obj(f.read())
                 sys.stdout.flush()
+
+
+def call_plugin_readme(args):
+    output = args.output
+    format = args.format
+    plugin_name = args.plugin_name
+    plugins = getplugins()
+    plugin = plugins.get(plugin_name)
+    if plugin:
+        plugin.show_help(ftype=format, output=output)
 
 
 def call_readme(args):
@@ -928,8 +947,6 @@ def call_report(args):
         from choppy.docker_mgmt import Docker
         docker = Docker()
         docker.clean_containers(filters={'label': 'choppy_report_plugin'})
-        if os.path.isfile('/tmp/plugin.db'):
-            os.remove('/tmp/plugin.db')
 
     atexit.register(clean_docker)
     process = Process()
@@ -952,7 +969,9 @@ def call_report(args):
     dev_addr = args.dev_addr
     force = args.force
     mode = args.mode
+
     enable_media_extension = args.enable_plugin
+
     templ_dir = args.templ_dir
 
     # All are False or all are True
@@ -1020,6 +1039,8 @@ Docker Management:
 
 Report Management:
     report      Generate a report for an app or the specified template files automatically.
+    manplugin   Get manual about report plugin.
+    plugins     List all plugins that is supported by choppy report.
 """
 
 
@@ -1261,6 +1282,12 @@ wdllist = sub.add_parser(name="apps",
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 wdllist.set_defaults(func=call_list_apps)
 
+pluginlst = sub.add_parser(name="plugins",
+                           description="List all plugins that is supported by choppy report.",
+                           usage="choppy plugins",
+                           formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+pluginlst.set_defaults(func=call_list_plugins)
+
 listfiles = sub.add_parser(name="listfiles",
                            description="List all files where are in the specified bucket.",
                            usage="choppy listfiles <oss_link> [<args>]",
@@ -1358,6 +1385,17 @@ version = sub.add_parser(name="version",
                          usage="choppy version",
                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 version.set_defaults(func=call_version)
+
+plugin = sub.add_parser(name="manplugin",
+                        description="Get man about report plugin.",
+                        usage="choppy manplugin <plugin_name> [<args>]",
+                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+plugin.add_argument('plugin_name', action='store', choices=listplugins(),
+                    help='The plugin name for your report.', metavar="plugin_name")
+plugin.add_argument('-o', '--output', action='store', help='output file name.')
+plugin.add_argument('-f', '--format', action='store', help='output format.', default='markdown',
+                    choices=('html', 'markdown'))
+plugin.set_defaults(func=call_plugin_readme)
 
 manual = sub.add_parser(name="man",
                         description="Get manual about app.",
@@ -1549,7 +1587,11 @@ def main():
         sys.exit(exit_code.CONFIG_FILE_NOT_EXIST)
 
     # Clean up the temp directory
-    clean_tmp_dir(c.tmp_dir)
+    clean_temp(c.tmp_dir)
+    if c.clean_cache:
+        clean_temp(c.plugin_cache_dir)
+
+    clean_temp(c.plugin_db, dir=False)
 
     args.func(args)
 

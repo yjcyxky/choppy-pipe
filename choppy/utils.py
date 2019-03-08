@@ -72,9 +72,15 @@ def print_obj(string):
         print(string)
 
 
-def clean_tmp_dir(tmp_dir):
+def clean_temp(temp, dir=True):
     # Clean temp directory
-    shutil.rmtree(tmp_dir, ignore_errors=True)
+    if dir:
+        shutil.rmtree(temp, ignore_errors=True)
+    else:
+        try:
+            os.remove(temp)
+        except Exception:
+            pass
 
 
 class _RandomNameSequence:
@@ -161,7 +167,7 @@ class Process:
         if include_parent:
             children.append(parent)
         children_pids = [child.pid for child in children]
-        self.logger.info('Kill process: %s and all children %s' % (pid, children_pids))
+        self.logger.debug('Kill process: %s and all children %s' % (pid, children_pids))
         try:
             for p in children:
                 p.send_signal(sig)
@@ -174,7 +180,5 @@ class Process:
 
 
 def clean_temp_files():
-    mk_media_extension_temp = '/tmp/choppy-media-extension'
     choppy_temp = '/tmp/choppy'
     shutil.rmtree(choppy_temp, ignore_errors=True)
-    shutil.rmtree(mk_media_extension_temp, ignore_errors=True)

@@ -27,8 +27,6 @@ from mkdocs import config
 from os.path import join as join_path
 from jinja2 import Environment, FileSystemLoader, BaseLoader
 from jinja2.exceptions import TemplateSyntaxError
-from mkdocs.commands.build import build as build_docs
-from mkdocs.commands.serve import serve as serve_docs
 
 import choppy.config as c
 import choppy.exit_code as exit_code
@@ -834,11 +832,13 @@ class Report:
             f.write(self.raw_config)
 
     def build(self):
+        from mkdocs.commands.build import build as build_docs
         self._check_config("Attempting to build docs but the mkdocs.yml doesn't exist."
                            " You need to call render/new firstly.")
         build_docs(self.config, live_server=False, dirty=False)
 
     def server(self, dev_addr=None, livereload='livereload'):
+        from mkdocs.commands.serve import dev_serve as serve_docs
         self._check_config("Attempting to serve docs but the mkdocs.yml doesn't exist."
                            " You need to call render/new firstly.", load_config=False)
         serve_docs(config_file=self.config_file, dev_addr=dev_addr, livereload=livereload,
@@ -873,6 +873,13 @@ def build(project_dir, resource_dir=c.resource_dir, repo_url='',
     :param: by_workflow: whether treat workflow output block as the source of cached file list.
     :return:
     """
+    from choppy.check_utils import check_plugin
+    from choppy.check_utils import check_customized_mkdocs
+
+    if enable_media_extension:
+        if not (check_plugin() and check_customized_mkdocs()):
+            sys.exit(exit_code.INVALID_DEPS)
+
     # When all are False
     if not (app_name or templ_dir):
         raise Exception("Either app_name or templ_dir must exits.")

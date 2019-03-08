@@ -235,3 +235,23 @@ def is_shiny_app(path):
                                          "contains app.R or (ui.R and server.R).")
 
     return path
+
+
+def check_plugin():
+    try:
+        import mk_media_extension # noqa
+        return True
+    except ModuleNotFoundError:
+        msg = 'Use `pip install mk_media_extension` to support report plugin.\n'
+        logger.warning('Report plugin is not yet supported by choppy.\n%s' % msg)
+        return False
+
+
+def check_customized_mkdocs():
+    try:
+        from mkdocs.commands.serve import dev_serve # noqa
+        return True
+    except ImportError:
+        msg = 'Please contact choppy team to get the customized version.\n'
+        logger.warning('Official mkdocs is not yet supported by choppy.\n%s' % msg)
+        return False

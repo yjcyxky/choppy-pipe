@@ -7,6 +7,7 @@ import logging
 import getpass
 import configparser
 from choppy import exit_code
+from os.path import expanduser
 
 logger = logging.getLogger(__name__)
 DIRNAME = os.path.split(os.path.abspath(__file__))[0]
@@ -19,7 +20,7 @@ CONFIG_FILES = ['~/.choppy/choppy.conf', '/etc/choppy.conf']
 def getconf(config_files):
     for f in config_files:
         try:
-            loc = os.path.expanduser(f)
+            loc = expanduser(f)
         except KeyError:
             # os.path.expanduser can fail when $HOME is undefined and
             # getpwuid fails. See http://bugs.python.org/issue20164 &
@@ -53,21 +54,21 @@ def check_server_config(host, port, username=None, password=None):
 
 def get_workflow_db(workflow_db):
     if not workflow_db:
-        return os.path.expanduser('~/.choppy/workflow.db')
+        return expanduser('~/.choppy/workflow.db')
     else:
         return workflow_db
 
 
 def get_log_dir(log_dir):
     if not log_dir:
-        return os.path.expanduser('~/.choppy')
+        return expanduser('~/.choppy')
     else:
         return log_dir
 
 
 def get_app_dir(app_dir):
     if not app_dir:
-        return os.path.expanduser('~/.choppy')
+        return expanduser('~/.choppy')
     else:
         return app_dir
 
@@ -107,12 +108,11 @@ component_dir = os.path.abspath(os.path.join(
     os.path.dirname(__file__), 'components'))
 
 try:
-    workflow_db = os.path.expanduser(config.get('general', 'workflow_db'))
+    workflow_db = expanduser(config.get('general', 'workflow_db'))
     workflow_db = get_workflow_db(workflow_db)
 
     # Get default value if app_dir is None
-    app_dir = os.path.join(os.path.expanduser(
-        config.get('general', 'app_dir')), 'apps')
+    app_dir = os.path.join(expanduser(config.get('general', 'app_dir')), 'apps')
     app_dir = get_app_dir(app_dir)
     check_dir(app_dir)
 
@@ -164,14 +164,12 @@ try:
 
     # Log
     if sys.platform == 'darwin':
-        log_dir = os.path.join(os.path.expanduser(
-            config.get('general', 'log_dir')), 'logs')
+        log_dir = os.path.join(expanduser(config.get('general', 'log_dir')), 'logs')
         oss_bin = os.path.join(os.path.dirname(
             __file__), "lib", 'ossutilmac64')
     else:
         oss_bin = os.path.join(os.path.dirname(__file__), "lib", 'ossutil64')
-        log_dir = os.path.join(os.path.expanduser(
-            config.get('general', 'log_dir')), 'logs')
+        log_dir = os.path.join(expanduser(config.get('general', 'log_dir')), 'logs')
 
     log_dir = get_log_dir(log_dir)
     check_dir(log_dir)
@@ -190,6 +188,16 @@ try:
         log_level == logging.FATAL
     else:
         log_level = logging.DEBUG
+
+    # Plugin
+    if config.has_section('plugin'):
+        plugin_section = config['plugin']
+        temp = '/tmp/choppy-media-extension'
+        plugin_cache_dir = expanduser(plugin_section.get('cache_dir', temp))
+        default_plugin_db = os.path.join(temp, 'plugin.db')
+        plugin_db = expanduser(plugin_section.get('plugin_db', default_plugin_db))
+        clean_cache = plugin_section.getboolean('clean_cache', True)
+
 except (configparser.NoSectionError, configparser.NoOptionError, KeyError) as err:
     logger.critical('Parsing config file (%s) error.\n%s' %
                     (conf_path, str(err)))
