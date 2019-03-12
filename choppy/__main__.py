@@ -1393,8 +1393,8 @@ plugin = sub.add_parser(name="manplugin",
 plugin.add_argument('plugin_name', action='store', choices=listplugins(),
                     help='The plugin name for your report.', metavar="plugin_name")
 plugin.add_argument('-o', '--output', action='store', help='output file name.')
-plugin.add_argument('-f', '--format', action='store', help='output format.', default='markdown',
-                    choices=('html', 'markdown'))
+plugin.add_argument('-f', '--format', action='store', help='output format.', default='browser',
+                    choices=('html', 'markdown', 'browser'))
 plugin.set_defaults(func=call_plugin_readme)
 
 manual = sub.add_parser(name="man",
