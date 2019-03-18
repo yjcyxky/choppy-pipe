@@ -37,11 +37,14 @@ use_directory_urls: false
 markdown_extensions:
     - toc:
         permalink: True
+        baselevel: 1
+        toc_depth: 3
     - admonition
     - def_list
     - sane_lists
-    - pymdownx.superfences
+    - nl2br
     - pymdownx.highlight
+    - pymdownx.superfences
     - pymdownx.inlinehilite:
         style_plain_text: True
     {% if context.enable_media_extension -%}
