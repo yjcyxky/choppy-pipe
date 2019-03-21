@@ -1538,7 +1538,8 @@ report.add_argument('-p', '--project-dir', action='store', required=True, help='
                     type=is_valid)
 report.add_argument('-t', '--templ-dir', action='store', type=is_valid,
                     help='The directory that contains your report template files.')
-report.add_argument('--theme', action='store', default='mkdocs', choices=ReportTheme.get_theme_lst(),
+report.add_argument('--theme', action='store', default='mkdocs',
+                    choices=ReportTheme.get_theme_lst(),
                     help='Theming your report by using the specified theme.')
 report.add_argument('--repo-url', action='store', help='Your project repo url', type=is_valid_url)
 report.add_argument('--site-name', action='store', help='The site name for your report website', default='Choppy Report')

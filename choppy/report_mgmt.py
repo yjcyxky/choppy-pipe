@@ -32,7 +32,7 @@ import choppy.config as c
 import choppy.exit_code as exit_code
 from choppy.cromwell import Cromwell
 from choppy.check_utils import check_dir
-from choppy.utils import copy_and_overwrite, get_copyright
+from choppy.utils import (copy_and_overwrite, get_copyright, clean_files)
 from choppy.exceptions import InValidReport
 
 logging.setLoggerClass(verboselogs.VerboseLogger)
@@ -208,8 +208,22 @@ class Context:
             'site_description': 'Choppy is a painless reproducibility manager.',
             'site_author': 'choppy',
             'copyright': get_copyright(),
-            'extra_css_lst': ['http://kancloud.nordata.cn/2019-02-01-choppy-extra.css'],
-            'extra_js_lst': [],
+            'extra_css_lst': [
+                "http://kancloud.nordata.cn/2019-02-01-choppy-extra.css",
+                "http://kancloud.nordata.cn/2019-03-21-jquery-confirm.min.css",
+                "http://kancloud.nordata.cn/2019-03-21-loading.css",
+                "http://kancloud.nordata.cn/2019-03-21-choppy-custom.css"
+            ],
+            'extra_js_lst': [
+                "http://kancloud.nordata.cn/2019-03-21-jquery-2.1.1.min.js",
+                "http://kancloud.nordata.cn/2019-03-21-jquery-confirm.min.js",
+                "http://kancloud.nordata.cn/2019-03-21-loading.js",
+                "http://kancloud.nordata.cn/2019-03-21-notify.js",
+                "http://kancloud.nordata.cn/2019-03-21-stackedit-lib.js",
+                "http://kancloud.nordata.cn/2019-03-21-stackedit.js",
+                "http://kancloud.nordata.cn/2019-02-27-iframeResizer.min.js",
+                "http://kancloud.nordata.cn/2019-03-21-choppy-custom.js"
+            ],
             'theme_name': 'mkdocs',
 
             # For App
@@ -882,18 +896,20 @@ class Report:
         with open(self.config_file, 'w') as f:
             f.write(self.raw_config)
 
-    def build(self):
+    def build(self, templ_type='html'):
         from mkdocs.commands.build import build as build_docs
         self._check_config("Attempting to build docs but the mkdocs.yml doesn't exist."
                            " You need to call render/new firstly.")
-        build_docs(self.config, live_server=False, dirty=False)
+        build_docs(self.config, live_server=False, dirty=False,
+                   templ_type=templ_type)
 
-    def server(self, dev_addr=None, livereload='livereload'):
+    def server(self, dev_addr=None, livereload='livereload', templ_type='html'):
         from mkdocs.commands.serve import dev_serve as serve_docs
         self._check_config("Attempting to serve docs but the mkdocs.yml doesn't exist."
                            " You need to call render/new firstly.", load_config=False)
-        serve_docs(config_file=self.config_file, dev_addr=dev_addr, livereload=livereload,
-                   site_dir=self.site_dir)
+        serve_docs(config_file=self.config_file, dev_addr=dev_addr,
+                   livereload=livereload, site_dir=self.site_dir,
+                   templ_type=templ_type)
 
 
 def build(project_dir, resource_dir=c.resource_dir, repo_url='',
@@ -939,8 +955,13 @@ def build(project_dir, resource_dir=c.resource_dir, repo_url='',
     if os.path.exists(report_dir) and not force:
         logger.info('Skip 1, 2, 3 generate context and render markdown.')
     else:
+        # Force to clean
+        logger.info('0. Force to clean all files in %s.' % report_dir)
+        clean_files(report_dir)
+        logger.success('Clean successfully.')
+
         # Context: generate context metadata.
-        logger.info('1. Generate report context.')
+        logger.info('\n1. Generate report context.')
         ctx_instance = Context(project_dir, server=server, editable=editable,
                                sample_id_pattern='', cached_metadata=cached_metadata,
                                by_workflow=by_workflow, enable_media_extension=enable_media_extension,
@@ -981,19 +1002,27 @@ def build(project_dir, resource_dir=c.resource_dir, repo_url='',
         logger.success('Render report markdown files successfully.')
 
     # Report: build markdown files to html.
+    from choppy.utils import ReportTheme
+    if theme_name in ReportTheme.get_ppt_theme_lst():
+        templ_type = 'ppt'
+    elif theme_name in ReportTheme.get_html_theme_lst():
+        templ_type = 'html'
+
     report = Report(project_dir)
     if mode == 'build':
         logger.info('\n4. Build %s by mkdocs' % report_dir)
-        report.build()
+        report.build(templ_type=templ_type)
         site_dir = join_path(project_dir, 'report_html')
         logger.success('Build markdown files successfully. '
                        '(Files in %s)' % site_dir)
     elif mode == 'livereload':
         logger.info('\n4. Serve %s in livereload mode by mkdocs' % report_dir)
-        report.server(dev_addr=dev_addr, livereload='livereload')
+        report.server(dev_addr=dev_addr, livereload='livereload',
+                      templ_type=templ_type)
     elif mode == 'server':
         logger.info('\n4. Serve %s by mkdocs' % report_dir)
-        report.server(dev_addr=dev_addr, livereload='no-livereload')
+        report.server(dev_addr=dev_addr, livereload='no-livereload',
+                      templ_type=templ_type)
 
 
 def get_mode():

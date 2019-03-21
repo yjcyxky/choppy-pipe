@@ -42,7 +42,7 @@ markdown_extensions:
     - admonition
     - def_list
     - sane_lists
-    - nl2br
+#    - nl2br
     - pymdownx.highlight
     - pymdownx.superfences
     - pymdownx.inlinehilite:
@@ -66,14 +66,14 @@ theme:
 extra_css:
     {% for css in context.extra_css_lst -%}
     - {{ css }}
-    {%- endfor %}
+    {% endfor -%}
 {%- endif %}
 
 {% if context.extra_js_lst | length > 0 -%}
 extra_javascript:
     {% for js in context.extra_js_lst -%}
     - {{ js }}
-    {%- endfor %}
+    {% endfor -%}
 {%- endif %}
 
 nav:

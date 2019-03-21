@@ -8,7 +8,9 @@ import psutil
 import signal
 from datetime import datetime
 from random import Random as _Random
+from mkdocs.utils import get_theme_names
 import _thread
+
 _allocate_lock = _thread.allocate_lock
 _once_lock = _allocate_lock()
 _name_sequence = None
@@ -55,13 +57,37 @@ def copy_and_overwrite(from_path, to_path, is_file=False, ignore_errors=True, as
         shutil.copytree(from_path, to_path)
 
 
+def clean_files(folder, skip=True):
+    for the_file in os.listdir(folder):
+        file_path = os.path.join(folder, the_file)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            if not skip:
+                print(e)
+
+
 class ReportTheme:
     def __init__(self):
         pass
 
     @classmethod
     def get_theme_lst(cls):
-        theme_lst = ('mkdocs', 'readthedocs', 'material', 'cinder')
+        # theme_lst = ('mkdocs', 'readthedocs', 'material', 'cinder', 'white_ppt')
+        theme_lst = get_theme_names()
+        return theme_lst
+
+    @classmethod
+    def get_ppt_theme_lst(cls):
+        theme_lst = ('white_ppt', )
+        return theme_lst
+
+    @classmethod
+    def get_html_theme_lst(cls):
+        theme_lst = list(set(cls.get_theme_lst()) - set(cls.get_ppt_theme_lst()))
         return theme_lst
 
 

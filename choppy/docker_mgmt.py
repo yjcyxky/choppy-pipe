@@ -168,7 +168,7 @@ class Docker:
             for container in containers:
                 container.remove(force=True)
         except (docker.errors.APIError, Exception) as err:
-            self.logger.warning("Clean Containers: %s" % str(err))
+            self.logger.debug("Clean Containers: %s" % str(err))
 
     def clean_images(self, filters=None, dangling=True):
         try:
