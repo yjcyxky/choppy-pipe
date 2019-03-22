@@ -197,6 +197,7 @@ try:
         default_plugin_db = os.path.join(temp, 'plugin.db')
         plugin_db = expanduser(plugin_section.get('plugin_db', default_plugin_db))
         clean_cache = plugin_section.getboolean('clean_cache', True)
+        enable_iframe = plugin_section.getboolean('enable_iframe', True)
 
 except (configparser.NoSectionError, configparser.NoOptionError, KeyError) as err:
     logger.critical('Parsing config file (%s) error.\n%s' %

@@ -23,7 +23,7 @@ import csv
 import uuid
 import verboselogs
 
-from mkdocs import config
+from mkdocs import config as mkdocs_config
 from os.path import join as join_path
 from jinja2 import Environment, FileSystemLoader, BaseLoader
 from jinja2.exceptions import TemplateSyntaxError
@@ -208,13 +208,19 @@ class Context:
             'site_description': 'Choppy is a painless reproducibility manager.',
             'site_author': 'choppy',
             'copyright': get_copyright(),
+            'iframe_mode': c.enable_iframe,
+            'extra_header_js_lst': [
+                # For non iframe mode.
+                "http://kancloud.nordata.cn/2019-03-22-load-script-0.1.3.js",
+                "http://kancloud.nordata.cn/2019-03-22-web-inject.min.js"
+            ],
             'extra_css_lst': [
-                "http://kancloud.nordata.cn/2019-02-01-choppy-extra.css",
                 "http://kancloud.nordata.cn/2019-03-21-jquery-confirm.min.css",
                 "http://kancloud.nordata.cn/2019-03-21-loading.css",
-                "http://kancloud.nordata.cn/2019-03-21-choppy-custom.css"
+                "http://kancloud.nordata.cn/2019-03-22-choppy-custom-1.css"
             ],
             'extra_js_lst': [
+                # For main page.
                 "http://kancloud.nordata.cn/2019-03-21-jquery-2.1.1.min.js",
                 "http://kancloud.nordata.cn/2019-03-21-jquery-confirm.min.js",
                 "http://kancloud.nordata.cn/2019-03-21-loading.js",
@@ -869,8 +875,8 @@ class Report:
     def _check_config(self, msg, load_config=True):
         if os.path.isfile(self.config_file):
             if load_config:
-                self.config = config.load_config(config_file=self.config_file,
-                                                 site_dir=self.site_dir)
+                self.config = mkdocs_config.load_config(config_file=self.config_file,
+                                                        site_dir=self.site_dir)
         else:
             raise Exception(msg)
 

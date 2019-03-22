@@ -89,7 +89,11 @@ setup(
         'docker>=3.7.0',
         'mkdocs>=1.0.4',
         'mkdocs-material>=3.3.0',
+        'mkdocs-bootswatch>=1.0',
         'mkdocs-cinder>=0.16.1',
-        'verboselogs>=1.7'
+        'verboselogs>=1.7',
+        'mkdocs-cluster>=0.0.9',
+        'mkdocs-bootstrap>=1.0.1',
+        'beautifulsoup4==4.7.1'
     ]
 )

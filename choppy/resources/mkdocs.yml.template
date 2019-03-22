@@ -57,10 +57,18 @@ markdown_extensions:
 plugins:
     - search:
         lang: en
+    # When enable_iframe is False, the page need the extra_header_js_lst
+    {% if not context.enable_iframe and context.extra_header_js_lst | length > 0 -%}
+    - header_injector:
+        extra_header_js:
+            {% for js in context.extra_header_js_lst -%}
+            - {{ js }}
+            {% endfor -%}
+    {%- endif %}
 
 theme:
     name: {{ context.theme_name }}
-    highlightjs: false
+    highlightjs: true
 
 {% if context.extra_css_lst | length > 0 -%}
 extra_css:
