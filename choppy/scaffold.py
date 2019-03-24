@@ -2,10 +2,13 @@
 from __future__ import unicode_literals
 import os
 import logging
-from jinja2 import Environment, FileSystemLoader
+import verboselogs
 import choppy.config as c
+from jinja2 import Environment, FileSystemLoader
 from choppy.utils import copy_and_overwrite
 from choppy.exceptions import NoSuchDirectory, NoSuchFile
+
+logging.setLoggerClass(verboselogs.VerboseLogger)
 
 
 class Scaffold:

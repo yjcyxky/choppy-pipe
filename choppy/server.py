@@ -7,6 +7,7 @@ import bjoern
 import werkzeug
 import uuid
 import argparse
+import verboselogs
 from gevent.pywsgi import WSGIServer
 from flask import Flask, jsonify
 from flask_restplus import Resource, Api, reqparse
@@ -16,6 +17,7 @@ from choppy.check_utils import check_dir, is_valid_project_name
 from choppy.workflow import run_batch
 from choppy.choppy_store import ChoppyStore
 
+logging.setLoggerClass(verboselogs.VerboseLogger)
 logger = logging.getLogger(__name__)
 cromwell_server = 'localhost'
 api_version = 'v1'

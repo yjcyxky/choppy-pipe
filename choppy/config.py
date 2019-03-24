@@ -90,6 +90,15 @@ def get_server_name(section_name):
         return section_name.split('_')[1]
 
 
+def get_rlib_paths(dir):
+    rlib_paths = []
+    pattern = r'.*packrat/lib/[a-zA-Z0-9.\-_]+/[0-9]+.[0-9]+.[0-9]+$'
+    for root, dirnames, filenames in os.walk(dir):
+        if re.match(pattern, root):
+            rlib_paths.append(root)
+    return rlib_paths
+
+
 config = configparser.ConfigParser()
 
 config_files = CONFIG_FILES + [conf_file_example, ]
@@ -198,6 +207,12 @@ try:
         plugin_db = expanduser(plugin_section.get('plugin_db', default_plugin_db))
         clean_cache = plugin_section.getboolean('clean_cache', True)
         enable_iframe = plugin_section.getboolean('enable_iframe', True)
+        R_libs = plugin_section.get('r_lib_path', '~/.choppy/R_libs')
+        # Set R_LIB_SITE
+        R_libs = expanduser(R_libs)
+        check_dir(R_libs)
+        rlib_paths = get_rlib_paths(R_libs)
+        os.environ['R_LIBS_SITE'] = ":".join(rlib_paths)
 
 except (configparser.NoSectionError, configparser.NoOptionError, KeyError) as err:
     logger.critical('Parsing config file (%s) error.\n%s' %

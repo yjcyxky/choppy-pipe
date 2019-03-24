@@ -9,6 +9,7 @@ import uuid
 import shutil
 import zipfile
 import logging
+import verboselogs
 from markdown2 import Markdown
 from subprocess import Popen, PIPE
 from jinja2 import Environment, FileSystemLoader
@@ -17,6 +18,7 @@ from choppy.cromwell import Cromwell
 from choppy import exit_code
 from choppy.exceptions import InValidApp
 
+logging.setLoggerClass(verboselogs.VerboseLogger)
 logger = logging.getLogger(__name__)
 
 try:
@@ -244,7 +246,7 @@ def install_app(app_dir, choppy_app):
 
         if check_app(dest_namelist, namelist):
             choppy_app_handler.extractall(app_dir, dest_namelist)
-            print("Install %s successfully." % app_name)
+            logger.success("Install %s successfully." % app_name)
         else:
             raise InValidApp("Not a valid app.")
 
@@ -260,11 +262,11 @@ def uninstall_app(app_dir):
         answer = answer.upper()
         if answer == "YES" or answer == "Y":
             shutil.rmtree(app_dir)
-            print("Uninstall %s successfully." % os.path.basename(app_dir))
+            logger.success("Uninstall %s successfully." % os.path.basename(app_dir))
         elif answer == "NO" or answer == "N":
-            print("Cancel uninstall %s." % os.path.basename(app_dir))
+            logger.warning("Cancel uninstall %s." % os.path.basename(app_dir))
         else:
-            print("Please enter Yes/No.")
+            logger.info("Please enter Yes/No.")
 
 
 def parse_samples(file):

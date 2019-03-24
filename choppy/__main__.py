@@ -38,7 +38,7 @@ from choppy.docker_mgmt import (get_parser, get_default_image, get_base_images,
 from choppy.report_mgmt import get_mode
 from choppy.utils import (get_copyright, ReportTheme, print_obj, clean_temp,
                           clean_temp_files)
-from choppy.plugin_utils import (listplugins, getplugins)
+from choppy.plugin_utils import (listplugins, get_plugin)
 from choppy.exceptions import NotFoundApp, WrongAppDir
 
 __author__ = "Jingcheng Yang"
@@ -464,7 +464,7 @@ def call_list_apps(args):
 def call_list_plugins(args):
     plugins = listplugins()
     if plugins:
-        print(plugins)
+        print(sorted(plugins))
     else:
         logger.warning("No any plugins are installed.")
 
@@ -725,8 +725,7 @@ def call_plugin_readme(args):
     output = args.output
     format = args.format
     plugin_name = args.plugin_name
-    plugins = getplugins()
-    plugin = plugins.get(plugin_name)
+    plugin = get_plugin(plugin_name)
     if plugin:
         plugin.show_help(ftype=format, output=output)
 
@@ -976,7 +975,7 @@ def call_report(args):
 
     # All are False or all are True
     if not (app_name or templ_dir) or (app_name and templ_dir):
-        raise argparse.ArgumentTypeError("You need to specify either app_name argument "
+        raise argparse.ArgumentTypeError("You need to specify either --app-name argument "
                                          "or --templ-dir argument.")
 
     editable = mode == 'livereload'
@@ -1393,8 +1392,8 @@ plugin = sub.add_parser(name="manplugin",
 plugin.add_argument('plugin_name', action='store', choices=listplugins(),
                     help='The plugin name for your report.', metavar="plugin_name")
 plugin.add_argument('-o', '--output', action='store', help='output file name.')
-plugin.add_argument('-f', '--format', action='store', help='output format.', default='browser',
-                    choices=('html', 'markdown', 'browser'))
+plugin.add_argument('-f', '--format', action='store', help='output format.',
+                    default='browser', choices=('html', 'markdown', 'browser'))
 plugin.set_defaults(func=call_plugin_readme)
 
 manual = sub.add_parser(name="man",
@@ -1522,10 +1521,13 @@ scaffold.set_defaults(func=call_scaffold)
 
 report = sub.add_parser(name="report",
                         description="Generate report for your app results.",
-                        usage="choppy report [<app_name>] [<args>]",
+                        usage="choppy report [-a <app_name> | -t <templ_dir>] [<args>]",
                         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-report.add_argument('app_name', action='store', choices=listapps(), nargs='?', default=None,
-                    help='The app name for your project.', metavar="app_name")
+templ_group = report.add_mutually_exclusive_group()
+templ_group.add_argument('-a', '--app-name', action='store', choices=listapps(),
+                         help='The app name for your project. ', metavar="app_name")
+templ_group.add_argument('-t', '--templ-dir', action='store', type=is_valid,
+                         help='The directory that contains your report template files.')
 report.add_argument('-m', '--mode', action='store', default='build', choices=get_mode(), help='Which mode for your report.')
 report.add_argument('-S', '--server', action='store', default="localhost", type=str, choices=c.servers,
                     help='Choose a cromwell server from {}'.format(c.servers))
@@ -1534,10 +1536,8 @@ report.add_argument('--dev-addr', action='store', default='127.0.0.1:8000', help
 report.add_argument('-f', '--force', action='store_true', default=False, help='Force to regenerate files.')
 report.add_argument('-e', '--enable-plugin', action='store_true', default=False,
                     help='Enable to support choppy plugins.')
-report.add_argument('-p', '--project-dir', action='store', required=True, help='Your project directory',
-                    type=is_valid)
-report.add_argument('-t', '--templ-dir', action='store', type=is_valid,
-                    help='The directory that contains your report template files.')
+report.add_argument('-p', '--project-dir', action='store', required=True,
+                    help='Your project directory', type=is_valid)
 report.add_argument('--theme', action='store', default='mkdocs',
                     choices=ReportTheme.get_theme_lst(),
                     help='Theming your report by using the specified theme.')

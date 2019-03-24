@@ -217,7 +217,7 @@ class Context:
             'extra_css_lst': [
                 "http://kancloud.nordata.cn/2019-03-21-jquery-confirm.min.css",
                 "http://kancloud.nordata.cn/2019-03-21-loading.css",
-                "http://kancloud.nordata.cn/2019-03-22-choppy-custom-1.css"
+                "http://kancloud.nordata.cn/2019-03-24-choppy-custom.css"
             ],
             'extra_js_lst': [
                 # For main page.

@@ -15,6 +15,8 @@ _allocate_lock = _thread.allocate_lock
 _once_lock = _allocate_lock()
 _name_sequence = None
 
+logger = logging.getLogger('choppy.utils')
+
 
 def get_copyright(site_author='choppy'):
     year = datetime.now().year
@@ -42,32 +44,39 @@ def copy_and_overwrite(from_path, to_path, is_file=False, ignore_errors=True, as
                 print("Please enter Yes/No.")
 
     if ignore_errors:
+        # TODO: rmtree is too dangerous
         if os.path.isfile(to_path):
             os.remove(to_path)
 
         if os.path.isdir(to_path):
             shutil.rmtree(to_path)
 
-    if is_file and os.path.isfile(from_path):
-        parent_dir = os.path.dirname(to_path)
-        # Force to make directory when parent directory doesn't exist
-        os.makedirs(parent_dir, exist_ok=True)
-        shutil.copy2(from_path, to_path)
-    elif os.path.isdir(from_path):
-        shutil.copytree(from_path, to_path)
+    try:
+        if is_file and os.path.isfile(from_path):
+            parent_dir = os.path.dirname(to_path)
+            # Force to make directory when parent directory doesn't exist
+            os.makedirs(parent_dir, exist_ok=True)
+            shutil.copy2(from_path, to_path)
+        elif os.path.isdir(from_path):
+            shutil.copytree(from_path, to_path)
+    except Exception as err:
+        logger.warning('Copy %s to %s error: %s' % (from_path, to_path, str(err)))
 
 
 def clean_files(folder, skip=True):
-    for the_file in os.listdir(folder):
-        file_path = os.path.join(folder, the_file)
-        try:
-            if os.path.isfile(file_path):
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-        except Exception as e:
-            if not skip:
-                print(e)
+    if os.path.isdir(folder):
+        for the_file in os.listdir(folder):
+            file_path = os.path.join(folder, the_file)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                if not skip:
+                    print(e)
+    else:
+        logger.debug("No such directory: %s" % folder)
 
 
 class ReportTheme:

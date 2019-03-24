@@ -38,3 +38,12 @@ password =
 data_dir = 
 host = 
 port = 
+
+[plugin]
+cache_dir = ~/.choppy/plugin
+plugin_db = ~/.choppy/plugin.db
+clean_cache = True
+protocol = http
+domain = 127.0.0.1
+enable_iframe = True
+r_lib_path = ~/.choppy/R_libs

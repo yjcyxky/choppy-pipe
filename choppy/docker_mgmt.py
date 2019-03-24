@@ -9,12 +9,14 @@ import hashlib
 import requests
 import docker
 import json
+import verboselogs
 import choppy.config as c
 from choppy.app_utils import parse_json
 from jinja2 import Environment, FileSystemLoader
 from choppy.check_utils import check_dir
 from choppy.utils import copy_and_overwrite
 
+logging.setLoggerClass(verboselogs.VerboseLogger)
 logger = logging.getLogger(__name__)
 
 
