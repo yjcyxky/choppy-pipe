@@ -10,7 +10,8 @@
 		},
 		"files.exclude": {
 			"**/.env": true,
-			"**/.vscode": true
+			"**/.vscode": true,
+			"**/cprofile": true,
 		},
 		"python.pythonPath": ".env/bin/python"
 	}

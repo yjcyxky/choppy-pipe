@@ -35,8 +35,8 @@ from choppy.check_utils import (is_valid_label, is_valid_project_name, is_valid,
 from choppy.version import get_version
 from choppy.docker_mgmt import (get_parser, get_default_image, get_base_images,
                                 get_default_shiny_image, get_shiny_images)
-from choppy.report_mgmt import get_mode
-from choppy.utils import (get_copyright, ReportTheme, print_obj, clean_temp,
+from choppy.report_mgmt import (get_mode, ReportTheme)
+from choppy.utils import (get_copyright, print_obj, clean_temp,
                           clean_temp_files)
 from choppy.plugin_utils import (listplugins, get_plugin)
 from choppy.exceptions import NotFoundApp, WrongAppDir

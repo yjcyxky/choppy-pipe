@@ -8,7 +8,6 @@ import psutil
 import signal
 from datetime import datetime
 from random import Random as _Random
-from mkdocs.utils import get_theme_names
 import _thread
 
 _allocate_lock = _thread.allocate_lock
@@ -77,27 +76,6 @@ def clean_files(folder, skip=True):
                     print(e)
     else:
         logger.debug("No such directory: %s" % folder)
-
-
-class ReportTheme:
-    def __init__(self):
-        pass
-
-    @classmethod
-    def get_theme_lst(cls):
-        # theme_lst = ('mkdocs', 'readthedocs', 'material', 'cinder', 'white_ppt')
-        theme_lst = get_theme_names()
-        return theme_lst
-
-    @classmethod
-    def get_ppt_theme_lst(cls):
-        theme_lst = ('white_ppt', )
-        return theme_lst
-
-    @classmethod
-    def get_html_theme_lst(cls):
-        theme_lst = list(set(cls.get_theme_lst()) - set(cls.get_ppt_theme_lst()))
-        return theme_lst
 
 
 def print_obj(string):

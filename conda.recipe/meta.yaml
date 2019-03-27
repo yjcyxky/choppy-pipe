@@ -1,0 +1,64 @@
+# {% set data = load_setup_py_data() %}
+{% set version = '0.3.5' %}
+{% set url = 'http://choppy.3steps.cn' %}
+{% set description = 'A command-line tool for executing WDL workflows on Cromwell servers.' %}
+
+package:
+  name: choppy
+  version: {{ version }}
+
+
+source:
+  - path: ../
+
+
+build:
+  include_recipe: True
+  entry_points:
+    - choppy = choppy.__main__:main
+
+
+requirements:
+  build:
+    - setuptools
+    - python
+
+  run:
+    - python
+    - configparser
+    - Jinja2
+    - python-dateutil
+    - ratelimit
+    - requests
+    - SQLAlchemy
+    - coloredlogs
+    - argcomplete
+    - markdown2
+    - GitPython
+    - bjoern
+    - flask
+    - gevent
+    - flask-restplus
+    - docker-py
+    - verboselogs
+    - beautifulsoup4
+    - psutil
+    - PyYAML
+    # meta-package installs futures for 2.7 but not for 3.x
+    # needed in order to be able to build no-arch conda packages
+    - futures-compat
+
+test:
+  commands:
+    - choppy -h
+
+about:
+  home: {{ url }}
+  license: BSD 3-Clause
+  license_file: LICENSE.md
+  license_family: BSD
+
+  summary: {{ description }}
+  description: 'Choppy is a command-line tool for executing WDL workflows on Cromwell servers. (Based on widdler but more.)'
+  doc_url: http://docs.3steps.cn
+  dev_url: {{ url }}

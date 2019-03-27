@@ -23,7 +23,6 @@ import csv
 import uuid
 import verboselogs
 
-from mkdocs import config as mkdocs_config
 from os.path import join as join_path
 from jinja2 import Environment, FileSystemLoader, BaseLoader
 from jinja2.exceptions import TemplateSyntaxError
@@ -61,6 +60,35 @@ def find_extra_templ_files(template_dir):
                 template_files.append(template)
     diff_sets = list(set(template_files) - set(BASED_TEMPLATE_FILES))
     return diff_sets
+
+
+class ReportTheme:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def get_theme_lst(cls):
+        try:
+            from mkdocs.utils import get_theme_names
+        except ImportError:
+            logger.error('Please install choppy-mkdocs package firstly. '
+                         'Besides, if you need to generate interactive report, '
+                         'please install mk_media_extension package.')
+            sys.exit()
+
+        # theme_lst = ('mkdocs', 'readthedocs', 'material', 'cinder', 'white_ppt')
+        theme_lst = get_theme_names()
+        return theme_lst
+
+    @classmethod
+    def get_ppt_theme_lst(cls):
+        theme_lst = ('white_ppt', )
+        return theme_lst
+
+    @classmethod
+    def get_html_theme_lst(cls):
+        theme_lst = list(set(cls.get_theme_lst()) - set(cls.get_ppt_theme_lst()))
+        return theme_lst
 
 
 class ReportDefaultVar:
@@ -873,6 +901,8 @@ class Report:
         self._get_raw_config()
 
     def _check_config(self, msg, load_config=True):
+        from mkdocs import config as mkdocs_config
+
         if os.path.isfile(self.config_file):
             if load_config:
                 self.config = mkdocs_config.load_config(config_file=self.config_file,
@@ -904,6 +934,7 @@ class Report:
 
     def build(self, templ_type='html'):
         from mkdocs.commands.build import build as build_docs
+
         self._check_config("Attempting to build docs but the mkdocs.yml doesn't exist."
                            " You need to call render/new firstly.")
         build_docs(self.config, live_server=False, dirty=False,
@@ -911,6 +942,7 @@ class Report:
 
     def server(self, dev_addr=None, livereload='livereload', templ_type='html'):
         from mkdocs.commands.serve import dev_serve as serve_docs
+
         self._check_config("Attempting to serve docs but the mkdocs.yml doesn't exist."
                            " You need to call render/new firstly.", load_config=False)
         serve_docs(config_file=self.config_file, dev_addr=dev_addr,
