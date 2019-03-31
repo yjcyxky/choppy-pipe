@@ -68,7 +68,7 @@ plugins:
 
 theme:
     name: {{ context.theme_name }}
-    highlightjs: true
+    highlightjs: false
 
 {% if context.extra_css_lst | length > 0 -%}
 extra_css:

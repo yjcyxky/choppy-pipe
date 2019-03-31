@@ -12,8 +12,9 @@ bjoern>=2.2.3
 flask>=1.0.2
 gevent>=1.4.0
 flask-restplus>=0.12.1
-docker>=3.7.0
+docker
 verboselogs>=1.7
-beautifulsoup4>=4.7.1
+beautifulsoup4
 psutil>=5.5.1
-PyYAML>=3.10
+PyYAML
+pymdown-extensions

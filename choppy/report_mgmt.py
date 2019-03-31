@@ -1040,7 +1040,6 @@ def build(project_dir, resource_dir=c.resource_dir, repo_url='',
         logger.success('Render report markdown files successfully.')
 
     # Report: build markdown files to html.
-    from choppy.utils import ReportTheme
     if theme_name in ReportTheme.get_ppt_theme_lst():
         templ_type = 'ppt'
     elif theme_name in ReportTheme.get_html_theme_lst():
