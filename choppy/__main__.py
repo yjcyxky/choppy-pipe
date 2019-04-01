@@ -67,8 +67,11 @@ def set_logger(log_name, loglevel, handler='stream', subdir="project_logs"):
     else:
         fhandler = None
 
-    if loglevel == logging.DEBUG:
-        fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    if loglevel == logging.SPAM:
+        fmt = '%(asctime)s - %(name)s(%(lineno)d) - %(levelname)s - %(message)s'
+        coloredlogs.install(level=logging.DEBUG, fmt=fmt, stream=fhandler)
+    elif loglevel == logging.DEBUG:
+        fmt = '%(name)s - %(levelname)s - %(message)s'
         coloredlogs.install(level=loglevel, fmt=fmt, stream=fhandler)
     else:
         fmt = '%(message)s'
@@ -1558,14 +1561,12 @@ def main():
     elif args.verbose:
         verbose = args.verbose
         # Configure logger for requested verbosity.
-        if verbose >= 4:
+        if verbose >= 3:
             loglevel = logging.SPAM
-        elif verbose >= 3:
-            loglevel = logging.DEBUG
         elif verbose >= 2:
-            loglevel = logging.VERBOSE
+            loglevel = logging.DEBUG
         elif verbose >= 1:
-            loglevel = logging.NOTICE
+            loglevel = logging.VERBOSE
     elif args.quite:
         loglevel = logging.ERROR
     else:

@@ -39,14 +39,18 @@ logger = logging.getLogger(__name__)
 
 # Any app report MUST have these template files.
 BASED_TEMPLATE_FILES = [
-    'about/app_store.md',
-    'about/app.md',
-    'about/choppy.md',
-    'about/license.md',
-    'project/sample.md',
     'index.md',
     'defaults'
 ]
+
+META_TEMPLATE_FILE = 'sample.md'
+
+
+def filter_meta_templ_file(templ_files):
+    pattern = r'.*%s' % META_TEMPLATE_FILE
+    new_templ_files = [file for file in templ_files
+                       if not re.match(pattern, file)]
+    return new_templ_files
 
 
 def find_extra_templ_files(template_dir):
@@ -265,31 +269,6 @@ class Context:
                 {
                     'key': 'Home',
                     'value': 'index.md'
-                }, {
-                    'key': 'Project',
-                    'value': [
-                        {
-                            'key': 'sample_name',
-                            'value': 'project/sample.md'
-                        }
-                    ]
-                }, {
-                    'key': 'About',
-                    'value': [
-                        {
-                            'key': 'Current App',
-                            'value': 'about/app.md'
-                        }, {
-                            'key': 'App Store',
-                            'value': 'about/app_store.md'
-                        }, {
-                            'key': 'Choppy',
-                            'value': 'about/choppy.md'
-                        }, {
-                            'key': 'App License',
-                            'value': 'about/license.md'
-                        }
-                    ]
                 }
             ],
             'cached_metadata': cached_metadata,
@@ -316,7 +295,7 @@ class Context:
         self.set_defaults({
             'defaults': default_vars
         })
-        self.logger.debug('Report Context: %s' % str(self._context))
+        self.logger.debug('Initializing Report Context: %s\n' % str(self._context))
 
         if app_name:
             self._context['current_app_dir'] = join_path(c.app_dir, app_name)
@@ -357,6 +336,9 @@ class Context:
             self.set_project_menu(self.sample_id_lst)
 
         self.set_menu(report_dir)
+        self.logger.debug("Menu: %s" % self._context['report_menu'])
+        self.optimize_menu()
+        self.logger.verbose("Optimized Menu: %s\n" % self._context['report_menu'])
 
     @property
     def context(self):
@@ -575,7 +557,8 @@ class Context:
         Add extra menu item.
         """
         # Allowed user to add more markdown files except that defined in BASED_TEMPLATE_FILES
-        extra_files = find_extra_templ_files(templ_dir)
+        extra_files = filter_meta_templ_file(find_extra_templ_files(templ_dir))
+        self.logger.verbose("Extra markdown files: %s\n" % extra_files)
 
         for item in extra_files:
             key = item.strip('/').split('/')[0].title()
@@ -583,7 +566,7 @@ class Context:
             file_path = item.replace(strip_pattern, '').strip('/')
             index = next((index for (index, d) in enumerate(self._context['report_menu'])
                          if d["key"] == key), None)
-            if index:
+            if index is not None:
                 project_menu = {
                     'key': basename,
                     'value': file_path
@@ -599,7 +582,19 @@ class Context:
                         }
                     ]
                 }
-                self._context['report_menu'].append(menu)
+                if key == 'About':
+                    self._context['report_menu'].insert(len(self._context['report_menu']), menu)
+                elif len(self._context['report_menu']) == 1:
+                    # Home menu must be the first.
+                    self._context['report_menu'].insert(1, menu)
+                else:
+                    self._context['report_menu'].insert(-1, menu)
+
+    def optimize_menu(self):
+        for idx, menu in enumerate(self._context['report_menu']):
+            if isinstance(menu.get('value'), list) and len(menu.get('value')) == 1:
+                submenu = menu.get('value')[0].get('value')
+                self._context['report_menu'][idx]['value'] = submenu
 
     def set_project_menu(self, sample_list):
         project_menu = []
@@ -611,8 +606,16 @@ class Context:
 
         if len(project_menu) > 0:
             # TODO: more security way to update the value of report_menu.
-            # index 1 is "Project"
-            self._context['report_menu'][1]['value'] = project_menu
+            index = next((index for (index, d) in enumerate(self._context['report_menu'])
+                         if d["key"] == 'Project'), None)
+            if index:
+                self._context['report_menu'][index]['value'] = project_menu
+            else:
+                menu = {
+                    'key': 'Project',
+                    'value': project_menu
+                }
+                self._context['report_menu'].insert(1, menu)
 
     def get_submitted_jobs(self):
         # Fix bug: can not get project_dir by self._context.get('project_dir')
@@ -783,19 +786,20 @@ class Renderer:
                     output_file = join_path(self.project_report_dir,
                                             os.path.dirname(template),
                                             '%s.md' % sample_id)
-                    self.logger.info('Render markdown template: %s, Save to %s'
-                                     % (str(templ_file), output_file))
+                    self.logger.debug('Render markdown template: %s, Save to %s'
+                                      % (str(templ_file), output_file))
                     self._render_sample_report(templ_file, sample_id,
                                                output_file, **kwargs)
             else:
-                self.logger.info('Render markdown template: %s, Save to %s'
-                                 % (str(templ_file), output_file))
+                self.logger.debug('Render markdown template: %s, Save to %s'
+                                  % (str(templ_file), output_file))
                 # Fix bug: template file path must be prefixed with self.template_dir
                 # render function have set the FileSystemLoader so we need to pass template instead of templ_file.
                 self.render(template, output_file, **kwargs)
                 output_file_lst.append(output_file)
 
         self.logger.debug('All markdown templates: %s' % str(output_file_lst))
+        self.logger.info('Rendered %s markdown files' % len(markdown_templates))
         return output_file_lst
 
     def _validate(self, **kwargs):
@@ -813,7 +817,7 @@ class Renderer:
             for filename in filenames:
                 if not re.match(r'.*.md$', filename):
                     dependent_files.append(join_path(root, filename))
-        self.logger.info('Markdown dependent files: %s' % str(dependent_files))
+        self.logger.debug('Markdown dependent files: %s' % str(dependent_files))
         return dependent_files
 
     def copy_dependent_files(self):
@@ -838,7 +842,7 @@ class Renderer:
         mkdocs_templ = join_path(self.resource_dir, 'mkdocs.yml.template')
         output_file = join_path(self.dest_dir, '.mkdocs.yml')
         self.logger.debug('Mkdocs config template: %s' % mkdocs_templ)
-        self.logger.info('Generate mkdocs config: %s' % output_file)
+        self.logger.verbose('Generate mkdocs config: %s' % output_file)
 
         env = Environment(loader=FileSystemLoader(self.resource_dir))
         template = env.get_template('mkdocs.yml.template')
@@ -912,7 +916,7 @@ class Report:
 
     def _get_raw_config(self):
         with open(self.config_file) as f:
-            self.raw_config = yaml.load(f)
+            self.raw_config = yaml.load(f, Loader=yaml.FullLoader)
 
     def update_config(self, key, value, append=False):
         """
@@ -1007,7 +1011,7 @@ def build(project_dir, resource_dir=c.resource_dir, repo_url='',
         ctx_instance.set_extra_context(repo_url=repo_url, site_description=site_description,
                                        site_author=site_author, copyright=copyright, site_name=site_name,
                                        theme_name=theme_name)
-        logger.info('Context: %s' % ctx_instance.context)
+        logger.verbose('Context: %s' % ctx_instance.context)
         logger.success('Context: generate report context successfully.')
 
         # Preprocessor: check app whether support report and cache files that be required by report rendering.

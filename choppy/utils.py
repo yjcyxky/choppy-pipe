@@ -20,8 +20,8 @@ logger = logging.getLogger('choppy.utils')
 def get_copyright(site_author='choppy'):
     year = datetime.now().year
     copyright = 'Copyright &copy; {} {}, ' \
-                'Maintained by the <a href="http://choppy.3steps.cn">' \
-                'Choppy Community</a>.'.format(year, site_author.title())
+                'Powered by <a href="http://choppy.3steps.cn">' \
+                'Choppy</a>.'.format(year, site_author.title())
     return copyright
 
 

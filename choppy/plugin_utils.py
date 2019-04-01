@@ -1,5 +1,8 @@
 # -*- coding:utf-8 -*-
 from __future__ import unicode_literals
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def listplugins():
@@ -18,7 +21,8 @@ def listplugins():
         plugins.extend(external_plugins)
         plugins.extend(internal_plugins)
         return plugins
-    except Exception:
+    except Exception as err:
+        logger.debug("List Plugins: %s" % str(err))
         return []
 
 

@@ -12,6 +12,7 @@
 			"**/.env": true,
 			"**/.vscode": true,
 			"**/cprofile": true,
+			"**/*.pyc": true,
 		},
 		"python.pythonPath": ".env/bin/python"
 	}

@@ -47,4 +47,7 @@ protocol = http
 domain = 127.0.0.1
 enable_iframe = True
 r_lib_path = ~/.choppy/R_libs
-wait_server_seconds = 5
+# If you specify a wait_server_seconds that greater than 0, sleep() will sleep for wait_server_seconds. When wait_server_seconds less than or equal than 0, it will be set 0.
+wait_server_seconds = 3
+# A backoff factor to apply between attempts after the second try (most errors are resolved immediately by a second try without a delay). urllib3 will sleep for: {backoff factor} * (2 ** ({number of total retries} - 1)) seconds. If the backoff_factor is 0.1, then sleep() will sleep for [0.0s, 0.2s, 0.4s, …] between retries. It will never be longer than 120s.
+backoff_factor = 3
