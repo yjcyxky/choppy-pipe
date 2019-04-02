@@ -48,6 +48,7 @@ setup(
     author_email='yjcyxky@163.com',
     url='http://choppy.3steps.cn',
     packages=get_packages("choppy"),
+    keywords='choppy, data platform, command-line tool',
     include_package_data=True,
     zip_safe=False,
     platforms='any',
@@ -56,6 +57,14 @@ setup(
             'choppy = choppy.__main__:main',
         ],
     },
+    classifiers=[
+        'Development Status :: 1 - Alpha',
+        'Environment :: Web Environment',
+        'Intended Audience :: Developers',
+        'License :: AGPL 3.0 License',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python :: 3',
+    ],
     cmdclass={
         'install': PostInstallCommand,
     },
