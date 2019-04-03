@@ -558,10 +558,22 @@ class Context:
         """
         # Allowed user to add more markdown files except that defined in BASED_TEMPLATE_FILES
         extra_files = filter_meta_templ_file(find_extra_templ_files(templ_dir))
+        extra_files = sorted(extra_files, key=str.lower, reverse=True)
+
         self.logger.verbose("Extra markdown files: %s\n" % extra_files)
+
+        # More information: https://stackoverflow.com/questions/1394475/python-combine-sort-key-functions-itemgetter-and-str-lower
+        def combiner(itemkey, methodname, *a, **k):
+            def keyextractor(container):
+                item = container[itemkey]
+                method = getattr(item, methodname)
+                return method(*a, **k)
+            return keyextractor
 
         for item in extra_files:
             key = item.strip('/').split('/')[0].title()
+            if re.match(r'.*.(md|Md)$', key):
+                key = key.split('.')[0]
             basename = os.path.basename(item).split('.md')[0].title()
             file_path = item.replace(strip_pattern, '').strip('/')
             index = next((index for (index, d) in enumerate(self._context['report_menu'])
@@ -572,6 +584,9 @@ class Context:
                     'value': file_path
                 }
                 self._context['report_menu'][index]['value'].append(project_menu)
+                sorted_value_lst = sorted(self._context['report_menu'][index]['value'],
+                                          key=combiner('key', 'lower'))
+                self._context['report_menu'][index]['value'] = sorted_value_lst
             else:
                 menu = {
                     'key': key,
@@ -583,12 +598,12 @@ class Context:
                     ]
                 }
                 if key == 'About':
+                    # The about must be the last one.
                     self._context['report_menu'].insert(len(self._context['report_menu']), menu)
-                elif len(self._context['report_menu']) == 1:
-                    # Home menu must be the first.
-                    self._context['report_menu'].insert(1, menu)
                 else:
-                    self._context['report_menu'].insert(-1, menu)
+                    # Other menus must be between Home and About.
+                    # The keys are sorted with reverse, so we can insert into 1 position.
+                    self._context['report_menu'].insert(1, menu)
 
     def optimize_menu(self):
         for idx, menu in enumerate(self._context['report_menu']):
