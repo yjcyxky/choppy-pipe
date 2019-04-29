@@ -5,8 +5,6 @@ import argparse
 import os
 import zipfile
 import logging
-from jinja2 import Environment, meta
-from choppy.app_utils import AppDefaultVar
 
 
 logger = logging.getLogger(__name__)
@@ -59,53 +57,6 @@ def is_valid_deps(deps):
         raise argparse.ArgumentTypeError(
             "Invalid tag_name: %s did not match the regex "
             "'^[\\w]+(,[-\\w]+)*$'. Such as shiny,devtools" % deps)
-
-
-def get_all_variables(app_dir, no_default=False):
-    inputs_variables = get_vars_from_app(app_dir, 'inputs', no_default=no_default)
-    workflow_variables = get_vars_from_app(app_dir, 'workflow.wdl', no_default=no_default)
-    variables = list(set(list(inputs_variables) + list(workflow_variables) + ['sample_id', ]))
-    if 'project_name' in variables:
-        variables.remove('project_name')
-
-    return variables
-
-
-def get_vars_from_app(app_path, template_file, no_default=False):
-    env = Environment()
-    template = os.path.join(app_path, template_file)
-    with open(template) as f:
-        templ_str = f.read()
-        ast = env.parse(templ_str)
-        variables = meta.find_undeclared_variables(ast)
-
-        if no_default:
-            app_default_var = AppDefaultVar(app_path)
-            diff_variables = app_default_var.diff(variables)
-            return diff_variables
-
-    return variables
-
-
-def check_variables(app_path, template_file, line_dict=None, header_list=None,
-                    no_default=False):
-    variables = get_vars_from_app(app_path, template_file)
-    variables = list(variables) + ['sample_id', ]
-    if no_default:
-        app_default_var = AppDefaultVar(app_path)
-        variables = app_default_var.diff(variables)
-
-    for var in variables:
-        if line_dict:
-            if var not in line_dict.keys() and var != 'project_name':
-                logger.warn('%s not in samples header.' % var)
-                return False
-        elif header_list:
-            if var not in header_list and var != 'project_name':
-                logger.warn('%s not in samples header.' % var)
-                return False
-
-    return True
 
 
 def check_identifier(identifier):
@@ -239,7 +190,7 @@ def is_shiny_app(path):
 
 def check_plugin():
     try:
-        import mk_media_extension # noqa
+        import mk_media_extension  # noqa
         return True
     except ImportError:
         msg = 'Use `pip install mk_media_extension` to support report plugin.\n'
@@ -249,7 +200,7 @@ def check_plugin():
 
 def check_customized_mkdocs():
     try:
-        from mkdocs.commands.serve import dev_serve # noqa
+        from mkdocs.commands.serve import dev_serve  # noqa
         return True
     except ImportError:
         msg = 'Please contact choppy team to get the customized version.\n'

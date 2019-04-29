@@ -6,6 +6,7 @@ import logging
 import shutil
 import psutil
 import signal
+import verboselogs
 from datetime import datetime
 from random import Random as _Random
 import _thread
@@ -14,7 +15,83 @@ _allocate_lock = _thread.allocate_lock
 _once_lock = _allocate_lock()
 _name_sequence = None
 
+logging.setLoggerClass(verboselogs.VerboseLogger)
 logger = logging.getLogger('choppy.utils')
+
+
+class CromwellConfig:
+    config_schema = {
+        "type": "object",
+        "properties": {
+            "bcs_root": {
+                "type": "string"
+            },
+            "bcs_region": {
+                "type": "string"
+            },
+            "bcs_access_id": {
+                "type": "string"
+            },
+            "bcs_access_key": {
+                "type": "string"
+            },
+            "bcs_endpoint": {
+                "type": "string"
+            },
+            "auto_scale": {
+                "type": "boolean"
+            },
+            "cluster": {
+                "type": "string"
+            },
+            "vpc": {
+                "type": "string"
+            },
+            "auto_release_job": {
+                "type": "boolean"
+            },
+            "db_host": {
+                "type": "string"
+            },
+            "db_name": {
+                "type": "string"
+            },
+            "db_user": {
+                "type": "string"
+            },
+            "db_passwd": {
+                "type": "string"
+            },
+            "workflow_log_dir": {
+                "type": "string"
+            },
+            "webservice_port": {
+                "type": "number",
+                "minimum": 1000,
+                "maximum": 65535
+            },
+            "webservice_ipaddr": {
+                "type": "string",
+                "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"
+            }
+        }
+    }
+
+    def __init__(self, cromwell_config):
+        self.config = cromwell_config
+        self.logger = logging.getLogger("choppy.utils.CromwellConfig")
+
+    def validate(self):
+        from jsonschema import validate, ValidationError, SchemaError
+        try:
+            valid_result = validate(self.config, self.config_schema, None)
+            if valid_result is None:
+                self.logger.success("Cromwell config is valid.")
+        except Exception as e:
+            if isinstance(e, ValidationError):
+                self.logger.error("Cromwell config is invalid: {}".format(e.message))
+            elif isinstance(e, SchemaError):
+                self.logger.error("Cromwell config schema is invalid: {}".format(e.message))
 
 
 def get_copyright(site_author='choppy'):

@@ -48,3 +48,15 @@ class PluginSyntaxError(Exception):
 
 class ValidationError(Exception):
     pass
+
+
+class NoConfigFile(Exception):
+    pass
+
+
+class NoSuchSection(Exception):
+    pass
+
+
+class NoSuchSchema(Exception):
+    pass

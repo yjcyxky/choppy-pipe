@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "email_domain": {
+      "type": "string",
+      "pattern": "[a-zA-Z0-9_]+.[a-zA-Z0-9_]+"
+    },
+    "email_smtp_server": { "type": "string" },
+    "email_notification_account": { "type": "string" },
+    "sender_user": { "type": "string" },
+    "sender_password": { "type": "string" }
+  },
+  "additionalProperties": false,
+  "required": [
+    "email_domain",
+    "email_smtp_server",
+    "email_notification_account",
+    "sender_user",
+    "sender_password"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": ["integer", "string"],
+      "is_port": true
+    },
+    "server": { "type": "string" },
+    "username": { "type": "string" },
+    "password": { "type": "string" }
+  },
+  "additionalProperties": false,
+  "required": ["server", "port", "username", "password"]
+}

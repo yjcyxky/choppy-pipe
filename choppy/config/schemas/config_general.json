@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "workflow_db": { "type": "string" },
+    "log_dir": { "type": "string" },
+    "log_level": {
+      "type": "string",
+      "enum": ["DEBUG", "INFO", "WARNING", "CRITICAL", "FATAL"]
+    },
+    "app_dir": { "type": "string" },
+    "tmp_dir": { "type": "string" },
+    "clean_cache": { "type": "string" }
+  },
+  "additionalProperties": false,
+  "required": [
+    "log_dir",
+    "workflow_db",
+    "log_level",
+    "app_dir",
+    "tmp_dir",
+    "clean_cache"
+  ]
+}

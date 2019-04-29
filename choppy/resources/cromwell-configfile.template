@@ -1,0 +1,86 @@
+# cromwell.bcs_root: oss://choppy-cromwell-result/test-choppy
+# cromwell.bcs_region: cn-shanghai
+# cromwell.bcs_access_id: LTAIwHAlTFcJguiK
+# cromwell.bcs_access_key: AyTAS6esb7IdblA4bgfbRV6rjrSL3L
+# cromwell.bcs_endpoint: oss-cn-shanghai.aliyuncs.com
+# cromwell.auto_scale: True
+# cromwell.cluster: cls-grhndhd9mlntvddtrkq013 或 OnDemand ecs.sn1ne.large img-ubuntu
+# cromwell.vpc: vpc-uf60rc74xqoi4lf30eo25 192.168.0.0/16
+# cromwell.auto_release_job: false
+# cromwell.db_host: localhost
+# cromwell.db_name: cromwell
+# cromwell.db_user: pgx-cromwell
+# cromwell.db_passwd: PGx@fudan1203
+# cromwell.workflow_log_dir: /var/log/cromwell-workflow-logs
+# cromwell.webservice_port: 8000
+# cromwell.webservice_ipaddr: 127.0.0.1
+
+include required(classpath("application"))
+
+docker {
+  hash-lookup {
+    enabled = false
+  }
+}
+
+backend {
+  default = "BCS"
+
+  providers {
+    BCS {
+      actor-factory = "cromwell.backend.impl.bcs.BcsBackendLifecycleActorFactory"
+      config {
+        # 设定OSS输出根目录以及账户信息，务必确保OSS与BatchCompute在同一region
+        root = "{{ cromwell.bcs_root }}"
+        region = "{{ cromwell.bcs_region }}"
+        access-id = "{{ cromwell.bcs_access_id }}"
+        access-key = "{{ cromwell.bcs_access_key }}"
+
+        filesystems {
+          oss {
+            auth {
+              endpoint = "{{ cromwell.bcs_endpoint }}"
+              access-id = "{{ cromwell.bcs_access_id }}"
+              access-key = "{{ cromwell.bcs_access_key }}"
+            }
+          }
+        }
+
+        default-runtime-attributes {
+          failOnStderr: false
+          continueOnReturnCode: 0
+          {% if cromwell.auto_scale is True %}
+          # 生产用Auto Scale集群, 务必确保vpc与sentieon在同一个vpc
+          cluster: "{{ cromwell.cluster }}"
+          vpc: "{{ cromwell.vpc }}"
+          {% else %}
+          # 测试用固定集群
+          cluster: "{{ cromwell.cluster }}"
+          {% endif %}
+          autoReleaseJob: {{ cromwell.auto_release_job }}
+        }
+      }
+    }
+  }
+}
+
+database {
+  profile = "slick.jdbc.MySQLProfile$"
+  db {
+    driver = "com.mysql.jdbc.Driver"
+    url = "jdbc:mysql://{{ cromwell.db_host }}/{{ cromwell.db_name }}?rewriteBatchedStatements=true&useSSL=false&characterEncoding=utf8"
+    user = "{{ cromwell.db_user }}"
+    password = "{{ cromwell.db_passwd }}"
+    connectionTimeout = 5000
+  }
+}
+
+workflow-options {
+  workflow-log-dir = "{{ cromwell.workflow_log_dir }}"
+  workflow-log-temporary = false
+}
+
+webservice {
+  port = {{ cromwell.webservice_port }}
+  interface = {{ cromwell.webservice_ipaddr }}
+}

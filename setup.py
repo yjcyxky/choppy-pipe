@@ -54,7 +54,7 @@ setup(
     platforms='any',
     entry_points={
         'console_scripts': [
-            'choppy = choppy.__main__:main',
+            'choppy-pipe = choppy.choppy_pipe:main',
         ],
     },
     classifiers=[
@@ -88,6 +88,9 @@ setup(
         'beautifulsoup4',
         'psutil>=5.5.1',
         'PyYAML',
-        'pymdown-extensions'
+        'pymdown-extensions',
+        'jsonschema',
+        'pytest>=4.4.1',
+        'pytest-html'
     ]
 )

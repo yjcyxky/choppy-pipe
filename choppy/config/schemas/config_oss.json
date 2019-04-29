@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "oss_bin": { "type": "string" },
+    "access_key": { "type": "string" },
+    "access_secret": { "type": "string" },
+    "endpoint": { "type": "string" }
+  },
+  "additionalProperties": false,
+  "required": ["oss_bin", "access_key", "access_secret", "endpoint"]
+}

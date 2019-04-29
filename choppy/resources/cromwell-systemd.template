@@ -1,0 +1,17 @@
+; cromwell.java_bin: /opt/local/cobweb/envs/cromwell-35/bin/java
+; cromwell.config_file: /etc/bcs-35.conf
+; cromwell.jar_file: /opt/local/cobweb/envs/cromwell-35/share/cromwell/cromwell.jar
+[Unit]
+Description=Cromwell server daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{ cromwell.java_bin }} -Xms512m -Xmx1g -Dconfig.file={{ cromwell.config_file }} -jar {{ cromwell.jar_file }} server
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=on-failure
+RestartSec=42s
+
+[Install]
+WantedBy=multi-user.target

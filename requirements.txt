@@ -18,3 +18,4 @@ beautifulsoup4
 psutil>=5.5.1
 PyYAML
 pymdown-extensions
+pytest>=4.4.1

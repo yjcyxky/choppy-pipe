@@ -1,0 +1,37 @@
+[general]
+workflow_db = ~/.choppy/workflow.db
+log_dir = ~/.choppy
+log_level = INFO
+app_dir = ~/.choppy
+tmp_dir = /tmp/choppy
+clean_cache = True
+
+[local]
+# localhost port
+port = 8000
+username = 
+password = 
+
+[remote_remote]
+port = 8000
+server = 
+username = 
+password = 
+
+[email]
+email_domain = 163.com
+email_smtp_server = smtp.163.com
+email_notification_account = yjcyxky
+sender_user = 
+sender_password =
+
+[oss]
+oss_bin = 
+access_key = aliyun_access_key
+access_secret = aliyun_access_secret
+endpoint = oss-cn-shanghai-internal.aliyuncs.com
+
+[repo]
+base_url = http://choppy.3steps.cn/
+username = 
+password = 
