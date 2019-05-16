@@ -1,0 +1,24 @@
+[server]
+app_root_dir = ~/Downloads/choppy/apps
+data_dir = ~/Downloads/choppy/data
+host = 
+port = 8000
+log_level = INFO
+log_dir = ~/.choppy/logs
+
+[repo]
+base_url = http://choppy.3steps.cn/
+username = 
+password = 
+
+[local]
+# localhost port
+port = 8000
+username = 
+password = 
+
+[remote_remote]
+port = 8000
+server = 
+username = 
+password = 

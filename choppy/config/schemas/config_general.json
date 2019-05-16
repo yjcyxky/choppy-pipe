@@ -8,7 +8,7 @@
       "type": "string",
       "enum": ["DEBUG", "INFO", "WARNING", "CRITICAL", "FATAL"]
     },
-    "app_dir": { "type": "string" },
+    "app_root_dir": { "type": "string" },
     "tmp_dir": { "type": "string" },
     "clean_cache": { "type": "string" }
   },
@@ -17,7 +17,7 @@
     "log_dir",
     "workflow_db",
     "log_level",
-    "app_dir",
+    "app_root_dir",
     "tmp_dir",
     "clean_cache"
   ]

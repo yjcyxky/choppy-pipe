@@ -46,7 +46,7 @@ class TestConfigFile(object):
             example_conf = os.path.join(examples_dir, 'examples', 'choppy.conf')
         else:
             example_conf = None
-        return config.ChoppyConfig(extra_config_file=example_conf)
+        return config.ChoppyConfig(config_file=example_conf)
 
     def test_raw_config(self, config_obj):
         from configparser import ConfigParser

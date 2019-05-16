@@ -55,6 +55,7 @@ setup(
     entry_points={
         'console_scripts': [
             'choppy-pipe = choppy.choppy_pipe:main',
+            'choppy-server = choppy.choppy_server:main'
         ],
     },
     classifiers=[

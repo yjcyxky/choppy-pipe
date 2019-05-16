@@ -13,10 +13,10 @@ import sys
 import re
 import logging
 import getpass
-from choppy import exit_code
-from choppy import exceptions
 from os.path import expanduser
 from threading import local
+from choppy import exit_code
+from choppy import exceptions
 
 g = local()
 
@@ -45,14 +45,14 @@ class ChoppyConfig:
     terminal_states = ['Failed', 'Aborted', 'Succeeded']
     status_list = run_states + terminal_states
 
-    def __init__(self, extra_config_file=None, chosen_conf_key=None, format='ini'):
+    def __init__(self, config_file=None, chosen_conf_key=None, format='ini'):
         self.conf_format = format
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger('choppy.config.ChoppyConfig')
         schema_dir = os.path.join(self.conf_dir, 'schemas')
         self.schemas = self._load_schemas(schema_dir)
         self.logger.debug("Load schema files: %s" % str(self.schemas))
-        if extra_config_file is not None:
-            self._add_conf_file('tempconf', extra_config_file)
+        if config_file is not None:
+            self._replace_conf_file('tempconf', config_file)
 
         self._init_config(chosen_conf_key)
 
@@ -112,37 +112,30 @@ class ChoppyConfig:
             if prefix in section_name:
                 return prefix
 
-    def _check_schema(self, data, name=None, schema_file=None):
+    def _check_schema(self, data, name):
         """Check the data whether satisfy the specified schema file.
 
         :param: data: a dict.
         :type: dict
         :param: name: schema index.
         :type: str
-        :param: schema_file: file handler from user custom schema file.
-        :type: filehandler
         """
         import json
         from jsonschema import validate
         from choppy.config.schema import ChoppyValidator
-        if name:
-            valid_name = 'config_%s.json' % name
-            fname_lst = [x for x in self.schemas if x == valid_name or valid_name in x]
-            self.logger.debug('Matched %s-th schema file: %s' % (len(fname_lst), fname_lst))
-            # May be it will cause error when matched file are greater than two.
-            filename = fname_lst[0] if len(fname_lst) > 0 else None
-            if filename:
-                with open(filename, 'r') as f:
-                    schema = json.load(f)
-                    validate(data, schema, cls=ChoppyValidator)
-            else:
-                raise exceptions.NoSuchSchema("No such schema file: %s" % valid_name)
-        elif schema_file and os.path.exists(schema_file):
-            schema = json.load(filename)
-            validate(data, schema, cls=ChoppyValidator)
+
+        valid_name = 'config_%s.json' % name
+        fname_lst = [x for x in self.schemas if x == valid_name or valid_name in x]
+        self.logger.debug('Matched %s-th schema file: %s' % (len(fname_lst), fname_lst))
+        # May be it will cause error when matched file are greater than two.
+        filename = fname_lst[0] if len(fname_lst) > 0 else None
+        if filename:
+            self.logger.debug("Validate choppy config file.")
+            with open(filename, 'r') as f:
+                schema = json.load(f)
+                validate(data, schema, cls=ChoppyValidator)
         else:
-            schema = name if name else schema_file
-            raise exceptions.NoSuchSchema("No such schema file: %s" % schema)
+            raise exceptions.NoSuchSchema("No such schema file: %s" % valid_name)
 
     def get_server_name(self, section_name):
         if re.match(r'remote_[\w]+', section_name):
@@ -191,6 +184,24 @@ class ChoppyConfig:
             msg = '%s in %s section of config file must be float.' % (section_name, attr_name)
             raise exceptions.ConfigValueError(msg)
 
+    def get_loglevel(self, section_name, attr_name):
+        log_level = self.get(section_name, attr_name)
+        log_level = str(log_level).upper()
+
+        if log_level == 'DEBUG':
+            log_level = logging.DEBUG
+        elif log_level == 'INFO':
+            log_level = logging.INFO
+        elif log_level == 'WARNING':
+            log_level = logging.WARNING
+        elif log_level == 'CRITICAL':
+            log_level == logging.CRITICAL
+        elif log_level == 'FATAL':
+            log_level == logging.FATAL
+        else:
+            log_level = logging.DEBUG
+        return log_level
+
     def get_conn_info(self, server, section_name):
         section = self.get_section(section_name)
         if server == 'localhost':
@@ -226,13 +237,13 @@ class ChoppyConfig:
         resource_dir = join(dirname(dirname(abspath(__file__))), 'resources')
         return resource_dir
 
-    def _add_conf_file(self, key, filepath):
+    def _replace_conf_file(self, key, filepath):
         if not os.path.isfile(expanduser(filepath)):
             self.logger.warning("No such file: %s" % filepath)
         else:
-            self.conf_file_dict.update({
+            self.conf_file_dict = {
                 key: filepath
-            })
+            }
 
     def get_conf_lst(self, filter=''):
         if filter:
@@ -269,8 +280,18 @@ class ChoppyConfig:
                 if os.path.exists(loc):
                     return loc
 
-    def get_conf_example(self, return_path=False):
-        example_file_path = os.path.join(self.conf_dir, 'choppy.conf.example')
+    @classmethod
+    def get_conf_example(cls, return_path=False):
+        example_file_path = os.path.join(cls.conf_dir, 'choppy.conf.example')
+        if return_path:
+            return example_file_path
+        else:
+            with open(example_file_path, 'r') as f:
+                return f.read()
+
+    @classmethod
+    def get_server_conf_example(cls, return_path=False):
+        example_file_path = os.path.join(cls.conf_dir, 'choppy-server.conf.example')
         if return_path:
             return example_file_path
         else:
@@ -292,7 +313,7 @@ class ChoppyConfig:
             sys.exit(exit_code.USERNAME_NOT_VALID)
 
 
-def init_config(extra_config_file=None, chosen_conf_key=None, format='ini'):
+def init_config(config_file=None, chosen_conf_key=None, format='ini'):
     '''Initialize config object.
     order:
     1. ~/.choppy/choppy.conf
@@ -301,7 +322,7 @@ def init_config(extra_config_file=None, chosen_conf_key=None, format='ini'):
     '''
     try:
         global g
-        g.config = ChoppyConfig(extra_config_file, chosen_conf_key, format)
+        g.config = ChoppyConfig(config_file, chosen_conf_key, format)
     except exceptions.NoConfigFile:
         # Need to run config/version subcommand when ~/.choppy/choppy.conf doesn't exist.
         pass

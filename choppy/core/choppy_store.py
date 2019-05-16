@@ -72,7 +72,7 @@ class ChoppyStore:
 
         # TODO: More Conditions
         if r.status_code == 200:
-            return json.loads(r.content)
+            return json.loads(r.content), r.headers
         elif r.status_code == 401:
             raise UnauthorizedException('Unauthorized for %s' % url)
         elif r.status_code == 400:
@@ -148,7 +148,7 @@ class ChoppyStore:
 
     @rate_limited(300, ONE_MINUTE)
     def search(self, q_str, page=1, limit=10, mode='source',
-               sort='created', order='asc'):
+               sort='created', order='asc', topic_only=True):
         """
         Search apps from choppy app store.
 
@@ -157,7 +157,8 @@ class ChoppyStore:
         :param limit: page size of results, maximum page size is 50.
         :param mode: type of repository to search for. Supported values are "fork", "source", "mirror" and "collaborative". # noqa
         :param sort: sort repos by attribute. Supported values are "alpha", "created", "updated", "size", and "id". Default is "alpha". # noqa
-        :param order: sort order, either “asc” (ascending) or “desc” (descending). Default is "asc", ignored if “sort” is not specified. # noqa
+        :param order: sort order, either "asc" (ascending) or "desc" (descending). Default is "asc", ignored if "sort" is not specified. # noqa
+        :param topic_only: q_str will be as topic name when topic_only is true.
         :return: request result
         """
         search_params = {
@@ -166,10 +167,12 @@ class ChoppyStore:
             "limit": limit,
             "mode": mode,
             "sort": sort,
-            "order": order
+            "order": order,
+            "topic": 1 if topic_only else 0
         }
         try:
-            results = self.get('/repos/search', params=search_params)
+            results, headers = self.get('/repos/search', params=search_params)
+            results['total'] = headers.get('x-total-count')
             results['message'] = 'Success'
             results.update(search_params)
             return results, 200
@@ -196,7 +199,7 @@ class ChoppyStore:
         """
         endpoint = "/repos/%s/%s/releases" % (owner, repo_name)
         try:
-            data = self.get(endpoint)
+            data, headers = self.get(endpoint)
             results = {
                 "data": data,
                 "message": "Success"

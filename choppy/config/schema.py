@@ -19,9 +19,9 @@ def is_port(validator, value, instance, schema):
     try:
         port = int(instance)
         if port < 1 or port > 65535:
-            yield ValidationError("% r is not a valid port" % (instance,))
+            yield ValidationError("%r is not a valid port" % (instance,))
     except Exception:
-        yield ValidationError("% r is not a number" % instance)
+        yield ValidationError("%r is not a number" % instance)
 
 
 all_validators = dict(Draft7Validator.VALIDATORS)

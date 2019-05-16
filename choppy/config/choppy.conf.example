@@ -2,7 +2,7 @@
 workflow_db = ~/.choppy/workflow.db
 log_dir = ~/.choppy
 log_level = INFO
-app_dir = ~/.choppy
+app_root_dir = ~/.choppy/apps
 tmp_dir = /tmp/choppy
 clean_cache = True
 

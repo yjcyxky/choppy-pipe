@@ -18,7 +18,6 @@ import pprint
 import time
 import pytz
 import datetime
-import coloredlogs
 import verboselogs
 from choppy.config import init_config, get_global_config
 from choppy import exit_code
@@ -26,37 +25,13 @@ from choppy.check_utils import (is_valid_label, is_valid_project_name, is_valid,
                                 is_valid_oss_link, check_dir, check_identifier,
                                 is_valid_zip_or_dir, is_valid_app_name)
 from choppy.version import get_version
-from choppy.utils import (print_obj, clean_temp)
-from choppy.exceptions import NotFoundApp, WrongAppDir
+from choppy.utils import (clean_temp, set_logger)
+from choppy.exceptions import NotFoundApp
 
 init_config()
 global_config = get_global_config()
 logging.setLoggerClass(verboselogs.VerboseLogger)
 logger = logging.getLogger('choppy')
-
-
-def set_logger(log_name, loglevel, handler='stream', subdir="project_logs", log_dir='/tmp'):
-    if subdir:
-        project_logs = os.path.join(log_dir, "project_logs")
-        check_dir(project_logs, skip=True)
-        logfile = os.path.join(project_logs, '{}_choppy.log'.format(log_name))
-    else:
-        logfile = os.path.join(log_dir, '{}_{}_choppy.log'.format(str(time.strftime("%Y-%m-%d")), log_name))
-
-    if handler != 'stream':
-        fhandler = logging.FileHandler(logfile)
-    else:
-        fhandler = None
-
-    if loglevel == logging.SPAM:
-        fmt = '%(asctime)s - %(name)s(%(lineno)d) - %(levelname)s - %(message)s'
-        coloredlogs.install(level=logging.DEBUG, fmt=fmt, stream=fhandler)
-    elif loglevel == logging.DEBUG:
-        fmt = '%(name)s - %(levelname)s - %(message)s'
-        coloredlogs.install(level=loglevel, fmt=fmt, stream=fhandler)
-    else:
-        fmt = '%(message)s'
-        coloredlogs.install(level=loglevel, fmt=fmt, stream=fhandler)
 
 
 def call_submit(args):
@@ -147,7 +122,7 @@ def call_query(args):
         logger.debug("Logs requested.")
         logs = cromwell.query_logs(args.workflow_id)
         responses.append(logs)
-    print_obj("\n%s\n" % json.dumps(parse_json(responses), indent=2, sort_keys=True))
+    print("\n%s\n" % json.dumps(parse_json(responses), indent=2, sort_keys=True))
     sys.stdout.flush()
     return responses
 
@@ -264,12 +239,12 @@ def call_explain(args):
                                                                      include_inputs=args.input)
 
     def my_safe_repr(object, context, maxlevels, level):
-        typ = pprint._type(object)
-        try:
-            if typ is unicode:  # noqa
-                object = str(object)
-        except Exception:
-            pass
+        # typ = pprint._type(object)
+        # try:
+        #     if typ is unicode:  # noqa
+        #         object = str(object)
+        # except Exception:
+        #     pass
         return pprint._safe_repr(object, context, maxlevels, level)
 
     printer = pprint.PrettyPrinter()
@@ -279,19 +254,19 @@ def call_explain(args):
         printer.pprint(result)
 
         if len(additional_res) > 0:
-            print_obj("-------------Additional Parameters-------------")
+            print("-------------Additional Parameters-------------")
             printer.pprint(additional_res)
 
         if len(stdout_res) > 0:
             for log in stdout_res["failed_jobs"]:
-                print_obj("-------------Failed Stdout-------------")
-                print_obj("Shard: " + log["stdout"]["label"])
-                print_obj(log["stdout"]["name"] + ":")
-                print_obj(log["stdout"]["log"])
-                print_obj("-------------Failed Stderr-------------")
-                print_obj("Shard: " + log["stderr"]["label"])
-                print_obj(log["stderr"]["name"] + ":")
-                print_obj(log["stderr"]["log"])
+                print("-------------Failed Stdout-------------")
+                print("Shard: " + log["stdout"]["label"])
+                print(log["stdout"]["name"] + ":")
+                print(log["stdout"]["log"])
+                print("-------------Failed Stderr-------------")
+                print("Shard: " + log["stderr"]["label"])
+                print(log["stderr"]["name"] + ":")
+                print(log["stderr"]["log"])
 
         logger.info("-------------Cromwell Links-------------")
         links = get_cromwell_links(args.server, result['id'], cromwell.port)
@@ -323,12 +298,12 @@ def call_list(args):
         return job
 
     def my_safe_repr(object, context, maxlevels, level):
-        typ = pprint._type(object)
-        try:
-            if typ is unicode:  # noqa: python2+
-                object = str(object)
-        except Exception:
-            pass
+        # typ = pprint._type(object)
+        # try:
+        #     if typ is unicode:  # noqa: python2+
+        #         object = str(object)
+        # except Exception:
+        #     pass
         return pprint._safe_repr(object, context, maxlevels, level)
 
     start_date_str = get_iso_date(datetime.datetime.now() - datetime.timedelta(days=int(args.days)))
@@ -431,7 +406,7 @@ def call_cat_remote_file(args):
     if os.path.isfile(dest_file):
         with open(dest_file, 'r') as f:
             for line in f.readlines():
-                print_obj(line.strip('\n'))
+                print(line.strip('\n'))
                 sys.stdout.flush()
     else:
         logger.warn("Not a file.")
@@ -451,14 +426,13 @@ def call_email(args):
 
 
 def call_list_apps(args):
-    from choppy.core.app_utils import get_app_root_dir
+    from choppy.core.app_utils import listapps
 
-    app_root_dir = get_app_root_dir()
-    if os.path.isdir(app_root_dir):
-        files = os.listdir(app_root_dir)
-        print(files)
+    apps = listapps()
+    if len(apps) > 0:
+        print(apps)
     else:
-        raise WrongAppDir("choppy.conf.general.app_dir is wrong.")
+        print("No any installed app.")
 
 
 def call_batch(args):
@@ -487,7 +461,7 @@ def call_test(args):
     project_name = args.project_name
     samples = os.path.join(app_root_dir, 'test', 'samples')
     if not os.path.isfile(samples):
-        print_obj("No test file for %s" % args.app_name)
+        print("No test file for %s" % args.app_name)
         sys.exit(exit_code.NO_TEST_FILE)
 
     label = args.label
@@ -575,7 +549,7 @@ def call_list_files(args):
 
         if len(output) > 2:
             for i in output[0:-2]:
-                print_obj("%s" % i)
+                print("%s" % i)
                 sys.stdout.flush()
     except (CalledProcessError, TypeError) as err:
         logger.critical("access_key/access_secret or oss_link is not valid.")
@@ -683,7 +657,7 @@ def call_samples(args):
             with open(output, 'w') as f:
                 f.write(','.join(variables))
         else:
-            print_obj(variables)
+            print(variables)
             sys.stdout.flush()
 
 
@@ -700,7 +674,7 @@ def call_readme(args):
     app_root_dir = get_app_root_dir()
     results = render_readme(app_root_dir, app_name, readme="README.md",
                             format=format, output=output)
-    print_obj(results)
+    print(results)
     sys.stdout.flush()
 
 
@@ -720,7 +694,7 @@ def call_config(args):
 
         if args.show:
             all_default_value = app_default_var.show_default_value()
-            print_obj(json.dumps(all_default_value, indent=2, sort_keys=True))
+            print(json.dumps(all_default_value, indent=2, sort_keys=True))
             sys.exit(exit_code.NORMAL_EXIT)
 
         if key not in variables:
@@ -734,7 +708,7 @@ def call_config(args):
                 app_default_var.delete(key)
             elif args.show:
                 default_value = app_default_var.show_default_value([key, ])
-                print_obj(json.dumps(default_value, indent=2, sort_keys=True))
+                print(json.dumps(default_value, indent=2, sort_keys=True))
     else:
         conf_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'config'))
         choppy_conf = os.path.join(conf_dir, 'choppy.conf.example')
@@ -743,7 +717,7 @@ def call_config(args):
             shutil.copyfile(choppy_conf, args.output)
         else:
             with open(choppy_conf, 'r') as f:
-                print_obj(f.read())
+                print(f.read())
                 sys.stdout.flush()
 
 
@@ -860,7 +834,7 @@ Project Management:
 """
 
 
-def register_args():
+def parse_args():
     from choppy.core.app_utils import listapps
 
     parser = argparse.ArgumentParser(
@@ -1285,7 +1259,7 @@ def register_args():
 
 
 def main():
-    args = register_args()
+    args = parse_args()
 
     if args.debug:
         loglevel = logging.DEBUG

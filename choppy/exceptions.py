@@ -42,6 +42,14 @@ class WrongAppDir(Exception):
     pass
 
 
+class AppInstallationFailed(Exception):
+    pass
+
+
+class AppUnInstallationFailed(Exception):
+    pass
+
+
 class PluginSyntaxError(Exception):
     pass
 

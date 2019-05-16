@@ -5,7 +5,6 @@ import sys
 import logging
 from choppy.config import get_global_config
 from subprocess import CalledProcessError, PIPE, Popen
-from choppy.utils import print_obj
 
 global_config = get_global_config()
 logger = logging.getLogger(__name__)
@@ -72,7 +71,7 @@ def oss_copy_func(first_path, second_path, include=None, exclude=None,
             if output == '' and process.poll() is not None:
                 break
             if output and not silent:
-                print_obj(output.strip().decode())
+                print(output.strip().decode())
                 sys.stdout.flush()
             process.poll()
     except CalledProcessError as e:

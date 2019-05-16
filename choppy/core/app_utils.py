@@ -16,7 +16,8 @@ from subprocess import Popen, PIPE
 from jinja2 import Environment, FileSystemLoader, meta
 from choppy.core.cromwell import Cromwell
 from choppy import exit_code
-from choppy.exceptions import InValidApp
+from choppy.exceptions import (InValidApp, AppInstallationFailed,
+                               AppUnInstallationFailed)
 
 global_config = get_global_config()
 logging.setLoggerClass(verboselogs.VerboseLogger)
@@ -87,7 +88,7 @@ class AppDefaultVar:
             json.dump(self.default_vars, f, indent=2, sort_keys=True)
 
 
-def is_valid_app(path):
+def is_valid_app(path, ignore_error=False):
     """
     Validate a directory path and verify the directory is an valid app directory. # noqa
     :param path: Path to a directory.
@@ -99,8 +100,11 @@ def is_valid_app(path):
     pathlist = [path, inputs_path, wdl_path, dependencies]
     for fpath in pathlist:
         if not os.path.exists(fpath):
-            raise InValidApp("%s is not a valid app.\n" %
-                             os.path.basename(path))
+            if ignore_error:
+                return False
+            else:
+                raise InValidApp("%s is not a valid app.\n" %
+                                 os.path.basename(path))
     return True
 
 
@@ -188,7 +192,8 @@ def generate_dependencies_zip(dependencies_path):
 
 
 def install_app_by_git(base_url, namespace, app_name, dest_dir='./',
-                       version='', username=None, password=None):
+                       version='', username=None, password=None,
+                       is_terminal=True):
     from urllib.parse import quote_plus
     repo_url = "%s/%s/%s.git" % (base_url.strip('http://'),
                                  namespace, app_name)
@@ -197,9 +202,10 @@ def install_app_by_git(base_url, namespace, app_name, dest_dir='./',
     # Urlencode a string: https://stackoverflow.com/a/9345102
     auth_repo_url = "http://%s@%s" % (quote_plus(username), repo_url)
     version = version if version != 'latest' else 'master'
+    # How to clone a specific tag with git: https://stackoverflow.com/a/31666461
     cmd = ['git', 'clone', '-b', version, '--single-branch', '-q',
            '--progress', '--depth', '1', auth_repo_url, dest_dir]
-    logger.debug('Git Repo Cmd: %s' % ''.join(cmd))
+    logger.debug('Git Repo Cmd: %s' % ' '.join(cmd))
     proc = Popen(cmd, stdin=PIPE)
     proc.communicate(password)
     rc = proc.returncode
@@ -207,23 +213,39 @@ def install_app_by_git(base_url, namespace, app_name, dest_dir='./',
         try:
             is_valid_app(dest_dir)
             logger.success("Install %s successfully." % app_name)
+            msg = "Install %s successfully." % app_name
+            failed = False
         except Exception as err:
             shutil.rmtree(dest_dir)
-            logger.critical("Install %s unsuccessfully." % app_name)
             logger.critical(str(err))
+            msg = str(err)
+            failed = True
     else:
+        if os.path.exists(dest_dir):
+            msg = 'The app already exists.'
+            failed = True
+        else:
+            msg = 'Unkown error, Please retry later. Maybe not found or network error.'
+            failed = True
+
+    if failed:
         logger.critical("Install %s unsuccessfully." % app_name)
-        sys.exit(exit_code.APP_INSTALL_FAILED)
+        if is_terminal:
+            sys.exit(exit_code.APP_INSTALL_FAILED)
+        else:
+            raise AppInstallationFailed(msg)
+    else:
+        return msg
 
 
 def get_app_root_dir():
-    app_root_dir = os.path.join(global_config.get_path('general', 'app_dir'), 'apps')
+    app_root_dir = global_config.get_path('general', 'app_root_dir')
     if not os.path.isdir(app_root_dir):
         os.makedirs(app_root_dir)
     return app_root_dir
 
 
-def install_app(app_dir, choppy_app):
+def install_app(app_root_dir, choppy_app, is_terminal=True):
     parsed_dict = parse_app_name(choppy_app)
     if parsed_dict:
         base_url = global_config.get('repo', 'base_url')
@@ -234,10 +256,10 @@ def install_app(app_dir, choppy_app):
         namespace = parsed_dict.get('namespace')
         app_name = parsed_dict.get('app_name')
         version = parsed_dict.get('version')
-        app_dir_version = os.path.join(app_dir, "%s-%s" % (app_name, version))
+        app_dir_version = os.path.join(app_root_dir, "%s/%s-%s" % (namespace, app_name, version))
         install_app_by_git(base_url, namespace, app_name, version=version,
                            dest_dir=app_dir_version, username=username,
-                           password=password)
+                           password=password, is_terminal=is_terminal)
     else:
         app_name = os.path.splitext(os.path.basename(choppy_app))[0]
         dest_namelist = [os.path.join(app_name, 'inputs'),
@@ -261,28 +283,37 @@ def install_app(app_dir, choppy_app):
             return True
 
         if check_app(dest_namelist, namelist):
-            choppy_app_handler.extractall(app_dir, dest_namelist)
+            choppy_app_handler.extractall(app_root_dir, dest_namelist)
             logger.success("Install %s successfully." % app_name)
         else:
             raise InValidApp("Not a valid app.")
 
 
-def uninstall_app(app_dir):
-    answer = ''
-    while answer.upper() not in ("YES", "NO", "Y", "N"):
-        try:
-            answer = raw_input("Enter Yes/No: ")  # noqa: python2
-        except Exception:
-            answer = input("Enter Yes/No: ")  # noqa: python3
+def uninstall_app(app_dir, is_terminal=True):
+    if not os.path.exists(app_dir):
+        logger.debug("App root directory: %s" % os.path.dirname(app_dir))
+        msg = 'No such app: %s' % os.path.basename(app_dir)
+        logger.error(msg)
+        raise AppUnInstallationFailed(msg)
 
-        answer = answer.upper()
-        if answer == "YES" or answer == "Y":
-            shutil.rmtree(app_dir)
-            logger.success("Uninstall %s successfully." % os.path.basename(app_dir))
-        elif answer == "NO" or answer == "N":
-            logger.warning("Cancel uninstall %s." % os.path.basename(app_dir))
-        else:
-            logger.info("Please enter Yes/No.")
+    if is_terminal:
+        answer = ''
+        while answer.upper() not in ("YES", "NO", "Y", "N"):
+            answer = input("Enter Yes/No: ")
+
+            answer = answer.upper()
+            if answer == "YES" or answer == "Y":
+                shutil.rmtree(app_dir)
+                logger.success("Uninstall %s successfully." % os.path.basename(app_dir))
+            elif answer == "NO" or answer == "N":
+                logger.warning("Cancel uninstall %s." % os.path.basename(app_dir))
+            else:
+                logger.info("Please enter Yes/No.")
+    else:
+        shutil.rmtree(app_dir)
+        msg = "Uninstall %s successfully." % os.path.basename(app_dir)
+        logger.success(msg)
+        return msg
 
 
 def parse_samples(file):
@@ -340,11 +371,21 @@ def render_readme(app_path, app_name, readme="README.md",
 
 def listapps():
     app_root_dir = get_app_root_dir()
+    apps = []
     if os.path.isdir(app_root_dir):
-        files = os.listdir(app_root_dir)
-        return files
-    else:
-        return []
+        # backwards compatibility:
+        # 1. No owner name as a namespace.
+        # 2. User owner name as a namespace.
+        for dir in os.listdir(app_root_dir):
+            abs_dir = os.path.join(app_root_dir, dir)
+            if is_valid_app(abs_dir, ignore_error=True):
+                apps.append(dir)
+            else:
+                for subdir in os.listdir(abs_dir):
+                    abs_dir_subdir = os.path.join(abs_dir, subdir)
+                    if is_valid_app(abs_dir_subdir, ignore_error=True):
+                        apps.append('%s/%s' % (dir, subdir))
+    return apps
 
 
 def get_header(file):

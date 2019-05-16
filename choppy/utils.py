@@ -6,9 +6,12 @@ import logging
 import shutil
 import psutil
 import signal
+import time
+import coloredlogs
 import verboselogs
 from datetime import datetime
 from random import Random as _Random
+from choppy.check_utils import check_dir
 import _thread
 
 _allocate_lock = _thread.allocate_lock
@@ -17,6 +20,30 @@ _name_sequence = None
 
 logging.setLoggerClass(verboselogs.VerboseLogger)
 logger = logging.getLogger('choppy.utils')
+
+
+def set_logger(log_name, loglevel, handler='stream', subdir="project_logs", log_dir='/tmp'):
+    if subdir:
+        project_logs = os.path.join(log_dir, "project_logs")
+        check_dir(project_logs, skip=True)
+        logfile = os.path.join(project_logs, '{}_choppy.log'.format(log_name))
+    else:
+        logfile = os.path.join(log_dir, '{}_{}_choppy.log'.format(str(time.strftime("%Y-%m-%d")), log_name))
+
+    if handler != 'stream':
+        fhandler = logging.FileHandler(logfile)
+    else:
+        fhandler = None
+
+    if loglevel == logging.SPAM:
+        fmt = '%(asctime)s - %(name)s(%(lineno)d) - %(levelname)s - %(message)s'
+        coloredlogs.install(level=logging.DEBUG, fmt=fmt, stream=fhandler)
+    elif loglevel == logging.DEBUG:
+        fmt = '%(name)s - %(levelname)s - %(message)s'
+        coloredlogs.install(level=loglevel, fmt=fmt, stream=fhandler)
+    else:
+        fmt = '%(message)s'
+        coloredlogs.install(level=loglevel, fmt=fmt, stream=fhandler)
 
 
 class CromwellConfig:
@@ -106,10 +133,7 @@ def copy_and_overwrite(from_path, to_path, is_file=False, ignore_errors=True, as
     if ask:
         answer = ''
         while answer.upper() not in ("YES", "NO", "Y", "N"):
-            try:
-                answer = raw_input("Remove %s, Enter Yes/No: " % to_path)  # noqa: python2
-            except Exception:
-                answer = input("Remove %s, Enter Yes/No: " % to_path)  # noqa: python3
+            answer = input("Remove %s, Enter Yes/No: " % to_path)
 
             answer = answer.upper()
             if answer == "YES" or answer == "Y":
@@ -153,13 +177,6 @@ def clean_files(folder, skip=True):
                     print(e)
     else:
         logger.debug("No such directory: %s" % folder)
-
-
-def print_obj(string):
-    try:  # For Python2.7
-        print(unicode(string).encode('utf8'))
-    except NameError:  # For Python3
-        print(string)
 
 
 def clean_temp(temp, dir=True):
