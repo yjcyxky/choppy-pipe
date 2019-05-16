@@ -15,7 +15,8 @@ source:
 build:
   include_recipe: True
   entry_points:
-    - choppy = choppy.__main__:main
+    - choppy-pipe = choppy.choppy_pipe:main
+    - choppy-api-server = choppy_api.api_server:main
 
 
 requirements:

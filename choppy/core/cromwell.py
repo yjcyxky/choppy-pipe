@@ -1,4 +1,14 @@
-# -*- coding:utf-8 -*-
+# -*- coding: utf-8 -*-
+"""
+    choppy.core.cromwell
+    ~~~~~~~~~~~~~~~~~~~~
+
+    Module to interact with Cromwell Server.
+
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
+"""
+
 from __future__ import unicode_literals
 import logging
 import json
@@ -17,7 +27,9 @@ ONE_MINUTE = 60
 
 
 class Cromwell:
-    """ Module to interact with Cromwell Pipeline workflow manager. Example usage:
+    """ Module to interact with Cromwell Pipeline workflow manager. 
+
+        Example usage:
         cromwell = Cromwell()
         cromwell.start_workflow('VesperWorkflow', {'project_name': 'Vesper_Anid_test'}) # noqa
 
@@ -53,8 +65,8 @@ class Cromwell:
         self.cached_metadata = {}
 
     def get(self, rtype, workflow_id=None, headers=None, v2=False):
-        """
-        A generic get request function.
+        """A generic get request function.
+
         :param rtype: a type of request such as 'abort' or 'status'.
         :param workflow_id: The ID of a workflow if get request requires one.
         :param headers: Optional headers for request.
@@ -73,8 +85,8 @@ class Cromwell:
         return json.loads(r.content)
 
     def post(self, rtype, workflow_id=None):
-        """
-        A generic post request function.
+        """A generic post request function.
+
         :param rtype: a type of request such as 'abort' or 'status'.
         :param workflow_id: The ID of a workflow if get request requires one.
         :return: json of request response
@@ -88,8 +100,8 @@ class Cromwell:
         return json.loads(r.text)
 
     def patch(self, rtype, workflow_id, payload, headers):
-        """
-        Make a patch request to the Cromwell server.
+        """Make a patch request to the Cromwell server.
+
         :param rtype: the request type (ex: label)
         :param workflow_id: the workflow id for the workflow to patch
         :param payload: the json data to patch.
@@ -114,8 +126,8 @@ class Cromwell:
         return r
 
     def restart_workflow(self, workflow_id, disable_caching=False):
-        """
-        Restart a workflow given an existing workflow id.
+        """Restart a workflow given an existing workflow id.
+
         :param workflow_id: the id of the existing workflow
         :param disable_caching: If true, do not use cached data to restart the workflow. # noqa
         :return: Request response json.
@@ -138,7 +150,6 @@ class Cromwell:
 
     @staticmethod
     def getCalls(status, call_arr, full_logs=False, limit_n=3):
-
         filteredCalls = list(
             filter(lambda c: c[1][0]['executionStatus'] == status, call_arr.items()))
         filteredCalls = map(lambda c: (c[0], c[1][0]), filteredCalls)
@@ -174,7 +185,6 @@ class Cromwell:
         return map(lambda c: parse_logs(c), filteredCalls[:limit_n])
 
     def explain_workflow(self, workflow_id, include_inputs=True):
-
         def assign(sdict, ddict, key):
             try:
                 ddict[key] = sdict[key]
@@ -205,8 +215,8 @@ class Cromwell:
         return (explain_res, additional_res, stdout_res)
 
     def start_workflow(self, wdl_file, workflow_name, workflow_args, dependencies=None):
-        """
-        Start a workflow using a dictionary of arguments.
+        """Start a workflow using a dictionary of arguments.
+
         :param wdl_file: workflow description file.
         :param workflow_name: the name of the workflow (ex: gatk).
         :param workflow_args: A dictionary of workflow arguments.
@@ -235,8 +245,8 @@ class Cromwell:
     def jstart_workflow(self, wdl_file, json_file, dependencies=None,
                         wdl_string=False, disable_caching=False,
                         extra_options=None, custom_labels={}, v2=False):
-        """
-        Start a workflow using json file for argument inputs.
+        """Start a workflow using json file for argument inputs.
+
         :param wdl_file: Workflow description file or WDL string (specify wdl_string if so). # noqa
         :param json_file: JSON file or JSON string containing arguments.
         :param dependencies: The subworkflow zip file. Optional.
@@ -296,8 +306,8 @@ class Cromwell:
         return json.loads(r.text)
 
     def stop_workflow(self, workflow_id):
-        """
-        Ends a running workflow.
+        """Ends a running workflow.
+
         :param workflow_id: The workflow identifier.
         :return: Request response json.
         """
@@ -305,8 +315,8 @@ class Cromwell:
         return self.post('abort', workflow_id)
 
     def query_metadata_cached(self, workflow_id, expire=15):
-        """
-        Return all cached metadata for a given workflow
+        """Return all cached metadata for a given workflow
+
         :param workflow_id: The workflow identifier
         :param expire: The number of seconds the cache is deemed to be not fresh # noqa
         :return: Request response json
@@ -323,8 +333,8 @@ class Cromwell:
 
     @rate_limited(300, ONE_MINUTE)
     def query_metadata(self, workflow_id, v2=False):
-        """
-        Return all metadata for a given workflow.
+        """Return all metadata for a given workflow.
+
         :param workflow_id: The workflow identifier.
         :return: Request Response json.
         """
@@ -335,9 +345,8 @@ class Cromwell:
                          'Accept-Encoding': 'identity'}, v2=v2)
 
     def process_metadata_label(self, metadata):
-        """
-        Transfer the labels from an old workflow id to a new one. Labels applied by the system are removed so as to # noqa
-        avoid conflicts.
+        """Transfer the labels from an old workflow id to a new one. Labels applied by the system are removed so as to avoid conflicts.
+
         :param old_id: The old workflow to take labels from.
         :param new_id: The new workflow id to apply the labels to.
         :return: void.
@@ -354,8 +363,8 @@ class Cromwell:
         return processed_labels
 
     def label_workflow(self, workflow_id, labels):
-        """
-        A method for labeling a workflow with one more labels.
+        """A method for labeling a workflow with one more labels.
+
         :param workflow_id: Workflow ID to label.
         :param labels: A dictionary of labels.
         :return: JSON response
@@ -369,8 +378,8 @@ class Cromwell:
 
     def query_labels(self, labels, start_time=None, status_filter=None,
                      running_jobs=False):
-        """
-        Query cromwell database with a given set of labels.
+        """Query cromwell database with a given set of labels.
+
         :param labels: A dictionary of label keys and values.
         :return: Query results.
         """
@@ -392,8 +401,8 @@ class Cromwell:
         return json.loads(r.content)
 
     def query_status(self, workflow_id):
-        """
-        Return the status for a given workflow.
+        """Return the status for a given workflow.
+
         :param workflow_id: The workflow identifier.
         :return: Request Response json.
         """
@@ -401,8 +410,8 @@ class Cromwell:
         return self.get('status', workflow_id)
 
     def query_logs(self, workflow_id):
-        """
-        Return the task execution logs for a given workflow.
+        """Return the task execution logs for a given workflow.
+
         :param workflow_id: The workflow identifier.
         :return: Request Response json.
         """
@@ -410,8 +419,8 @@ class Cromwell:
         return self.get('logs', workflow_id)
 
     def query_outputs(self, workflow_id):
-        """
-        Return the outputs for a given workflow.
+        """Return the outputs for a given workflow.
+
         :param workflow_id: The workflow identifier.
         :return: Request Response json.
         """
@@ -419,8 +428,8 @@ class Cromwell:
         return self.get('outputs', workflow_id)
 
     def query(self, query_dict):
-        """
-        A function for performing a qet query given a dictionary of query terms. # noqa
+        """A function for performing a qet query given a dictionary of query terms. # noqa
+
         :param query_dict: Dictionary of query terms.
         :return: A dictionary of the json content.
         """
@@ -432,8 +441,8 @@ class Cromwell:
 
     @staticmethod
     def build_query_url(base_url, url_dict, sep='='):
-        """
-        A function for building a query URL given a dictionary of key/value pairs to query. # noqa
+        """A function for building a query URL given a dictionary of key/value pairs to query. # noqa
+
         :param base_url: The base query URL (ex:http://btl-cromwell:9000/api/workflows/v1/query?)
         :param url_dict: Dictionary of query terms.
         :param sep: Seperator for query terms.
@@ -460,8 +469,8 @@ class Cromwell:
 
 
 def print_log_exit(msg, sys_exit=True, ple_logger=module_logger):
-    """
-    Function for standard print/log/exit routine for fatal errors.
+    """Function for standard print/log/exit routine for fatal errors.
+
     :param msg: error message to print/log.
     :param sys_exit: Cause choppy to exit.
     :param ple_logger: Logger to use when logging message.

@@ -1,6 +1,6 @@
 import re
 import json
-from choppy.cromwell import Cromwell
+from choppy.core.cromwell import Cromwell
 import choppy.config as c
 
 

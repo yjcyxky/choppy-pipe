@@ -4,13 +4,13 @@
 >
 > Date: 2018-12-13
 
-# Choppy - a command-line tool for executing WDL workflows on Cromwell servers
+# Choppy for Reproducible Omics Pipeline
 
 [中文文档](http://docs.3steps.cn)
 
 ## Introduction
 
-Choppy is a command-line tool for executing WDL workflows on Cromwell servers. (Based on widdler, but more.)
+Choppy is a command-line & web tool for executing WDL workflows on Cromwell servers. (Based on widdler, but more.)
 Features include:
 
 - Workflow execution: Execute a workflow on a specified Cromwell server.
@@ -23,7 +23,7 @@ Features include:
 
 ## Dependencies
 
-Choppy requires Python 2.7+ or Python 3+ and Java-1.8 to be loaded in your environment in order for full functionality to work.
+Choppy requires Python 3+ and Java-1.8 to be loaded in your environment in order for full functionality to work.
 
 ## Installation
 

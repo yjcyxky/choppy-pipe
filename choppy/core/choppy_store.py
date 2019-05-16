@@ -1,4 +1,14 @@
-# -*- coding:utf-8 -*-
+# -*- coding: utf-8 -*-
+"""
+    choppy.core.choppy_store
+    ~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Module to interact with Choppy App Store.
+
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
+"""
+
 from __future__ import unicode_literals
 import logging
 import json
@@ -7,28 +17,15 @@ import sys
 from ratelimit import rate_limited
 from requests.compat import urljoin
 from choppy import exit_code
-from choppy.exceptions import (UnauthorizedException, UnFoundException,
-                               BadRequestException)
+from choppy.exceptions import (UnauthorizedException, UnFoundException, BadRequestException)
+
 
 module_logger = logging.getLogger(__name__)
 ONE_MINUTE = 60
 
 
 class ChoppyStore:
-    """
-    Module to interact with Choppy App Store.
-
-    :Example
-    Usage:
-    choppy_store = ChoppyStore()
-    choppy_store.listapps()
-    choppy_store.query()
-
-    Generated json payload:
-    {
-        "message": "Success",
-        "data": []
-    }
+    """Module to interact with Choppy App Store.
     """
 
     def __init__(self, choppy_web_api, username=None, password=None):
@@ -51,8 +48,7 @@ class ChoppyStore:
             print_log_exit(msg, sys_exit=False)
 
     def get(self, endpoint, params=None, headers=None, v2=False):
-        """
-        A generic get request function.
+        """A generic get request function.
 
         :param params: choppy web api parammeters
         :param endpoint: choppy web api endpoint.
@@ -84,8 +80,7 @@ class ChoppyStore:
             r.raise_for_status()
 
     def post(self, endpoint, params=None, headers=None, v2=False):
-        """
-        A generic post request function.
+        """A generic post request function.
 
         :param params: choppy web api parammeters
         :param endpoint: choppy web api endpoint.
@@ -117,8 +112,7 @@ class ChoppyStore:
             r.raise_for_status()
 
     def patch(self, endpoint, payload, headers=None, v2=False):
-        """
-        Make a patch request to the Cromwell server.
+        """Make a patch request to the Cromwell server.
 
         :param endpoint: choppy web api endpoint.
         :param params: choppy web api parammeters
@@ -149,8 +143,7 @@ class ChoppyStore:
     @rate_limited(300, ONE_MINUTE)
     def search(self, q_str, page=1, limit=10, mode='source',
                sort='created', order='asc', topic_only=True):
-        """
-        Search apps from choppy app store.
+        """Search apps from choppy app store.
 
         :param q_str: query string.
         :param page: page number of results to return (1-based).
@@ -190,8 +183,7 @@ class ChoppyStore:
 
     @rate_limited(300, ONE_MINUTE)
     def list_releases(self, owner, repo_name):
-        """
-        List a repo's releases.
+        """List a repo's releases.
 
         :param owner: owner of the repo.
         :param repo_name: name of the repo.
@@ -219,13 +211,12 @@ class ChoppyStore:
 
 
 def print_log_exit(msg, sys_exit=True, ple_logger=module_logger):
-    """
-    Function for standard print/log/exit routine for fatal errors.
+    """Function for standard print/log/exit routine for fatal errors.
 
     :param msg: error message to print/log.
     :param sys_exit: Cause choppy to exit.
     :param ple_logger: Logger to use when logging message.
-    :return:
+    :return: request result
     """
     ple_logger.critical(msg)
     if sys_exit:

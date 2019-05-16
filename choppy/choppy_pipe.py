@@ -2,8 +2,15 @@
 # -*- coding:utf-8 -*-
 # PYTHON_ARGCOMPLETE_OK
 """
-Choppy is a tool for submitting workflows via command-line to the cromwell execution engine servers.
+    choppy.choppy_pipe
+    ~~~~~~~~~~~~~~~~~~
+
+    Command-line to the cromwell execution engine servers.
+
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
 """
+
 from __future__ import unicode_literals, absolute_import
 import argcomplete
 import argparse
@@ -35,9 +42,7 @@ logger = logging.getLogger('choppy')
 
 
 def call_submit(args):
-    """
-    Optionally validates inputs and starts a workflow on the Cromwell execution engine if validation passes. Validator
-    returns an empty list if valid, otherwise, a list of errors discovered.
+    """Optionally validates inputs and starts a workflow on the Cromwell execution engine if validation passes. Validator returns an empty list if valid, otherwise, a list of errors discovered.
 
     :param args: submit subparser arguments.
     :return: JSON response with Cromwell workflow ID.
@@ -92,8 +97,8 @@ def call_submit(args):
 
 
 def call_query(args):
-    """
-    Get various types of data on a particular workflow ID.
+    """Get various types of data on a particular workflow ID.
+
     :param args:  query subparser arguments.
     :return: A list of json responses based on queries selected by the user.
     """
@@ -128,9 +133,8 @@ def call_query(args):
 
 
 def call_validate(args):
-    """
-    Calls the Validator to validate input json. Exits with feedback to user regarding errors in json or reports no # noqa
-    errors found.
+    """Calls the Validator to validate input json. Exits with feedback to user regarding errors in json or reports no errors found.
+
     :param args: validation subparser arguments.
     :return:
     """
@@ -150,8 +154,8 @@ def call_validate(args):
 
 
 def call_abort(args):
-    """
-    Abort a workflow with a given workflow id.
+    """Abort a workflow with a given workflow id.
+
     :param args: abort subparser args.
     :return: JSON containing abort response.
     """
@@ -165,8 +169,8 @@ def call_abort(args):
 
 
 def call_monitor(args):
-    """
-    Calls Monitoring to report to user the status of their workflow at regular intervals.
+    """Calls Monitoring to report to user the status of their workflow at regular intervals.
+
     :param args: 'monitor' subparser arguments.
     :return:
     """
@@ -194,8 +198,8 @@ def call_monitor(args):
 
 
 def call_restart(args):
-    """
-    Call cromwell restart to restart a failed workflow.
+    """Call cromwell restart to restart a failed workflow.
+
     :param args: restart subparser arguments.
     :return:
     """
@@ -217,8 +221,8 @@ def call_restart(args):
 
 
 def get_cromwell_links(server, workflow_id, port):
-    """
-    Get metadata and timing graph URLs.
+    """Get metadata and timing graph URLs.
+
     :param server: cromwell host
     :param workflow_id: UUID for workflow
     :param port: port for cromwell server of interest
@@ -324,8 +328,8 @@ def call_list(args):
 
 
 def call_label(args):
-    """
-    Apply labels to a workflow that currently exists in the database.
+    """Apply labels to a workflow that currently exists in the database.
+
     :param args: label subparser arguments
     :return:
     """
@@ -344,8 +348,8 @@ def call_label(args):
 
 
 def call_log(args):
-    """
-    Get workflow logs via cromwell API.
+    """Get workflow logs via cromwell API.
+
     :param args: log subparser arguments.
     :return:
     """
@@ -413,9 +417,8 @@ def call_cat_remote_file(args):
 
 
 def call_email(args):
-    """
-    MVP pass-through function for testing desirability of a call_email feature. # noqa
-    If users want a full-fledged function we can rework this.
+    """MVP pass-through function for testing desirability of a call_email feature. If users want a full-fledged function we can rework this.
+
     :param args: email subparser args.
     :return:
     """

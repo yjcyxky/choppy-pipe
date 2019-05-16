@@ -1,18 +1,12 @@
-#!/usr/bin/env python
-# -*- coding:utf-8 -*-
-
+# -*- coding: utf-8 -*-
 """
-Example usage:
-$ f=`cat test.json`; echo -e "$f"; python validate_json.py "$f"
-{
-  "foo": true,
-  "bar": false,
-  baz: -23
-}
-Invalid JSON
-  Expecting property name: line 4 column 3 (char 35)
-    baz: -23
-    ^-- Expecting property name
+    choppy.core.json_checker
+    ~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Module to check json file.
+
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
 """
 
 from __future__ import unicode_literals
@@ -45,8 +39,7 @@ class DictStruct:
 
 
 def parse_error(err):
-    """
-    "Parse" error string (formats) raised by (simple)json:
+    """Parse error string (formats) raised by (simple)json:
 
     '%s: line %d column %d (char %d)'
     '%s: line %d column %d - line %d column %d (char %d - %d)'
@@ -98,7 +91,7 @@ def check_json(json_file=None, string=''):
         for ii, line in enumerate(string.readlines()):
             if ii == err.lineno - 1:
                 logger.error("%s\n\n%s\n%s^-- %s\n" % (err_msg, line.replace("\n", ""),
-                             " " * (err.colno - 1),
-                             err.msg))
+                                                       " " * (err.colno - 1),
+                                                       err.msg))
 
         sys.exit(exit_code.JSON_NOT_VALID)

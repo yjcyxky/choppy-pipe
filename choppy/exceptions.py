@@ -1,4 +1,14 @@
-# -*- coding:utf-8 -*-
+# -*- coding: utf-8 -*-
+"""
+    choppy.exceptions
+    ~~~~~~~~~~~~~~~~~
+
+    Exceptions.
+
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
+"""
+
 from __future__ import unicode_literals
 
 
@@ -67,4 +77,8 @@ class NoSuchSection(Exception):
 
 
 class NoSuchSchema(Exception):
+    pass
+
+
+class NoProperConfig(Exception):
     pass

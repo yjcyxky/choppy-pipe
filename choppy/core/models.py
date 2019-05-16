@@ -1,14 +1,24 @@
-# -*- coding:utf-8 -*-
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+"""
+    choppy.core.models
+    ~~~~~~~~~~~~~~~~~~
 
+    Module to define database modles for choppy.
+
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
+"""
+
+from __future__ import unicode_literals
+import json
+import logging
+import datetime
 from sqlalchemy import Column, String, DateTime, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
-
 from choppy.config import get_global_config
-import datetime
-import json
 
+logger = logging.getLogger(__name__)
 global_config = get_global_config()
 Base = declarative_base()
 
@@ -66,8 +76,12 @@ class Workflow(Base):
 
 # Create an engine that stores data in the local directory's
 # sqlalchemy_example.db file.
-engine = create_engine('sqlite:///' + global_config.get_path('general', 'workflow_db'))
+if global_config:
+    engine = create_engine('sqlite:///' + global_config.get_path('general', 'workflow_db'))
 
-# Create all tables in the engine. This is equivalent to "Create Table"
-# statements in raw SQL.
-Base.metadata.create_all(engine)
+    # Create all tables in the engine. This is equivalent to "Create Table"
+    # statements in raw SQL.
+    Base.metadata.create_all(engine)
+else:
+    logger.warning('To access `g.config`, '
+                   'you need to call `get_global_config` firstly.')

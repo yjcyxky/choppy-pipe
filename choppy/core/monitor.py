@@ -1,6 +1,14 @@
-#!/usr/bin/env python
-# -*- coding:utf-8 -*-
-"""Module for persistent monitoring of workflows."""
+# -*- coding: utf-8 -*-
+"""
+    choppy.core.monitor
+    ~~~~~~~~~~~~~~~~~~~
+
+    Module for persistent monitoring of workflows.
+
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
+"""
+
 from __future__ import unicode_literals
 import logging
 import time
@@ -27,8 +35,7 @@ module_logger = logging.getLogger(__name__)
 
 
 def is_user_workflow(host, user, workflow_id):
-    """
-    A top-level function that returns a workflow if it matches the user workflow. This can't be an instance method of Monitor because we run into serializing issues otherwise. See: https://stackoverflow.com/questions/26249442/can-i-use-multiprocessing-pool-in-a-method-of-a-class
+    """A top-level function that returns a workflow if it matches the user workflow. This can't be an instance method of Monitor because we run into serializing issues otherwise. See: https://stackoverflow.com/questions/26249442/can-i-use-multiprocessing-pool-in-a-method-of-a-class
 
     :param host: cromwell server
     :param user: user name to monitor
@@ -53,8 +60,7 @@ def get_iso_datestr(dt):
 
 
 class Monitor:
-    """
-    A class for monitoring a user's workflows, providing status reports at regular intervals as well as e-mail notification.
+    """A class for monitoring a user's workflows, providing status reports at regular intervals as well as e-mail notification.
     """
 
     def __init__(self, user, host, no_notify, verbose, interval, workflow_id=None):
@@ -78,8 +84,7 @@ class Monitor:
             self.session = DBSession()
 
     def get_user_workflows(self, raw=False, start_time=None, silent=False):
-        """
-        A function for creating a list of workflows owned by a particular user.
+        """A function for creating a list of workflows owned by a particular user.
 
         :return: A list of workflow IDs owned by the user.
         """
@@ -148,8 +153,8 @@ class Monitor:
             time.sleep(self.interval)
 
     def monitor_user_workflows(self):
-        """
-        A function for monitoring a several workflows.
+        """A function for monitoring a several workflows.
+
         :return:
         """
         print('Monitoring {}\'s workflows.'.format(self.user))
@@ -163,8 +168,7 @@ class Monitor:
                 t.start()
 
     def monitor_workflow(self, workflow_id):
-        """
-        Monitor the status of a single workflow.
+        """Monitor the status of a single workflow.
 
         :param workflow_id: Workflow ID of workflow to monitor.
         :return: returns 0 when workflow reaches terminal state.
@@ -228,8 +232,7 @@ class Monitor:
 
     @staticmethod
     def generate_attachment(filename, filepath):
-        """
-        Create attachment from a file.
+        """Create attachment from a file.
 
         :param filename: The name to assign to the attachment.
         :param filepath: The absolute path of the file including the file itself.
@@ -247,8 +250,7 @@ class Monitor:
                 'Unable to generate attachment for {}:\n{}'.format(filename, e))
 
     def generate_attachments(self, file_dict):
-        """
-        Generates a list of attachments to be added to an e-mail
+        """Generates a list of attachments to be added to an e-mail
 
         :param file_dict: A dictionary of filename:filepath pairs. Note the name is what the file will be called, and does not refer to the name of the file as it exists prior to attaching. That should be part of the filepath.
         :return: A list of attachments
@@ -273,8 +275,7 @@ class Monitor:
         return attachments
 
     def generate_content(self, query_status, workflow_id, metadata=None, user=None):
-        """
-        A method for generating the email content to be sent to user.
+        """A method for generating the email content to be sent to user.
 
         :param query_status: status of workflow (helps determine what content to include in email).
         :param workflow_id: Workflow ID of the workflow to create e-mail for.

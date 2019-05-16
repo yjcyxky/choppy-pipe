@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
     choppy.config.config
-    ~~~~~~~~~
+    ~~~~~~~~~~~~~~~~~~~~
+
     Load and parse config file.
 
     :copyright: © 2019 by the Choppy team.
@@ -17,7 +18,9 @@ from os.path import expanduser
 from threading import local
 from choppy import exit_code
 from choppy import exceptions
+from choppy.core.choppy_store import ChoppyStore
 
+logger = logging.getLogger(__name__)
 g = local()
 
 
@@ -46,6 +49,7 @@ class ChoppyConfig:
     status_list = run_states + terminal_states
 
     def __init__(self, config_file=None, chosen_conf_key=None, format='ini'):
+        self._cromwell_server = 'localhost'
         self.conf_format = format
         self.logger = logging.getLogger('choppy.config.ChoppyConfig')
         schema_dir = os.path.join(self.conf_dir, 'schemas')
@@ -75,6 +79,22 @@ class ChoppyConfig:
         if prefix not in self.prefixes:
             self.prefixes.append(prefix)
         return self.prefixes
+
+    @property
+    def choppy_store(self):
+        store_config = self.get_section('repo')
+        choppy_store = ChoppyStore(store_config.base_url,
+                                   username=store_config.username,
+                                   password=store_config.password)
+        return choppy_store
+
+    @property
+    def cromwell_server(self):
+        return self._cromwell_server
+
+    @cromwell_server.setter
+    def cromwell_server(self, value):
+        self._cromwell_server = value
 
     @property
     def raw_config(self):
@@ -314,12 +334,13 @@ class ChoppyConfig:
 
 
 def init_config(config_file=None, chosen_conf_key=None, format='ini'):
-    '''Initialize config object.
+    """Initialize config object.
+
     order:
     1. ~/.choppy/choppy.conf
     2. /etc/choppy.conf
     3. choppy.conf.example
-    '''
+    """
     try:
         global g
         g.config = ChoppyConfig(config_file, chosen_conf_key, format)
@@ -330,4 +351,9 @@ def init_config(config_file=None, chosen_conf_key=None, format='ini'):
 
 def get_global_config():
     global g
-    return g.config
+    if hasattr(g, 'config'):
+        return g.config
+    else:
+        # global_config must be set properly.
+        raise exceptions.NoProperConfig('To access `g.config`, '
+                                        'you need to call `init_config` firstly.')

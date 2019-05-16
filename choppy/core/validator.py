@@ -1,7 +1,15 @@
-# -*- coding:utf-8 -*-
-from __future__ import unicode_literals
-# import SingleBucket
+# -*- coding: utf-8 -*-
+"""
+    choppy.core.validator
+    ~~~~~~~~~~~~~~~~~~~~~
 
+    Module to validate WDL files.
+
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
+"""
+
+from __future__ import unicode_literals
 import logging
 import json
 import os
@@ -16,8 +24,7 @@ module_logger = logging.getLogger(__name__)
 
 
 class Validator:
-    """
-    Module to validate JSON inputs.
+    """Module to validate JSON inputs.
     """
 
     def __init__(self, wdl, json):
@@ -27,8 +34,7 @@ class Validator:
         self.logger = logging.getLogger('choppy.validator.Validator')
 
     def get_json(self):
-        """
-        Get a dict representation of the json file.
+        """Get a dict representation of the json file.
 
         :return: dict
         """
@@ -38,8 +44,7 @@ class Validator:
         return json_data
 
     def get_wdl_args(self, optional=True):
-        """
-        Uses wdl-tool to get the expected arguments from the WDL file.
+        """Uses wdl-tool to get the expected arguments from the WDL file.
 
         :param optional: Include optional arguments if true.
         :return: Returns a dictionary of wdl arguments as keys and expected type as as value. # noqa
@@ -72,8 +77,7 @@ class Validator:
             sys.exit(exit_code.VALIDATE_ERROR)
 
     def validate_json(self):
-        """
-        A function for validating a json file intended for WDL execution against the WDL file.
+        """A function for validating a json file intended for WDL execution against the WDL file.
 
         :return: A list of errors found with the json file.
         """
@@ -140,8 +144,7 @@ class Validator:
         return errors
 
     def validate_samples_array(self, samples_array):
-        """
-        Validates a TSV sample file array (passed as an array) used in WDL inputs. Assumes that last column of each row contains an absolute path to a file.
+        """Validates a TSV sample file array (passed as an array) used in WDL inputs. Assumes that last column of each row contains an absolute path to a file.
 
         :param samples_array: an array with the last column of each row containing a file path.
         :return: A list of errors. If list is empty, there were no errors.
@@ -155,8 +158,7 @@ class Validator:
 
     @staticmethod
     def validate_array(i):
-        """
-        Returns true if the input value is of class list, false if not. Note that isinstance does not behave as expected here, hence why I use type instead.
+        """Returns true if the input value is of class list, false if not. Note that isinstance does not behave as expected here, hence why I use type instead.
 
         :param i: input parameter
         :return: Boolean
@@ -168,8 +170,7 @@ class Validator:
 
     @staticmethod
     def validate_param(param, wdict):
-        """
-        Returns true if the param exists in WDL, false if not.
+        """Returns true if the param exists in WDL, false if not.
 
         :param param: the param to evaluate
         :param wdict: dictionary of wdl args
@@ -182,8 +183,7 @@ class Validator:
 
     @staticmethod
     def validate_string(i):
-        """
-        Returns true if object is string, false if not.
+        """Returns true if object is string, false if not.
 
         :param i: input object
         :return: Boolean
@@ -197,8 +197,7 @@ class Validator:
 
     @staticmethod
     def validate_file(f):
-        """
-        Validates that a particular file exists in the file system.
+        """Validates that a particular file exists in the file system.
 
         :param f:
         :return: Boolean
@@ -207,8 +206,7 @@ class Validator:
 
     @staticmethod
     def validate_boolean(i):
-        """
-        Returns true if object is a boolean, false if not.
+        """Returns true if object is a boolean, false if not.
 
         :param i: input object
         :return: Boolean
@@ -217,8 +215,7 @@ class Validator:
 
     @staticmethod
     def validate_int(i):
-        """
-        Returns true if object is an int, false if not.
+        """Returns true if object is an int, false if not.
 
         :param i: input object
         :return: Boolean
@@ -227,8 +224,7 @@ class Validator:
 
     @staticmethod
     def validate_float(i):
-        """
-        Returns true if object is a float, false if not.
+        """Returns true if object is a float, false if not.
 
         :param i: input object
         :return: Boolean

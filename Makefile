@@ -1,19 +1,20 @@
-# Minimal makefile for Sphinx documentation
-#
+.PHONY: all install-dev test docs release clean-pyc
 
-# You can set these variables from the command line.
-SPHINXOPTS    =
-SPHINXBUILD   = sphinx-build
-SOURCEDIR     = docs
-BUILDDIR      = docs/build
+all: test
 
-# Put it first so that "make" without argument is like "make help".
-help:
-	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+install-dev:
+	pip install -q -e .[dev]
 
-.PHONY: help Makefile
+test: clean-pyc install-dev
+	pytest
 
-# Catch-all target: route all unknown targets to Sphinx using the new
-# "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-%: Makefile
-	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+docs: clean-pyc install-dev
+	$(MAKE) -C docs html
+
+release:
+	python scripts/make-release.py
+
+clean-pyc:
+	find . -name '*.pyc' -exec rm -f {} +
+	find . -name '*.pyo' -exec rm -f {} +
+	find . -name '*~' -exec rm -f {} +

@@ -55,8 +55,19 @@ setup(
     entry_points={
         'console_scripts': [
             'choppy-pipe = choppy.choppy_pipe:main',
-            'choppy-server = choppy.choppy_server:main'
+            'choppy-api-server = choppy_api.api_server:main'
         ],
+    },
+    extras_require={
+        "dotenv": ["python-dotenv"],
+        "dev": [
+            "pytest>=3",
+            "tox",
+            "sphinx",
+            "pallets-sphinx-themes",
+            "sphinxcontrib-log-cabinet",
+        ],
+        "docs": ["sphinx", "pallets-sphinx-themes", "sphinxcontrib-log-cabinet"],
     },
     classifiers=[
         'Development Status :: 1 - Alpha',
@@ -84,6 +95,8 @@ setup(
         'flask>=1.0.2',
         'gevent>=1.4.0',
         'flask-restplus>=0.12.1',
+        'SQLAlchemy >= 1.3.1',
+        'Flask-SQLAlchemy >= 2.4.0',
         'docker',
         'verboselogs>=1.7',
         'beautifulsoup4',
@@ -92,6 +105,14 @@ setup(
         'pymdown-extensions',
         'jsonschema',
         'pytest>=4.4.1',
-        'pytest-html'
+        'pytest-html',
+        'Alembic==0.8.10',
+        'werkzeug>=0.14.1,< 0.15',
+        'marshmallow>=2.13.5',
+        'flask-marshmallow==0.7.0',
+        'marshmallow-sqlalchemy==0.12.0',
+        'webargs>=1.4.0',
+        'apispec>=0.20.0,< 0.39',
+        'flask-caching>=1.7.1'
     ]
 )

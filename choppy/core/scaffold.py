@@ -1,4 +1,14 @@
-# -*- coding:utf-8 -*-
+# -*- coding: utf-8 -*-
+"""
+    choppy.core.scaffold
+    ~~~~~~~~~~~~~~~~~~~~
+
+    Module to generate a scaffold for choppy app.
+
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
+"""
+
 from __future__ import unicode_literals
 import os
 import logging
@@ -44,8 +54,7 @@ class Scaffold:
                 continue
 
     def _gen_readme(self, output_file='README.md', **kwargs):
-        """
-        Generate README.md from README.md template.
+        """Generate README.md from README.md template.
         """
         template = self.env.get_template('README.md')
         rendered_tmpl = template.render(**kwargs)
@@ -58,8 +67,7 @@ class Scaffold:
             return rendered_tmpl
 
     def _gen_defaults(self, output_file='defaults', **kwargs):
-        """
-        Generate defaults from defaults template.
+        """Generate defaults from defaults template.
         """
         template = self.env.get_template('defaults')
         rendered_tmpl = template.render(**kwargs)
@@ -72,8 +80,7 @@ class Scaffold:
             return rendered_tmpl
 
     def _gen_inputs(self, output_file='inputs', **kwargs):
-        """
-        Generate inputs from inputs template.
+        """Generate inputs from inputs template.
         """
         template = self.env.get_template('inputs')
         rendered_tmpl = template.render(**kwargs)
@@ -86,8 +93,7 @@ class Scaffold:
             return rendered_tmpl
 
     def _gen_workflow(self, output_file='workflow.wdl', **kwargs):
-        """
-        Generate workflow.wdl from workflow.wdl template.
+        """Generate workflow.wdl from workflow.wdl template.
         """
         template = self.env.get_template('workflow.wdl')
         rendered_tmpl = template.render(**kwargs)
@@ -100,32 +106,28 @@ class Scaffold:
             return rendered_tmpl
 
     def _copy_tasks(self):
-        """
-        Generate tasks directory from scaffold template.
+        """Generate tasks directory from scaffold template.
         """
         tasks_dir = os.path.join(self.scaffold_dir, 'tasks')
         dest_dir = os.path.join(self.output_dir, 'tasks')
         copy_and_overwrite(tasks_dir, dest_dir)
 
     def _copy_docker(self):
-        """
-        Generate docker directory from scaffold template.
+        """Generate docker directory from scaffold template.
         """
         docker_dir = os.path.join(self.scaffold_dir, 'docker')
         dest_dir = os.path.join(self.output_dir, 'docker')
         copy_and_overwrite(docker_dir, dest_dir)
 
     def _copy_test(self):
-        """
-        Generate test directory from scaffold template.
+        """Generate test directory from scaffold template.
         """
         test_dir = os.path.join(self.scaffold_dir, 'test')
         dest_dir = os.path.join(self.output_dir, 'test')
         copy_and_overwrite(test_dir, dest_dir)
 
     def _copy_report(self):
-        """
-        Generate report directory from scaffold template.
+        """Generate report directory from scaffold template.
         """
         report_dir = os.path.join(self.scaffold_dir, 'report')
         dest_dir = os.path.join(self.output_dir, 'report')

@@ -1,14 +1,24 @@
-# -*- coding:utf-8 -*-
+# -*- coding: utf-8 -*-
+"""
+    choppy.notification.email_notification
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Module to send email notifications.
+
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
+"""
+
 from __future__ import unicode_literals
 import json
 import logging
 import datetime
 import calendar
-from choppy.cromwell import Cromwell
-from choppy.messenger import Messenger
 from dateutil.parser import parse
 from email.mime.text import MIMEText
 from choppy.config import get_global_config
+from choppy.core.cromwell import Cromwell
+from .messenger import Messenger
 
 global_config = get_global_config()
 
@@ -67,8 +77,7 @@ class EmailNotification(object):
         raise TypeError('Not sure how to serialize %s' % (obj,))
 
     def generate_content(self, metadata, user, host, port):
-        """
-        A method for generating the email content to be sent to user.
+        """A method for generating the email content to be sent to user.
 
         :param metadata: The metadata of the workflow (optional).
         :return: a dictionary containing the email contents for the template.

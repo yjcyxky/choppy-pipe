@@ -1,4 +1,14 @@
-# -*- coding:utf-8 -*-
+# -*- coding: utf-8 -*-
+"""
+    choppy.core.app_utils
+    ~~~~~~~~~~~~~~~~~~~~~
+
+    App Utility.
+
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
+"""
+
 from __future__ import unicode_literals
 import json
 import os
@@ -89,8 +99,8 @@ class AppDefaultVar:
 
 
 def is_valid_app(path, ignore_error=False):
-    """
-    Validate a directory path and verify the directory is an valid app directory. # noqa
+    """Validate a directory path and verify the directory is an valid app directory. # noqa
+
     :param path: Path to a directory.
     :return: The path if it exists and is an app directory, otherwise raises an error. # noqa
     """
@@ -420,8 +430,8 @@ def submit_workflow(wdl, inputs, dependencies, label, username=None,
 
 
 def kv_list_to_dict(kv_list):
-    """
-    Converts a list of kv pairs delimited with colon into a dictionary.
+    """Converts a list of kv pairs delimited with colon into a dictionary.
+
     :param kv_list: kv list: ex ['a:b', 'c:d', 'e:f']
     :return: a dict, ex: {'a': 'b', 'c': 'd', 'e': 'f'}
     """

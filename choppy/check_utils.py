@@ -1,4 +1,14 @@
-# -*- coding:utf-8 -*-
+# -*- coding: utf-8 -*-
+"""
+    choppy.check_utils
+    ~~~~~~~~~~~~~~~~~~
+
+    A utility for checking dir/file/label and so on.
+
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
+"""
+
 from __future__ import unicode_literals
 import re
 import argparse
@@ -105,8 +115,7 @@ def is_valid_oss_links(oss_link_lst):
 
 
 def check_dir(path, skip=False, force=True):
-    """
-    Check whether path exists.
+    """Check whether path exists.
 
     :param path: directory path.
     :param skip: Boolean, Raise exception when skip is False and directory exists.
@@ -123,8 +132,7 @@ def check_dir(path, skip=False, force=True):
 
 
 def is_valid(path):
-    """
-    Integrates with ArgParse to validate a file path.
+    """Integrates with ArgParse to validate a file path.
 
     :param path: Path to a file.
     :return: The path if it exists, otherwise raises an error.
@@ -137,8 +145,7 @@ def is_valid(path):
 
 
 def is_valid_zip(path):
-    """
-    Integrates with argparse to validate a file path and verify that the file is a zip file.
+    """Integrates with argparse to validate a file path and verify that the file is a zip file.
 
     :param path: Path to a file.
     :return: The path if it exists and is a zip file, otherwise raises an error.
@@ -152,8 +159,7 @@ def is_valid_zip(path):
 
 
 def is_valid_zip_or_dir(path):
-    """
-    Integrates with argparse to validate a file path and verify that the file is a zip file.
+    """Integrates with argparse to validate a file path and verify that the file is a zip file.
 
     :param path: Path to a file.
     :return: The path if it exists and is a zip file, otherwise raises an error.
@@ -169,8 +175,7 @@ def is_valid_zip_or_dir(path):
 
 
 def is_shiny_app(path):
-    """
-    Check if path is a valid shiny app.
+    """Check if path is a valid shiny app.
     """
     if os.path.basename(path) == '.':
         raise argparse.ArgumentTypeError("Shiny app can't be current directory.(%s)" % path)

@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import unittest
 import os
 import time
-from choppy.cromwell import Cromwell
+from choppy.core.cromwell import Cromwell
 from choppy.monitor import Monitor
 import choppy.config as c
 

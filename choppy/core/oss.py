@@ -1,4 +1,14 @@
-# -*- coding:utf-8 -*-
+# -*- coding: utf-8 -*-
+"""
+    choppy.core.oss
+    ~~~~~~~~~~~~~~~
+
+    Module to interact with AliCloud ossutils.
+
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
+"""
+
 from __future__ import unicode_literals
 import os
 import sys
@@ -24,8 +34,7 @@ def run_copy_files(first_path, second_path, include=None, exclude=None,
 
 def oss_copy_func(first_path, second_path, include=None, exclude=None,
                   recursive=True, silent=False):
-    """
-    Call ossutil and copy files from one place to anothers.
+    """Call ossutil and copy files from one place to anothers.
 
     :param: first_path: source path.
     :type: first_path: str

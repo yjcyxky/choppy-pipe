@@ -3,7 +3,8 @@
 """
 Choppy is a tool for submitting workflows via command-line to the cromwell execution engine servers.
 """
-from __future__ import unicode_literals, absolute_import
+
+from __future__ import unicode_literals
 import sys
 from os.path import abspath, dirname
 
