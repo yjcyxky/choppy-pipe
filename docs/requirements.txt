@@ -1,5 +1,3 @@
-pip>=19.0.3
-setuptools>=40.8.0
 Sphinx>=2.0.1
 Pallets-Sphinx-Themes>=1.1.4
 sphinxcontrib-log-cabinet>=1.0.0

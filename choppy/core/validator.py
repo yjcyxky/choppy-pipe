@@ -30,7 +30,10 @@ class Validator:
     def __init__(self, wdl, json):
         self.wdl = os.path.abspath(wdl)
         self.json = os.path.abspath(json)
-        self.wdl_tool = os.path.join(global_config.resource_dir, 'womtool-30.2.jar')
+        womtool_path = global_config.get('general', 'womtool_path')
+        if not womtool_path:
+            raise Exception('You need to tell choppy-pipe where womtool is.')
+        self.wdl_tool = os.path.abspath(womtool_path)
         self.logger = logging.getLogger('choppy.validator.Validator')
 
     def get_json(self):

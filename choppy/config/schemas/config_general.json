@@ -10,7 +10,8 @@
     },
     "app_root_dir": { "type": "string" },
     "tmp_dir": { "type": "string" },
-    "clean_cache": { "type": "string" }
+    "clean_cache": { "type": "string" },
+    "womtool_path": { "type": "string" }
   },
   "additionalProperties": false,
   "required": [

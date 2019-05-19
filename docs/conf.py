@@ -8,7 +8,7 @@ from pallets_sphinx_themes import ProjectLink
 project = "Choppy"
 copyright = "2019 Choppy Team"
 author = "Choppy Team"
-release, version = get_version("choppy")
+release, version = get_version("choppy-pipe")
 
 # General --------------------------------------------------------------
 

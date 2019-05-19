@@ -5,6 +5,7 @@ log_level = INFO
 app_root_dir = ~/.choppy/apps
 tmp_dir = /tmp/choppy
 clean_cache = True
+womtool_path = 
 
 [local]
 # localhost port

@@ -1116,7 +1116,7 @@ def parse_args():
 
     download_files = sub.add_parser(name="download",
                                     description="Download file/directory from the specified bucket.",
-                                    usage="choppy download <oss_link>/<oss_link_file> <local_path> [<args>]",
+                                    usage="choppy download <oss_link>/<oss_link_file> [<args>]",
                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     download_files.add_argument('oss_link', action='store', help='OSS Link.', nargs='?', default=None)
     download_files.add_argument('-i', '--input-file', action='store', type=is_valid, help='OSS link file.')
