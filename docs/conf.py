@@ -5,10 +5,10 @@ from pallets_sphinx_themes import ProjectLink
 
 # Project --------------------------------------------------------------
 
-project = "choppy_api"
+project = "Choppy"
 copyright = "2019 Choppy Team"
 author = "Choppy Team"
-release, version = get_version("Choppy")
+release, version = get_version("choppy")
 
 # General --------------------------------------------------------------
 

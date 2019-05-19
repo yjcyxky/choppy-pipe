@@ -1,4 +1,10 @@
-include README.md
-include requirements.txt
-recursive-include choppy * *.template *.wdl *.md samples defaults Dockerfile
-recursive-exclude choppy .DS_Store __pycache__/*
+include Makefile CHANGES.rst CONTRIBUTING.rst LICENSE AUTHORS config.py LICENSE.md
+
+graft tests
+graft docs
+graft scripts
+graft conda.recipe
+
+global-exclude *.py[co] .DS_Store
+
+prune docs/_build
