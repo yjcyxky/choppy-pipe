@@ -404,7 +404,7 @@ def call_cat_remote_file(args):
 
     remote_file = args.oss_link
     fuuid = uuid.uuid1()
-    dest_file = os.path.join(global_config.get_path('general', 'tmp_dir'), fuuid)
+    dest_file = os.path.join(global_config.get_path('general', 'tmp_dir'), str(fuuid))
     run_copy_files(remote_file, dest_file, recursive=False, silent=True)
 
     if os.path.isfile(dest_file):
