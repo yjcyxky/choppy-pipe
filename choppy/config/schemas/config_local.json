@@ -4,11 +4,16 @@
   "properties": {
     "port": {
       "type": ["integer", "string"],
-      "is_port": true
+      "is_port": true,
+      "default": 8080
     },
     "username": { "type": "string" },
     "password": { "type": "string" }
   },
-  "additionalProperties": false,
-  "required": ["port", "username", "password"]
+  "additionalProperties": true,
+  "required": [
+    "port",
+    "username",
+    "password"
+  ]
 }

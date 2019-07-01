@@ -11,7 +11,7 @@
     "sender_user": { "type": "string" },
     "sender_password": { "type": "string" }
   },
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": [
     "email_domain",
     "email_smtp_server",

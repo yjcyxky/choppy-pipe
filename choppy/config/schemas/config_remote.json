@@ -10,6 +10,11 @@
     "username": { "type": "string" },
     "password": { "type": "string" }
   },
-  "additionalProperties": false,
-  "required": ["server", "port", "username", "password"]
+  "additionalProperties": true,
+  "required": [
+    "port",
+    "server",
+    "username",
+    "password"
+  ]
 }

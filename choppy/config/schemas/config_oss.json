@@ -7,6 +7,11 @@
     "access_secret": { "type": "string" },
     "endpoint": { "type": "string" }
   },
-  "additionalProperties": false,
-  "required": ["oss_bin", "access_key", "access_secret", "endpoint"]
+  "additionalProperties": true,
+  "required": [
+    "oss_bin",
+    "access_key",
+    "access_secret",
+    "endpoint"
+  ]
 }

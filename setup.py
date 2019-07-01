@@ -65,6 +65,7 @@ setup(
     platforms="any",
     entry_points={
         "console_scripts": [
+            "choppy = choppy.choppy_pipe:main",
             "choppy-pipe = choppy.choppy_pipe:main",
             "choppy-api-server = choppy_api.api_server:main"
         ],

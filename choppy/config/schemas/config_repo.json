@@ -6,6 +6,10 @@
     "username": { "type": "string" },
     "password": { "type": "string" }
   },
-  "additionalProperties": false,
-  "required": ["base_url", "username", "password"]
+  "additionalProperties": true,
+  "required": [
+    "base_url",
+    "username",
+    "password"
+  ]
 }
