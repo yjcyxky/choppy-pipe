@@ -42,7 +42,7 @@ def is_user_workflow(host, user, workflow_id):
     :param workflow_id: workflow
     :return:  The workflow_id if it's the user owns the workflow. Otherwise None.
     """
-    section_name = 'remote_%s' % host if host != 'localhost' else 'localhost'
+    section_name = 'remote_%s' % host if host != 'localhost' else 'local'
     host, port, auth = global_config.get_conn_info(host, section_name)
     metadata = Cromwell(host=host, port=port,
                         auth=auth).query_metadata(workflow_id)
@@ -64,7 +64,7 @@ class Monitor:
     """
 
     def __init__(self, user, host, no_notify, verbose, interval, workflow_id=None):
-        section_name = 'remote_%s' % host if host != 'localhost' else 'localhost'
+        section_name = 'remote_%s' % host if host != 'localhost' else 'local'
         self.host, self.port, self.auth = global_config.get_conn_info(host, section_name)
         self.user = user
         self.interval = interval

@@ -56,6 +56,9 @@ def oss_copy_func(first_path, second_path, include=None, exclude=None,
 
     try:
         oss_bin = global_config.get('oss', 'oss_bin')
+        if not oss_bin:
+            oss_bin_name = 'ossutil64' if os.uname().sysname == 'Linux' else 'ossutilmac64'
+            oss_bin = os.path.join(global_config.resource_dir, 'lib', oss_bin_name)
         access_key = global_config.get('oss', 'access_key')
         access_secret = global_config.get('oss', 'access_secret')
         endpoint = global_config.get('oss', 'endpoint')

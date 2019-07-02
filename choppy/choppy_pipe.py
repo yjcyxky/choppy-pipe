@@ -63,7 +63,7 @@ def call_submit(args):
     # prep labels and add user
     labels_dict = kv_list_to_dict(args.label) if kv_list_to_dict(args.label) is not None else {}
     labels_dict['username'] = args.username.lower()
-    section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'localhost'
+    section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'local'
     host, port, auth = global_config.get_conn_info(args.server, section_name)
     cromwell = Cromwell(host, port, auth)
     result = cromwell.jstart_workflow(wdl_file=args.wdl, json_file=args.json,
@@ -105,7 +105,7 @@ def call_query(args):
     from choppy.core.cromwell import Cromwell
     from choppy.core.app_utils import kv_list_to_dict, parse_json
 
-    section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'localhost'
+    section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'local'
     host, port, auth = global_config.get_conn_info(args.server, section_name)
     cromwell = Cromwell(host, port, auth)
     responses = []
@@ -161,7 +161,7 @@ def call_abort(args):
     """
     from choppy.core.cromwell import Cromwell
 
-    section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'localhost'
+    section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'local'
     host, port, auth = global_config.get_conn_info(args.server, section_name)
     cromwell = Cromwell(host, port, auth)
     logger.info("Abort requested")
@@ -206,7 +206,7 @@ def call_restart(args):
     from choppy.core.cromwell import Cromwell
 
     logger.info("Restart requested")
-    section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'localhost'
+    section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'local'
     host, port, auth = global_config.get_conn_info(args.server, section_name)
     cromwell = Cromwell(host, port, auth)
     result = cromwell.restart_workflow(workflow_id=args.workflow_id,
@@ -236,7 +236,7 @@ def call_explain(args):
     from choppy.core.cromwell import Cromwell
 
     logger.info("Explain requested")
-    section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'localhost'
+    section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'local'
     host, port, auth = global_config.get_conn_info(args.server, section_name)
     cromwell = Cromwell(host, port, auth)
     (result, additional_res, stdout_res) = cromwell.explain_workflow(workflow_id=args.workflow_id,
@@ -336,7 +336,7 @@ def call_label(args):
     from choppy.core.cromwell import Cromwell
     from choppy.core.app_utils import kv_list_to_dict
 
-    section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'localhost'
+    section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'local'
     host, port, auth = global_config.get_conn_info(args.server, section_name)
     cromwell = Cromwell(host, port, auth)
     labels_dict = kv_list_to_dict(args.label)
@@ -361,7 +361,7 @@ def call_log(args):
                                  args.workflow_id, re.M | re.I)
 
     if matchedWorkflowId:
-        section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'localhost'
+        section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'local'
         host, port, auth = global_config.get_conn_info(args.server, section_name)
 
         cromwell = Cromwell(host, port, auth)
@@ -500,9 +500,10 @@ def call_installapp(args):
     # Try Parse Choppy App Name with Git Repo Format
     parsed_dict = parse_app_name(choppy_app)
     if parsed_dict:
+        namespace = parsed_dict.get('namespace')
         app_name = parsed_dict.get('app_name')
         version = parsed_dict.get('version')
-        app_name_lst.append('%s-%s' % (app_name, version))
+        app_name_lst.append('%s/%s-%s' % (namespace, app_name, version))
 
     app_root_dir = get_app_root_dir()
     for app_name in app_name_lst:
@@ -617,7 +618,7 @@ def call_search(args):
     if status:
         query_dict.update({"status": status})
 
-    section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'localhost'
+    section_name = 'remote_%s' % args.server if args.server != 'localhost' else 'local'
     host, port, auth = global_config.get_conn_info(args.server, section_name)
     cromwell = Cromwell(host, port, auth)
     res = cromwell.query(query_dict)
@@ -660,7 +661,7 @@ def call_samples(args):
             with open(output, 'w') as f:
                 f.write(','.join(variables))
         else:
-            print(variables)
+            print(','.join(variables))
             sys.stdout.flush()
 
 

@@ -416,7 +416,7 @@ def submit_workflow(wdl, inputs, dependencies, label, username=None,
     if username is None:
         username = global_config.getuser()
     labels_dict['username'] = username
-    section_name = 'remote_%s' % server if server != 'localhost' else 'localhost'
+    section_name = 'remote_%s' % server if server != 'localhost' else 'local'
     host, port, auth = global_config.get_conn_info(server, section_name)
     cromwell = Cromwell(host=host, port=port, auth=auth)
     result = cromwell.jstart_workflow(wdl_file=wdl, json_file=inputs,

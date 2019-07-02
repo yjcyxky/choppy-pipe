@@ -9,7 +9,6 @@
   },
   "additionalProperties": true,
   "required": [
-    "oss_bin",
     "access_key",
     "access_secret",
     "endpoint"
