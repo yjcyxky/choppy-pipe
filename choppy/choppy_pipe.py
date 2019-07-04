@@ -1283,7 +1283,7 @@ def main():
 
     user = global_config.getuser()
     # Get user's username so we can tag workflows and logs for them.
-    log_dir = global_config.get('general', 'log_dir')
+    log_dir = global_config.get_path('general', 'log_dir')
     if hasattr(args, 'project_name'):
         check_identifier(args.project_name)
         set_logger(args.project_name, loglevel=loglevel,

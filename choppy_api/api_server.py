@@ -149,7 +149,7 @@ def main():
 
     user = global_config.getuser()
     # Get user's username so we can tag workflows and logs for them.
-    log_dir = global_config.get('server', 'log_dir')
+    log_dir = global_config.get_path('server', 'log_dir')
     set_logger(user, loglevel=loglevel, handler=args.handler,
                subdir=None, log_dir=log_dir)
 
