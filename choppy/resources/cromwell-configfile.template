@@ -8,9 +8,9 @@
 # cromwell.vpc: vpc-uf60rc74xqoi4lf30eo25 192.168.0.0/16
 # cromwell.auto_release_job: false
 # cromwell.db_host: localhost
-# cromwell.db_name: cromwell
-# cromwell.db_user: pgx-cromwell
-# cromwell.db_passwd: PGx@fudan1203
+# cromwell.db_name: db_name
+# cromwell.db_user: db_user
+# cromwell.db_passwd: db_passwd
 # cromwell.workflow_log_dir: /var/log/cromwell-workflow-logs
 # cromwell.webservice_port: 8000
 # cromwell.webservice_ipaddr: 127.0.0.1

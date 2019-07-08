@@ -48,8 +48,8 @@ setup(
     long_description_content_type='text/markdown',
     author="Jingcheng Yang",
     author_email="yjcyxky@163.com",
-    maintainer="Choppy team",
-    maintainer_email="pgx@fudan.edu.cn",
+    maintainer="Choppy Team",
+    maintainer_email="choppyteam@gmail.com",
     url="http://choppy.3steps.cn",
     project_urls=OrderedDict(
         (
