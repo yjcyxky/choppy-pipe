@@ -114,7 +114,7 @@ def call_query(args):
     if args.label:
         logger.debug("Label query requested.")
         labeled = cromwell.query_labels(labels=kv_list_to_dict(args.label))
-        return labeled
+        responses.append(labeled)
     if args.status:
         logger.debug("Status requested.")
         status = cromwell.query_status(args.workflow_id)
@@ -286,6 +286,7 @@ def call_explain(args):
 
 def call_list(args):
     from choppy.core.monitor import Monitor
+    from choppy.core.app_utils import parse_json
 
     username = "*" if args.all else args.username.lower()
     m = Monitor(host=args.server, user=username, no_notify=True, verbose=True,
@@ -316,12 +317,9 @@ def call_list(args):
         result = q["results"]
         if args.filter:
             result = [res for res in result if res['status'] in args.filter]
-        result = map(lambda j: process_job(j), result)
-        printer = pprint.PrettyPrinter()
-        printer.format = my_safe_repr
-        printer.pprint(result)
+        result = list(map(lambda j: process_job(j), result))
+        print("\n%s\n" % json.dumps(parse_json(result), indent=2, sort_keys=True))
         args.monitor = True
-        logger.info(result)
         return result
     except KeyError as e:
         logger.critical('KeyError: Unable to find key {}'.format(e))
@@ -537,9 +535,13 @@ def call_list_files(args):
     recursive = args.recursive
     long_format = args.long_format
 
-    oss = global_config.get_section('oss')
+    oss_bin = global_config.get('oss', 'oss_bin')
+    if not oss_bin:
+        oss_bin_name = 'ossutil64' if os.uname().sysname == 'Linux' else 'ossutilmac64'
+        oss_bin = os.path.join(global_config.resource_dir, 'lib', oss_bin_name)
+
     try:
-        shell_cmd = [oss.oss_bin, "ls", oss_link, "-i", oss.access_key, "-k",
+        shell_cmd = [oss_bin, "ls", oss_link, "-i", oss.access_key, "-k",
                      oss.access_secret, "-e", oss.endpoint]
 
         if not long_format:
