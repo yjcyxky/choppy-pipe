@@ -540,9 +540,13 @@ def call_list_files(args):
         oss_bin_name = 'ossutil64' if os.uname().sysname == 'Linux' else 'ossutilmac64'
         oss_bin = os.path.join(global_config.resource_dir, 'lib', oss_bin_name)
 
+    access_key = global_config.get('oss', 'access_key')
+    access_secret = global_config.get('oss', 'access_secret')
+    endpoint = global_config.get('oss', 'endpoint')
+
     try:
-        shell_cmd = [oss_bin, "ls", oss_link, "-i", oss.access_key, "-k",
-                     oss.access_secret, "-e", oss.endpoint]
+        shell_cmd = [oss_bin, "ls", oss_link, "-i", access_key, "-k",
+                     access_secret, "-e", endpoint]
 
         if not long_format:
             if not recursive:

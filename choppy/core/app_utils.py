@@ -331,6 +331,10 @@ def parse_samples(file):
     dict_list = []
 
     for line in reader:
+        header = line.keys()
+        if None in header or "" in header:
+            print("CSV file is not qualified.")
+            sys.exit(2)
         dict_list.append(line)
 
     return dict_list
