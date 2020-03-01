@@ -661,7 +661,7 @@ def call_samples(args):
                check_variables(app_dir, 'workflow.wdl', header_list=header_lst, no_default=no_default):  # noqa
                 print("%s is valid." % checkfile)
     else:
-        variables = get_all_variables(app_dir)
+        variables = get_all_variables(app_dir, no_default)
 
         if output:
             with open(output, 'w') as f:
