@@ -638,7 +638,11 @@ def call_search(args):
 
             print("%s\t%s" % (result.get('id'), sample_id.upper()))
     else:
-        print(json.dumps(parse_json(res['results']), indent=2, sort_keys=True))
+        results = parse_json(res['results'])
+        if len(results) > 0:
+            print(json.dumps(results, indent=2, sort_keys=True))
+        else:
+            print("Not found.")
 
 
 def call_samples(args):

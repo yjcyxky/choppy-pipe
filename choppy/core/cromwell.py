@@ -435,7 +435,7 @@ class Cromwell:
         """
         base_url = self.url + '/query?'
         query_url = self.build_query_url(base_url, query_dict)
-        self.logger.info("QUERY REQUEST:{}".format(query_url))
+        self.logger.debug("QUERY REQUEST:{}".format(query_url))
         r = requests.get(query_url, auth=self.auth)
         return json.loads(r.text)
 
