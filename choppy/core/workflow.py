@@ -16,7 +16,7 @@ import logging
 from choppy.check_utils import check_dir, is_valid_label
 from choppy.core.app_utils import (parse_samples, render_app, write,
                                    generate_dependencies_zip, submit_workflow,
-                                   AppDefaultVar, is_valid_app)
+                                   AppDefaultVar, is_valid_app, get_version)
 from choppy.core.json_checker import check_json
 from choppy.utils import copy_and_overwrite
 
@@ -101,6 +101,15 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
 
     submitted_file_path = os.path.join(project_path, 'submitted.csv')
     failed_file_path = os.path.join(project_path, 'failed.csv')
+    version_path = os.path.join(project_path, 'version')
+    version_dict = get_version(app_dir)
+
+    version_keys = version_dict.keys()
+    with open(version_path, 'wt') as fversion:
+        dict_writer = csv.DictWriter(fversion, version_keys)
+        dict_writer.writeheader()
+        dict_writer.writerow(version_dict)
+
     if len(successed_samples) > 0:
         keys = successed_samples[0].keys()
         with open(submitted_file_path, 'wt') as fsuccess:

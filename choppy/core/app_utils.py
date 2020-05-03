@@ -22,7 +22,7 @@ import logging
 import verboselogs
 from choppy.config import get_global_config
 from markdown2 import Markdown
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, check_output
 from jinja2 import Environment, FileSystemLoader, meta
 from choppy.core.cromwell import Cromwell
 from choppy import exit_code
@@ -199,6 +199,23 @@ def generate_dependencies_zip(dependencies_path):
 
     os.chdir(previous_workdir)
     return zip_output
+
+
+def get_version(app_dir):
+    return {
+        "commit_id": get_app_commit_id(app_dir),
+        "version": get_app_tag(app_dir)
+    }
+
+
+def get_app_commit_id(app_dir):
+    output = check_output(['git', 'rev-parse', 'HEAD'], cwd=app_dir, universal_newlines=True).strip()
+    return output
+
+
+def get_app_tag(app_dir):
+    output = check_output(['git', 'tag'], cwd=app_dir, universal_newlines=True).strip()
+    return output
 
 
 def install_app_by_git(base_url, namespace, app_name, dest_dir='./',
