@@ -12,6 +12,7 @@
 from __future__ import unicode_literals
 import csv
 import os
+import json
 import logging
 from choppy.check_utils import check_dir, is_valid_label
 from choppy.core.app_utils import (parse_samples, render_app, write,
@@ -104,11 +105,8 @@ def run_batch(project_name, app_dir, samples, label, server='localhost',
     version_path = os.path.join(project_path, 'version')
     version_dict = get_version(app_dir)
 
-    version_keys = version_dict.keys()
     with open(version_path, 'wt') as fversion:
-        dict_writer = csv.DictWriter(fversion, version_keys)
-        dict_writer.writeheader()
-        dict_writer.writerow(version_dict)
+        json.dump(version_dict, fversion)
 
     if len(successed_samples) > 0:
         keys = successed_samples[0].keys()

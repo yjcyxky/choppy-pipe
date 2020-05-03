@@ -203,9 +203,15 @@ def generate_dependencies_zip(dependencies_path):
 
 def get_version(app_dir):
     return {
+        "app_name": get_remote_url(app_dir),
         "commit_id": get_app_commit_id(app_dir),
         "version": get_app_tag(app_dir)
     }
+
+
+def get_remote_url(app_dir):
+    output = check_output(['git', 'remote', 'get-url', 'origin'], cwd=app_dir, universal_newlines=True).strip()
+    return output
 
 
 def get_app_commit_id(app_dir):
