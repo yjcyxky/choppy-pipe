@@ -66,8 +66,7 @@ setup(
     entry_points={
         "console_scripts": [
             "choppy = choppy.choppy_pipe:main",
-            "choppy-pipe = choppy.choppy_pipe:main",
-            "choppy-api-server = choppy_api.api_server:main"
+            "choppy-pipe = choppy.choppy_pipe:main"
         ],
     },
     extras_require={
@@ -83,9 +82,7 @@ setup(
     },
     classifiers=[
         "Development Status :: 3 - Alpha",
-        "Framework :: Flask",
         "Environment :: Console",
-        "Environment :: Web Environment",
         "Intended Audience :: Healthcare Industry",
         "Intended Audience :: Science/Research",
         "Intended Audience :: Developers",
@@ -106,33 +103,16 @@ setup(
         "python-dateutil>=2.7.5",
         "ratelimit>=2.2.0",
         "requests>=2.21.0",
-        "SQLAlchemy>=1.2.15",
         "coloredlogs>=10.0",
         "argcomplete>=1.9.4",
         "markdown2>=2.3.7",
         "GitPython>=2.1.11",
-        "bjoern>=2.2.3",
-        "flask>=1.0.2",
-        "gevent>=1.4.0",
-        "flask-restplus>=0.12.1",
         "SQLAlchemy >= 1.3.1",
-        "Flask-SQLAlchemy >= 2.4.0",
         "docker",
         "verboselogs>=1.7",
-        "beautifulsoup4",
         "psutil>=5.5.1",
-        "PyYAML",
-        "pymdown-extensions",
         "jsonschema",
         "pytest>=4.4.1",
-        "pytest-html",
-        "Alembic==0.8.10",
-        "werkzeug>=0.14.1,< 0.15",
-        "marshmallow>=2.13.5",
-        "flask-marshmallow==0.7.0",
-        "marshmallow-sqlalchemy==0.12.0",
-        "webargs>=1.4.0",
-        "apispec>=0.20.0,< 0.39",
-        "flask-caching>=1.7.1"
+        "pytest-html"
     ]
 )

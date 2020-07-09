@@ -1,5 +1,5 @@
 # {% set data = load_setup_py_data() %}
-{% set version = '0.3.8' %}
+{% set version = '0.3.9.dev0' %}
 {% set url = 'http://choppy.3steps.cn' %}
 {% set description = 'A command-line tool for executing WDL workflows on Cromwell servers.' %}
 
@@ -16,7 +16,6 @@ build:
   include_recipe: True
   entry_points:
     - choppy-pipe = choppy.choppy_pipe:main
-    - choppy-api-server = choppy_api.api_server:main
 
 
 requirements:

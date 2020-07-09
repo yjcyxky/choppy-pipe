@@ -21,7 +21,6 @@ extensions = [
 ]
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
-    'werkzeug': ('http://werkzeug.pocoo.org/docs/', None),
     'click': ('http://click.pocoo.org/', None),
     'jinja': ('http://jinja.pocoo.org/docs/', None),
     'itsdangerous': ('https://pythonhosted.org/itsdangerous', None),

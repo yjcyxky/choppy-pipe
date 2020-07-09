@@ -1185,7 +1185,7 @@ def parse_args():
                             description='Query cromwell for information on the submitted workflow.',
                             usage='choppy search [<args>]',
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    search.add_argument('-s', '--status', action='store', default="Running", choices=global_config.status_list,
+    search.add_argument('-s', '--status', action='store', default=None, choices=global_config.status_list,
                         help='Print status for workflow to stdout')
     search.add_argument('-p', '--project-name', action="store", required=True, help="Project name",
                         type=is_valid_project_name)
