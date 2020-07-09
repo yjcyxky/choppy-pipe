@@ -354,9 +354,9 @@ def parse_samples(file):
 
     try:
         content = json.load(open(file, 'rt'))
-        if type(content) == 'dict':
+        if type(content) == dict:
             dict_list = [content, ]
-        else if type(content) == 'list':
+        elif type(content) == list:
             dict_list = content
     except Exception as err:
         reader = csv.DictReader(open(file, 'rt'))
