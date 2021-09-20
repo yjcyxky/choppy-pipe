@@ -227,7 +227,7 @@ class ChoppyConfig:
         if server == 'localhost':
             return 'localhost', section.port, (section.username, section.password)
         else:
-            return section.host, section.port, (section.username, section.password)
+            return section.server, section.port, (section.username, section.password)
 
     @property
     def sections(self):
