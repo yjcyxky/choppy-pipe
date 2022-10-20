@@ -426,7 +426,7 @@ def listapps():
             abs_dir = os.path.join(app_root_dir, dir)
             if is_valid_app(abs_dir, ignore_error=True):
                 apps.append(dir)
-            else:
+            elif os.path.isdir(abs_dir):
                 for subdir in os.listdir(abs_dir):
                     abs_dir_subdir = os.path.join(abs_dir, subdir)
                     if is_valid_app(abs_dir_subdir, ignore_error=True):
