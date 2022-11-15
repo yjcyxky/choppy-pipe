@@ -202,8 +202,14 @@ def generate_dependencies_zip(dependencies_path):
 
 
 def get_version(app_dir):
+    try:
+        app_name = get_remote_url(app_dir)
+    except Exception:
+        logger.warn("Git's version is too low, please upgrade it.")
+        app_name = ""
+
     return {
-        "app_name": get_remote_url(app_dir),
+        "app_name": app_name,
         "commit_id": get_app_commit_id(app_dir),
         "version": get_app_tag(app_dir)
     }

@@ -13,5 +13,5 @@ from __future__ import unicode_literals
 
 
 def get_version():
-    __version__ = "0.3.9.dev0"
+    __version__ = "0.3.9.dev1"
     return __version__
